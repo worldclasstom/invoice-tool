@@ -23,30 +23,30 @@ export async function POST(request: Request) {
     const invoiceNumber = `INV-${Date.now()}`;
 
     // Create invoice in database
-    const invoice = await prisma.invoice.create({
-      data: {
-        invoiceNumber,
-        customerName,
-        customerEmail,
-        customerPhone,
-        dueDate: new Date(dueDate),
-        notes,
-        subtotal,
-        tax,
-        total,
-        items: {
-          create: items.map((item: any) => ({
-            description: item.description,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            amount: item.amount,
-          })),
-        },
-      },
-      include: {
-        items: true,
-      },
-    });
+    // const invoice = await prisma.invoice.create({
+    //   data: {
+    //     invoiceNumber,
+    //     customerName,
+    //     customerEmail,
+    //     customerPhone,
+    //     dueDate: new Date(dueDate),
+    //     notes,
+    //     subtotal,
+    //     tax,
+    //     total,
+    //     items: {
+    //       create: items.map((item: any) => ({
+    //         description: item.description,
+    //         quantity: item.quantity,
+    //         unitPrice: item.unitPrice,
+    //         amount: item.amount,
+    //       })),
+    //     },
+    //   },
+    //   include: {
+    //     items: true,
+    //   },
+    // });
 
     // Generate PDF
     const pdfDoc = await PDFDocument.create();
@@ -164,7 +164,7 @@ export async function POST(request: Request) {
 
     // Return both the invoice data and PDF
     return NextResponse.json({
-      invoice,
+      // invoice,
       pdf: Buffer.from(pdfBytes).toString('base64'),
     });
   } catch (error) {
