@@ -179,17 +179,16 @@ const config = {
     "db"
   ],
   "activeProvider": "postgresql",
-  "postinstall": false,
   "inlineDatasources": {
     "db": {
       "url": {
         "fromEnvVar": "DATABASE_URL",
-        "value": null
+        "value": "postgresql://postgres:mirinranda2025@db.mmzpnegmirbckdfjscdb.supabase.co:5432/postgres?sslmode=require"
       }
     }
   },
-  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider = \"prisma-client-js\"\n  output   = \"../src/generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel Invoice {\n  id            String     @id @default(cuid())\n  invoiceNumber String     @unique\n  date          DateTime   @default(now())\n  dueDate       DateTime\n  customerName  String\n  customerEmail String?\n  customerPhone String?\n  subtotal      Float\n  tax           Float\n  total         Float\n  notes         String?\n  status        String     @default(\"draft\") // draft, sent, paid\n  items         LineItem[]\n  createdAt     DateTime   @default(now())\n  updatedAt     DateTime   @updatedAt\n}\n\nmodel LineItem {\n  id          String   @id @default(cuid())\n  description String\n  quantity    Float\n  unitPrice   Float\n  amount      Float\n  invoice     Invoice  @relation(fields: [invoiceId], references: [id])\n  invoiceId   String\n  createdAt   DateTime @default(now())\n  updatedAt   DateTime @updatedAt\n}\n",
-  "inlineSchemaHash": "0a34df5bf10e64f9e171dbd134367554b9242ced438a7d4fd17edaa0b6bac613",
+  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider = \"prisma-client-js\"\n  output   = \"../src/generated/prisma\"\n}\n\ndatasource db {\n  provider     = \"postgresql\"\n  url          = env(\"DATABASE_URL\")\n  // Use \"transaction\" mode to disable prepared statements (needed for PgBouncer)\n  // Supported in Prisma v4.10.0+\n  relationMode = \"prisma\"\n}\n\nmodel Invoice {\n  id            String     @id @default(cuid())\n  invoiceNumber String     @unique\n  date          DateTime   @default(now())\n  dueDate       DateTime\n  customerName  String\n  customerEmail String?\n  customerPhone String?\n  subtotal      Float\n  tax           Float\n  total         Float\n  notes         String?\n  status        String     @default(\"draft\") // draft, sent, paid\n  items         LineItem[]\n  createdAt     DateTime   @default(now())\n  updatedAt     DateTime   @updatedAt\n}\n\nmodel LineItem {\n  id          String   @id @default(cuid())\n  description String\n  quantity    Float\n  unitPrice   Float\n  amount      Float\n  invoice     Invoice  @relation(fields: [invoiceId], references: [id])\n  invoiceId   String\n  createdAt   DateTime @default(now())\n  updatedAt   DateTime @updatedAt\n}\n",
+  "inlineSchemaHash": "337c0c665c2c47d262216cedf413e12a9c86cc34efb6470774cc643f0b60facb",
   "copyEngine": true
 }
 config.dirname = '/'
