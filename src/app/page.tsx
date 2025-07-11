@@ -177,8 +177,8 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Table Header Row */}
-            <div className="grid grid-cols-12 gap-4 items-center font-semibold text-gray-700 border-b pb-2">
+            {/* Table Header Row for desktop */}
+            <div className="grid grid-cols-12 gap-4 items-center font-semibold text-gray-700 border-b pb-2 hidden md:grid">
               <div className="col-span-5">Description</div>
               <div className="col-span-2">Quantity</div>
               <div className="col-span-2">Unit Price</div>
@@ -186,15 +186,16 @@ export default function Home() {
               <div className="col-span-1"></div>
             </div>
 
+            {/* Desktop rows */}
             {items.map((item, index) => (
-              <div key={index} className="grid grid-cols-12 gap-4 items-center">
+              <div key={index} className="grid grid-cols-12 gap-4 items-center hidden md:grid">
                 <div className="col-span-5">
                   <input
                     type="text"
                     value={item.description}
                     onChange={(e) => updateLineItem(index, 'description', e.target.value)}
                     placeholder="Description"
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-madre focus:ring-madre"
                     required
                   />
                 </div>
@@ -205,7 +206,7 @@ export default function Home() {
                     onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
                     min="0"
                     step="1"
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-madre focus:ring-madre"
                     required
                   />
                 </div>
@@ -216,7 +217,7 @@ export default function Home() {
                     onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
                     min="0"
                     step="0.01"
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-madre focus:ring-madre"
                     required
                   />
                 </div>
@@ -229,6 +230,57 @@ export default function Home() {
                   />
                 </div>
                 <div className="col-span-1">
+                  <button
+                    type="button"
+                    onClick={() => removeLineItem(index)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* Mobile rows */}
+            {items.map((item, index) => (
+              <div key={index} className="flex flex-col gap-2 border-b py-2 md:hidden">
+                <label className="text-sm font-medium text-gray-700">Description</label>
+                <input
+                  type="text"
+                  value={item.description}
+                  onChange={(e) => updateLineItem(index, 'description', e.target.value)}
+                  placeholder="Description"
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-madre focus:ring-madre"
+                  required
+                />
+                <label className="text-sm font-medium text-gray-700">Quantity</label>
+                <input
+                  type="number"
+                  value={item.quantity}
+                  onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                  min="0"
+                  step="1"
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-madre focus:ring-madre"
+                  required
+                />
+                <label className="text-sm font-medium text-gray-700">Unit Price</label>
+                <input
+                  type="number"
+                  value={item.unitPrice}
+                  onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                  min="0"
+                  step="0.01"
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-madre focus:ring-madre"
+                  required
+                />
+                <label className="text-sm font-medium text-gray-700">Amount</label>
+                <input
+                  type="text"
+                  value={`฿${(Number(item.quantity) * Number(item.unitPrice)).toFixed(2)}`}
+                  readOnly
+                  className="block w-full rounded-md border-gray-300 bg-gray-50"
+                />
+                <div className="flex justify-end">
                   <button
                     type="button"
                     onClick={() => removeLineItem(index)}
