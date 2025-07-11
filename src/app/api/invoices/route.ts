@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '../../../generated/prisma';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import fs from 'fs';
+import path from 'path';
+import fontkit from '@pdf-lib/fontkit';
 
 const prisma = new PrismaClient();
 
@@ -11,7 +14,7 @@ export async function POST(request: Request) {
       customerName,
       customerEmail,
       customerPhone,
-      dueDate,
+      date,
       notes,
       items,
       subtotal,
@@ -48,40 +51,37 @@ export async function POST(request: Request) {
     //   },
     // });
 
+    // Load Noto Sans Thai font
+    const fontPath = path.join(process.cwd(), 'public/fonts/NotoSansThai-Regular.ttf');
+    const fontBytes = fs.readFileSync(fontPath);
+
     // Generate PDF
     const pdfDoc = await PDFDocument.create();
+    pdfDoc.registerFontkit(fontkit);
     const page = pdfDoc.addPage([612, 792]); // US Letter size
     const { width, height } = page.getSize();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const thaiFont = await pdfDoc.embedFont(fontBytes);
 
     // Add content to PDF
-    page.drawText('Madre Restaurant', {
+    page.drawText('Madre Cafe & Restaurant', {
       x: 50,
       y: height - 50,
       size: 24,
-      font: boldFont,
+      font: thaiFont,
     });
 
     page.drawText(`Invoice #: ${invoiceNumber}`, {
       x: 50,
       y: height - 80,
       size: 12,
-      font,
+      font: thaiFont,
     });
 
-    page.drawText(`Date: ${new Date().toLocaleDateString()}`, {
+    page.drawText(`Date: ${new Date(date).toLocaleDateString('en-GB')}`, {
       x: 50,
       y: height - 100,
       size: 12,
-      font,
-    });
-
-    page.drawText(`Due Date: ${new Date(dueDate).toLocaleDateString()}`, {
-      x: 50,
-      y: height - 120,
-      size: 12,
-      font,
+      font: thaiFont,
     });
 
     // Customer information
@@ -89,14 +89,14 @@ export async function POST(request: Request) {
       x: 50,
       y: height - 160,
       size: 12,
-      font: boldFont,
+      font: thaiFont,
     });
 
     page.drawText(customerName, {
       x: 50,
       y: height - 180,
       size: 12,
-      font,
+      font: thaiFont,
     });
 
     if (customerEmail) {
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
         x: 50,
         y: height - 200,
         size: 12,
-        font,
+        font: thaiFont,
       });
     }
 
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
         x: 50,
         y: height - 220,
         size: 12,
-        font,
+        font: thaiFont,
       });
     }
 
@@ -123,41 +123,41 @@ export async function POST(request: Request) {
     const columns = [50, 250, 350, 450, 550];
 
     // Table headers
-    page.drawText('Description', { x: columns[0], y, size: 12, font: boldFont });
-    page.drawText('Qty', { x: columns[1], y, size: 12, font: boldFont });
-    page.drawText('Price', { x: columns[2], y, size: 12, font: boldFont });
-    page.drawText('Amount', { x: columns[3], y, size: 12, font: boldFont });
+    page.drawText('Description', { x: columns[0], y, size: 12, font: thaiFont });
+    page.drawText('Qty', { x: columns[1], y, size: 12, font: thaiFont });
+    page.drawText('Price', { x: columns[2], y, size: 12, font: thaiFont });
+    page.drawText('Amount', { x: columns[3], y, size: 12, font: thaiFont });
 
     y -= lineHeight;
 
     // Table rows
     items.forEach((item: any) => {
-      page.drawText(item.description, { x: columns[0], y, size: 12, font });
-      page.drawText(item.quantity.toString(), { x: columns[1], y, size: 12, font });
-      page.drawText(`$${item.unitPrice.toFixed(2)}`, { x: columns[2], y, size: 12, font });
-      page.drawText(`$${item.amount.toFixed(2)}`, { x: columns[3], y, size: 12, font });
+      page.drawText(item.description, { x: columns[0], y, size: 12, font: thaiFont });
+      page.drawText(item.quantity.toString(), { x: columns[1], y, size: 12, font: thaiFont });
+      page.drawText(`$${item.unitPrice.toFixed(2)}`, { x: columns[2], y, size: 12, font: thaiFont });
+      page.drawText(`$${item.amount.toFixed(2)}`, { x: columns[3], y, size: 12, font: thaiFont });
       y -= lineHeight;
     });
 
     // Totals
     y -= lineHeight;
-    page.drawText('Subtotal:', { x: columns[2], y, size: 12, font: boldFont });
-    page.drawText(`$${subtotal.toFixed(2)}`, { x: columns[3], y, size: 12, font });
+    page.drawText('Subtotal:', { x: columns[2], y, size: 12, font: thaiFont });
+    page.drawText(`$${subtotal.toFixed(2)}`, { x: columns[3], y, size: 12, font: thaiFont });
 
     y -= lineHeight;
-    page.drawText('Tax (8.25%):', { x: columns[2], y, size: 12, font: boldFont });
-    page.drawText(`$${tax.toFixed(2)}`, { x: columns[3], y, size: 12, font });
+    page.drawText('Tax (7%):', { x: columns[2], y, size: 12, font: thaiFont });
+    page.drawText(`$${tax.toFixed(2)}`, { x: columns[3], y, size: 12, font: thaiFont });
 
     y -= lineHeight;
-    page.drawText('Total:', { x: columns[2], y, size: 12, font: boldFont });
-    page.drawText(`$${total.toFixed(2)}`, { x: columns[3], y, size: 12, font });
+    page.drawText('Total:', { x: columns[2], y, size: 12, font: thaiFont });
+    page.drawText(`$${total.toFixed(2)}`, { x: columns[3], y, size: 12, font: thaiFont });
 
     // Notes
     if (notes) {
       y -= lineHeight * 2;
-      page.drawText('Notes:', { x: 50, y, size: 12, font: boldFont });
+      page.drawText('Notes:', { x: 50, y, size: 12, font: thaiFont });
       y -= lineHeight;
-      page.drawText(notes, { x: 50, y, size: 12, font });
+      page.drawText(notes, { x: 50, y, size: 12, font: thaiFont });
     }
 
     const pdfBytes = await pdfDoc.save();

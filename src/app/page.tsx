@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import Image from 'next/image';
 
 interface LineItem {
   description: string;
@@ -14,11 +15,12 @@ export default function Home() {
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<LineItem[]>([
     { description: '', quantity: 1, unitPrice: 0, amount: 0 },
   ]);
+  const today = new Date().toISOString().split('T')[0];
+  const [date, setDate] = useState(today);
 
   const addLineItem = () => {
     setItems([...items, { description: '', quantity: 1, unitPrice: 0, amount: 0 }]);
@@ -41,15 +43,18 @@ export default function Home() {
   };
 
   const calculateSubtotal = () => {
-    return items.reduce((sum, item) => sum + item.amount, 0);
+    return items.reduce(
+      (sum, item) => sum + parseFloat((Number(item.quantity) * Number(item.unitPrice)).toFixed(2)),
+      0
+    );
   };
 
   const calculateTax = () => {
-    return calculateSubtotal() * 0.0825; // 8.25% tax rate
+    return parseFloat((calculateSubtotal() * 0.07).toFixed(2));
   };
 
   const calculateTotal = () => {
-    return calculateSubtotal() + calculateTax();
+    return parseFloat((calculateSubtotal() + calculateTax()).toFixed(2));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,7 +70,7 @@ export default function Home() {
           customerName,
           customerEmail,
           customerPhone,
-          dueDate,
+          date,
           notes,
           items,
           subtotal: calculateSubtotal(),
@@ -96,7 +101,7 @@ export default function Home() {
       setCustomerName('');
       setCustomerEmail('');
       setCustomerPhone('');
-      setDueDate('');
+      setDate(today);
       setNotes('');
       setItems([{ description: '', quantity: 1, unitPrice: 0, amount: 0 }]);
     } catch (error) {
@@ -108,7 +113,16 @@ export default function Home() {
   return (
     <main className="min-h-screen p-8 bg-gray-50">
       <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Madre Restaurant Invoice</h1>
+        {/* <h1 className="text-3xl font-bold text-gray-900 mb-4">Madre Restaurant Invoice</h1> */}
+        <div className="mb-8">
+          <Image
+            src="/assets/logos/AW_LOGO_MADRE-01.png"
+            alt="Madre Cafe and Restaurant Logo"
+            width={144}
+            height={198}
+            priority
+          />
+        </div>
         
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Customer Information */}
@@ -142,11 +156,11 @@ export default function Home() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Due Date</label>
+              <label className="block text-sm font-medium text-gray-700">Date</label>
               <input
                 type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                 required
               />
@@ -160,11 +174,20 @@ export default function Home() {
               <button
                 type="button"
                 onClick={addLineItem}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-madre hover:bg-madre-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-madre"
               >
                 <PlusIcon className="h-4 w-4 mr-1" />
                 Add Item
               </button>
+            </div>
+
+            {/* Table Header Row */}
+            <div className="grid grid-cols-12 gap-4 items-center font-semibold text-gray-700 border-b pb-2">
+              <div className="col-span-5">Description</div>
+              <div className="col-span-2">Quantity</div>
+              <div className="col-span-2">Unit Price</div>
+              <div className="col-span-2">Amount</div>
+              <div className="col-span-1"></div>
             </div>
 
             {items.map((item, index) => (
@@ -183,8 +206,8 @@ export default function Home() {
                   <input
                     type="number"
                     value={item.quantity}
-                    onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value))}
-                    min="1"
+                    onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                    min="0"
                     step="1"
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     required
@@ -194,7 +217,7 @@ export default function Home() {
                   <input
                     type="number"
                     value={item.unitPrice}
-                    onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value))}
+                    onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
                     min="0"
                     step="0.01"
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -203,8 +226,8 @@ export default function Home() {
                 </div>
                 <div className="col-span-2">
                   <input
-                    type="number"
-                    value={item.amount}
+                    type="text"
+                    value={`฿${(Number(item.quantity) * Number(item.unitPrice)).toFixed(2)}`}
                     readOnly
                     className="block w-full rounded-md border-gray-300 bg-gray-50"
                   />
@@ -228,15 +251,15 @@ export default function Home() {
               <div className="w-64 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Subtotal:</span>
-                  <span>${calculateSubtotal().toFixed(2)}</span>
+                  <span>฿{calculateSubtotal().toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Tax (8.25%):</span>
-                  <span>${calculateTax().toFixed(2)}</span>
+                  <span className="text-gray-600">Tax (7%):</span>
+                  <span>฿{calculateTax().toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold">
                   <span>Total:</span>
-                  <span>${calculateTotal().toFixed(2)}</span>
+                  <span>฿{calculateTotal().toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -257,7 +280,7 @@ export default function Home() {
           <div className="flex justify-end">
             <button
               type="submit"
-              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-madre hover:bg-madre-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-madre"
             >
               Generate Invoice
             </button>
