@@ -22,6 +22,9 @@ export default function Home() {
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
 
+  // For displaying the date in Thai format
+  const displayThaiDate = (date: string) => new Date(date).toLocaleDateString('th-TH', { dateStyle: 'long' });
+
   const addLineItem = () => {
     setItems([...items, { description: '', quantity: 1, unitPrice: 0, amount: 0 }]);
   };
@@ -54,7 +57,7 @@ export default function Home() {
   };
 
   const calculateTotal = () => {
-    return parseFloat((calculateSubtotal() + calculateTax()).toFixed(2));
+    return calculateSubtotal();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -97,13 +100,6 @@ export default function Home() {
       // Open the PDF in a new window
       window.open(pdfUrl, '_blank');
       
-      // Reset the form
-      setCustomerName('');
-      setCustomerEmail('');
-      setCustomerPhone('');
-      setDate(today);
-      setNotes('');
-      setItems([{ description: '', quantity: 1, unitPrice: 0, amount: 0 }]);
     } catch (error) {
       console.error('Error:', error);
       alert('Failed to create invoice. Please try again.');
@@ -253,14 +249,11 @@ export default function Home() {
                   <span className="text-gray-600">Subtotal:</span>
                   <span>฿{calculateSubtotal().toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Tax (7%):</span>
-                  <span>฿{calculateTax().toFixed(2)}</span>
-                </div>
                 <div className="flex justify-between font-bold">
                   <span>Total:</span>
                   <span>฿{calculateTotal().toFixed(2)}</span>
                 </div>
+                <div className="mt-2 text-sm text-gray-500">No VAT</div>
               </div>
             </div>
           </div>

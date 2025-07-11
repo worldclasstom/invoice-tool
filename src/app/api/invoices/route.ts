@@ -62,6 +62,14 @@ export async function POST(request: Request) {
     const { width, height } = page.getSize();
     const thaiFont = await pdfDoc.embedFont(fontBytes);
 
+    // Add tax invoice/receipt label above the restaurant name
+    page.drawText('ใบกำกับภาษีอย่างย่อ/ ใบเสร็จรับเงิน', {
+      x: 50,
+      y: height - 30,
+      size: 16,
+      font: thaiFont,
+    });
+
     // Add content to PDF
     page.drawText('Madre Cafe & Restaurant', {
       x: 50,
@@ -70,16 +78,28 @@ export async function POST(request: Request) {
       font: thaiFont,
     });
 
-    page.drawText(`Invoice #: ${invoiceNumber}`, {
+    // Add address under the restaurant name with better spacing and smaller font
+    page.drawText('4001 ตำบลพญาขัน อำเภอเมืองพัทลุง จังหวัดพัทลุง 93000 ประเทศไทย', {
       x: 50,
-      y: height - 80,
+      y: height - 70, // more space below restaurant name
+      size: 11,
+      font: thaiFont,
+    });
+
+    // Add extra space before invoice number
+    let currentY = height - 90;
+    page.drawText(`เลขที่: ${invoiceNumber}`, {
+      x: 50,
+      y: currentY,
       size: 12,
       font: thaiFont,
     });
 
-    page.drawText(`Date: ${new Date(date).toLocaleDateString('en-GB')}`, {
+    // Format date in Thai locale with Buddhist Era and Thai numerals
+    const thaiDate = new Date(date).toLocaleDateString('th-TH', { dateStyle: 'long' });
+    page.drawText(`วันที่: ${thaiDate}`, {
       x: 50,
-      y: height - 100,
+      y: currentY - 20,
       size: 12,
       font: thaiFont,
     });
@@ -134,23 +154,22 @@ export async function POST(request: Request) {
     items.forEach((item: any) => {
       page.drawText(item.description, { x: columns[0], y, size: 12, font: thaiFont });
       page.drawText(item.quantity.toString(), { x: columns[1], y, size: 12, font: thaiFont });
-      page.drawText(`$${item.unitPrice.toFixed(2)}`, { x: columns[2], y, size: 12, font: thaiFont });
-      page.drawText(`$${item.amount.toFixed(2)}`, { x: columns[3], y, size: 12, font: thaiFont });
+      page.drawText(`฿${item.unitPrice.toFixed(2)}`, { x: columns[2], y, size: 12, font: thaiFont });
+      page.drawText(`฿${item.amount.toFixed(2)}`, { x: columns[3], y, size: 12, font: thaiFont });
       y -= lineHeight;
     });
 
     // Totals
     y -= lineHeight;
     page.drawText('Subtotal:', { x: columns[2], y, size: 12, font: thaiFont });
-    page.drawText(`$${subtotal.toFixed(2)}`, { x: columns[3], y, size: 12, font: thaiFont });
-
-    y -= lineHeight;
-    page.drawText('Tax (7%):', { x: columns[2], y, size: 12, font: thaiFont });
-    page.drawText(`$${tax.toFixed(2)}`, { x: columns[3], y, size: 12, font: thaiFont });
+    page.drawText(`฿${subtotal.toFixed(2)}`, { x: columns[3], y, size: 12, font: thaiFont });
 
     y -= lineHeight;
     page.drawText('Total:', { x: columns[2], y, size: 12, font: thaiFont });
-    page.drawText(`$${total.toFixed(2)}`, { x: columns[3], y, size: 12, font: thaiFont });
+    page.drawText(`฿${total.toFixed(2)}`, { x: columns[3], y, size: 12, font: thaiFont });
+
+    y -= lineHeight;
+    page.drawText('No VAT', { x: columns[2], y, size: 12, font: thaiFont });
 
     // Notes
     if (notes) {
@@ -161,7 +180,7 @@ export async function POST(request: Request) {
     }
 
     // Add thank you message at the bottom
-    const thankYouText = 'Thank you for your business!';
+    const thankYouText = 'ขอบพระคุณครับ/ค่ะ ที่มาอุดหนุน!';
     const thankYouFontSize = 14;
     const thankYouWidth = thaiFont.widthOfTextAtSize(thankYouText, thankYouFontSize);
     const thankYouX = (width - thankYouWidth) / 2;
