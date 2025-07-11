@@ -160,6 +160,19 @@ export async function POST(request: Request) {
       page.drawText(notes, { x: 50, y, size: 12, font: thaiFont });
     }
 
+    // Add thank you message at the bottom
+    const thankYouText = 'Thank you for your business!';
+    const thankYouFontSize = 14;
+    const thankYouWidth = thaiFont.widthOfTextAtSize(thankYouText, thankYouFontSize);
+    const thankYouX = (width - thankYouWidth) / 2;
+    const thankYouY = 40;
+    page.drawText(thankYouText, {
+      x: thankYouX,
+      y: thankYouY,
+      size: thankYouFontSize,
+      font: thaiFont,
+    });
+
     const pdfBytes = await pdfDoc.save();
 
     // Return both the invoice data and PDF
