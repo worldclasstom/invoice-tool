@@ -33,20 +33,32 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-primary/5 p-6">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center gap-8">
-          <Image
-            src="/assets/logos/AW_LOGO_MADRE-01.png"
-            alt="Madre Cafe and Restaurant Logo"
-            width={120}
-            height={165}
-            priority
-          />
-          <div className="w-full rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h1 className="mb-1 text-xl font-semibold text-foreground">Madre Tools</h1>
+    <main className="flex min-h-svh flex-col items-center justify-center bg-primary p-6">
+      {/* Decorative elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-tropical/20" />
+        <div className="absolute -right-10 top-1/4 h-48 w-48 rounded-full bg-gold/15" />
+        <div className="absolute -bottom-16 left-1/4 h-56 w-56 rounded-full bg-accent/15" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-sm">
+        <div className="flex flex-col items-center gap-6">
+          <div className="flex flex-col items-center gap-2">
+            <Image
+              src="/assets/logos/AW_LOGO_MADRE-01.png"
+              alt="Madre Cafe and Restaurant Logo"
+              width={100}
+              height={137}
+              priority
+              className="drop-shadow-lg"
+            />
+            <p className="text-sm font-medium text-primary-foreground/70">Restaurant Management Suite</p>
+          </div>
+
+          <div className="w-full rounded-2xl bg-card p-6 shadow-xl shadow-foreground/10">
+            <h1 className="mb-1 text-xl font-bold text-foreground">Welcome back</h1>
             <p className="mb-6 text-sm text-muted-foreground">
-              Sign in to your account
+              Sign in to Madre Tools
             </p>
             <form onSubmit={handleLogin} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
@@ -60,7 +72,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="rounded-xl border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -73,18 +85,18 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="rounded-xl border border-input bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
                 />
               </div>
               {error && (
-                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   {error}
                 </p>
               )}
               <button
                 type="submit"
                 disabled={isLoading}
-                className="mt-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                className="mt-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-all hover:brightness-110 disabled:opacity-50"
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </button>

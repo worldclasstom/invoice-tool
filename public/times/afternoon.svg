@@ -1,14 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <!-- Warm sky -->
-  <rect x="4" y="40" width="56" height="20" rx="4" fill="#FED7AA"/>
-  <!-- Afternoon sun lower -->
-  <circle cx="46" cy="28" r="10" fill="#FB923C"/>
-  <circle cx="46" cy="28" r="8" fill="#FDBA74"/>
-  <!-- Palm tree -->
-  <rect x="16" y="32" width="3" height="24" rx="1" fill="#92400E"/>
-  <ellipse cx="10" cy="30" rx="8" ry="3" fill="#3A5A40" transform="rotate(-20 10 30)"/>
-  <ellipse cx="24" cy="30" rx="8" ry="3" fill="#588157" transform="rotate(20 24 30)"/>
-  <ellipse cx="17" cy="28" rx="7" ry="3" fill="#3A5A40" transform="rotate(-5 17 28)"/>
+  <!-- Warm orange sky -->
+  <rect x="0" y="38" width="64" height="26" rx="6" fill="#FED7AA"/>
+  <!-- Afternoon sun -->
+  <circle cx="48" cy="24" r="12" fill="#FB923C"/>
+  <circle cx="48" cy="24" r="10" fill="#FDBA74"/>
+  <!-- Palm tree trunk -->
+  <rect x="14" y="28" width="4" height="30" rx="2" fill="#92400E"/>
+  <!-- Palm leaves -->
+  <ellipse cx="6" cy="26" rx="10" ry="3.5" fill="#22C55E" transform="rotate(-25 6 26)"/>
+  <ellipse cx="26" cy="26" rx="10" ry="3.5" fill="#16A34A" transform="rotate(25 26 26)"/>
+  <ellipse cx="16" cy="22" rx="9" ry="3" fill="#22C55E" transform="rotate(-5 16 22)"/>
+  <ellipse cx="10" cy="30" rx="7" ry="2.5" fill="#16A34A" transform="rotate(-35 10 30)"/>
+  <!-- Coconut -->
+  <circle cx="16" cy="28" r="2.5" fill="#92400E"/>
+  <circle cx="18" cy="27" r="2" fill="#A16207"/>
   <!-- Small cloud -->
-  <ellipse cx="36" cy="16" rx="8" ry="4" fill="#FFF7ED" opacity="0.7"/>
+  <ellipse cx="38" cy="12" rx="8" ry="4" fill="#FFF7ED" opacity="0.6"/>
+  <!-- Beach wave -->
+  <path d="M0 58 Q16 54 32 58 Q48 62 64 58" stroke="#38BDF8" stroke-width="2" fill="none" opacity="0.4"/>
 </svg>

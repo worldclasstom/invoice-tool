@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { formatBaht, formatThaiDate } from '@/lib/utils'
 import { Upload, Camera, Trash2, Plus, FileText, Image as ImageIcon } from 'lucide-react'
 import useSWR, { mutate } from 'swr'
@@ -35,7 +35,6 @@ export default function ReceiptsPage() {
   const [showForm, setShowForm] = useState(false)
   const [isManual, setIsManual] = useState(false)
 
-  // Form state
   const [receiptDate, setReceiptDate] = useState(
     new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
   )
@@ -102,15 +101,15 @@ export default function ReceiptsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Receipts & Expenses</h1>
-          <p className="text-sm text-muted-foreground">Upload receipts or add expenses manually</p>
+          <h1 className="text-xl font-bold text-foreground">Receipts & Expenses</h1>
+          <p className="text-xs text-muted-foreground">Upload receipts or add expenses manually</p>
         </div>
         <button
           onClick={() => { setShowForm(!showForm); resetForm() }}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          className="flex items-center gap-1.5 rounded-xl bg-rose-500 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-rose-500/20 transition-all hover:brightness-110"
         >
           <Plus className="h-4 w-4" />
           Add Receipt
@@ -119,29 +118,29 @@ export default function ReceiptsPage() {
 
       {/* New Receipt Form */}
       {showForm && (
-        <div className="mb-8 rounded-xl border border-border bg-card p-5">
-          <h2 className="mb-4 text-base font-semibold text-foreground">New Receipt</h2>
+        <div className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="mb-4 text-sm font-bold text-foreground">New Receipt</h2>
 
           {/* Toggle: Upload vs Manual */}
-          <div className="mb-6 flex rounded-lg border border-border p-1">
+          <div className="mb-5 flex rounded-xl bg-secondary p-1">
             <button
               type="button"
               onClick={() => setIsManual(false)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                !isManual ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+                !isManual ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <Camera className="h-4 w-4" />
+              <Camera className="h-3.5 w-3.5" />
               Upload Receipt
             </button>
             <button
               type="button"
               onClick={() => setIsManual(true)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                isManual ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+                isManual ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <FileText className="h-4 w-4" />
+              <FileText className="h-3.5 w-3.5" />
               Manual Entry
             </button>
           </div>
@@ -152,23 +151,27 @@ export default function ReceiptsPage() {
               <div>
                 {imageUrl ? (
                   <div className="relative">
-                    <img src={imageUrl} alt="Receipt" className="max-h-48 rounded-lg object-contain" />
+                    <img src={imageUrl} alt="Receipt" className="max-h-48 rounded-xl object-contain" />
                     <button
                       type="button"
                       onClick={() => setImageUrl(null)}
-                      className="absolute right-2 top-2 rounded-full bg-card p-1.5 shadow-sm hover:bg-secondary"
+                      className="absolute right-2 top-2 rounded-full bg-card/90 p-1.5 shadow-md hover:bg-destructive/10"
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </button>
                   </div>
                 ) : (
-                  <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-input px-6 py-8 transition-colors hover:border-primary/40 hover:bg-primary/5">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Camera className="h-5 w-5" />
-                      <Upload className="h-5 w-5" />
+                  <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-rose-300 bg-rose-50/50 px-6 py-8 transition-all hover:border-rose-400 hover:bg-rose-50">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100">
+                        <Camera className="h-5 w-5 text-rose-500" />
+                      </div>
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100">
+                        <Upload className="h-5 w-5 text-rose-500" />
+                      </div>
                     </div>
-                    <span className="text-sm text-muted-foreground">
-                      {uploading ? 'Uploading...' : 'Click to upload receipt image'}
+                    <span className="text-sm font-medium text-muted-foreground">
+                      {uploading ? 'Uploading...' : 'Tap to upload receipt image'}
                     </span>
                     <input
                       type="file"
@@ -183,32 +186,32 @@ export default function ReceiptsPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">Receipt Date *</label>
+                <label className="mb-1 block text-xs font-semibold text-muted-foreground uppercase tracking-wide">Receipt Date *</label>
                 <input
                   type="date"
                   required
                   value={receiptDate}
                   onChange={(e) => setReceiptDate(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">Vendor / Store *</label>
+                <label className="mb-1 block text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vendor / Store *</label>
                 <input
                   type="text"
                   required
                   value={vendor}
                   onChange={(e) => setVendor(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
                   placeholder="e.g. Makro, Local Market"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">Total (THB) *</label>
+                <label className="mb-1 block text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total (THB) *</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{'฿'}</span>
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{'฿'}</span>
                   <input
                     type="number"
                     min="0"
@@ -216,17 +219,17 @@ export default function ReceiptsPage() {
                     required
                     value={total}
                     onChange={(e) => setTotal(e.target.value)}
-                    className="w-full rounded-lg border border-input bg-background py-2 pl-7 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="w-full rounded-xl border border-input bg-background py-2.5 pl-7 pr-3.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
                     placeholder="0.00"
                   />
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">Category</label>
+                <label className="mb-1 block text-xs font-semibold text-muted-foreground uppercase tracking-wide">Category</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c}>
@@ -238,12 +241,12 @@ export default function ReceiptsPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">Notes</label>
+              <label className="mb-1 block text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes</label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
                 placeholder="Optional notes..."
               />
             </div>
@@ -252,14 +255,14 @@ export default function ReceiptsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                className="rounded-xl bg-primary px-6 py-2.5 text-xs font-bold text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:brightness-110 disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save Receipt'}
               </button>
               <button
                 type="button"
                 onClick={() => { setShowForm(false); resetForm() }}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary"
+                className="rounded-xl border border-border px-4 py-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary"
               >
                 Cancel
               </button>
@@ -269,9 +272,9 @@ export default function ReceiptsPage() {
       )}
 
       {/* Receipt List */}
-      <div className="rounded-xl border border-border bg-card">
+      <div className="rounded-2xl border border-border bg-card shadow-sm">
         <div className="border-b border-border px-5 py-4">
-          <h2 className="text-base font-semibold text-foreground">Recent Receipts</h2>
+          <h2 className="text-sm font-bold text-foreground">Recent Receipts</h2>
         </div>
 
         {isLoading ? (
@@ -279,48 +282,77 @@ export default function ReceiptsPage() {
             <p className="text-sm text-muted-foreground">Loading...</p>
           </div>
         ) : receipts.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  <th className="px-5 py-3">Date</th>
-                  <th className="px-5 py-3">Vendor</th>
-                  <th className="px-5 py-3">Category</th>
-                  <th className="px-5 py-3 text-right">Total</th>
-                  <th className="px-5 py-3">Type</th>
-                </tr>
-              </thead>
-              <tbody>
-                {receipts.map((r) => (
-                  <tr key={r.id} className="border-b border-border last:border-0">
-                    <td className="whitespace-nowrap px-5 py-3 text-foreground">
-                      {formatThaiDate(r.receipt_date)}
-                    </td>
-                    <td className="px-5 py-3 text-foreground">{r.vendor}</td>
-                    <td className="px-5 py-3 text-muted-foreground capitalize">{r.category}</td>
-                    <td className="whitespace-nowrap px-5 py-3 text-right font-medium text-destructive">
-                      -{formatBaht(Number(r.total))}
-                    </td>
-                    <td className="px-5 py-3">
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        {r.is_manual ? (
-                          <><FileText className="h-3 w-3" /> Manual</>
-                        ) : (
-                          <><ImageIcon className="h-3 w-3" /> Upload</>
-                        )}
-                      </span>
-                    </td>
+          <>
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <th className="px-5 py-3">Date</th>
+                    <th className="px-5 py-3">Vendor</th>
+                    <th className="px-5 py-3">Category</th>
+                    <th className="px-5 py-3 text-right">Total</th>
+                    <th className="px-5 py-3">Type</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {receipts.map((r) => (
+                    <tr key={r.id} className="border-b border-border/50 last:border-0 transition-colors hover:bg-secondary/50">
+                      <td className="whitespace-nowrap px-5 py-3 text-foreground">
+                        {formatThaiDate(r.receipt_date)}
+                      </td>
+                      <td className="px-5 py-3 font-medium text-foreground">{r.vendor}</td>
+                      <td className="px-5 py-3 capitalize text-muted-foreground">{r.category}</td>
+                      <td className="whitespace-nowrap px-5 py-3 text-right font-semibold text-rose-500">
+                        -{formatBaht(Number(r.total))}
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          r.is_manual ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'
+                        }`}>
+                          {r.is_manual ? 'Manual' : 'Upload'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="flex flex-col divide-y divide-border/50 md:hidden">
+              {receipts.map((r) => (
+                <div key={r.id} className="flex items-center justify-between px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{r.vendor}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-muted-foreground">{formatThaiDate(r.receipt_date)}</span>
+                      <span className="text-xs capitalize text-muted-foreground">{r.category}</span>
+                    </div>
+                  </div>
+                  <p className="text-sm font-semibold text-rose-500">
+                    -{formatBaht(Number(r.total))}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </>
         ) : (
-          <div className="flex h-40 items-center justify-center">
+          <div className="flex h-40 flex-col items-center justify-center gap-2 px-4 text-center">
+            <Receipt className="h-8 w-8 text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">No receipts yet. Add your first receipt above.</p>
           </div>
         )}
       </div>
     </div>
+  )
+}
+
+function Receipt({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/>
+      <path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/>
+    </svg>
   )
 }

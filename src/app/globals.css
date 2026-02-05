@@ -4,28 +4,32 @@
 
 @layer base {
   :root {
-    --background: 40 30% 97%;
-    --foreground: 150 25% 12%;
+    --background: 48 100% 98%;
+    --foreground: 160 30% 14%;
     --card: 0 0% 100%;
-    --card-foreground: 150 25% 12%;
+    --card-foreground: 160 30% 14%;
     --popover: 0 0% 100%;
-    --popover-foreground: 150 25% 12%;
-    --primary: 143 23% 28%;
-    --primary-foreground: 40 30% 97%;
-    --secondary: 40 30% 93%;
-    --secondary-foreground: 150 25% 12%;
-    --muted: 40 15% 93%;
-    --muted-foreground: 150 10% 45%;
-    --accent: 16 70% 55%;
+    --popover-foreground: 160 30% 14%;
+    --primary: 152 55% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 48 60% 94%;
+    --secondary-foreground: 160 30% 14%;
+    --muted: 48 30% 92%;
+    --muted-foreground: 160 10% 46%;
+    --accent: 16 85% 58%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
+    --destructive: 0 78% 58%;
     --destructive-foreground: 0 0% 100%;
-    --border: 150 10% 85%;
-    --input: 150 10% 85%;
-    --ring: 143 23% 28%;
-    --radius: 0.625rem;
-    --success: 142 76% 36%;
+    --border: 48 20% 88%;
+    --input: 48 20% 86%;
+    --ring: 152 55% 38%;
+    --radius: 0.75rem;
+    --success: 152 70% 42%;
     --success-foreground: 0 0% 100%;
+    --tropical: 174 60% 46%;
+    --tropical-foreground: 0 0% 100%;
+    --gold: 42 92% 56%;
+    --gold-foreground: 30 50% 14%;
   }
 }
 
@@ -35,5 +39,11 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
   }
 }

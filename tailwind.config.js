@@ -45,16 +45,21 @@ module.exports = {
           DEFAULT: 'hsl(var(--success))',
           foreground: 'hsl(var(--success-foreground))',
         },
-        madre: {
-          DEFAULT: '#3A5A40',
-          dark: '#2D4732',
-          light: '#588157',
+        tropical: {
+          DEFAULT: 'hsl(var(--tropical))',
+          foreground: 'hsl(var(--tropical-foreground))',
+        },
+        gold: {
+          DEFAULT: 'hsl(var(--gold))',
+          foreground: 'hsl(var(--gold-foreground))',
         },
       },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+        xl: 'calc(var(--radius) + 4px)',
+        '2xl': 'calc(var(--radius) + 8px)',
       },
       fontFamily: {
         sans: ['var(--font-noto-thai)'],

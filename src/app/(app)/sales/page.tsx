@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useState, useEffect } from 'react'
 import { formatBaht } from '@/lib/utils'
-import { Upload, Camera, Plus, Trash2, Check } from 'lucide-react'
+import { Upload, Camera, Plus, Trash2, Check, Clock } from 'lucide-react'
 import Image from 'next/image'
 
 const WEATHER_OPTIONS = [
@@ -52,7 +51,6 @@ export default function SalesPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  // Auto-grab Thai time
   useEffect(() => {
     const updateTime = () => {
       const now = new Date()
@@ -152,148 +150,133 @@ export default function SalesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-2xl">
       {/* Header with live date/time */}
-      <div className="mb-8 rounded-xl border border-border bg-card p-5">
-        <h1 className="text-2xl font-bold text-foreground">Daily Sales Report</h1>
-        <p className="mt-1 text-lg text-primary">{thaiDate}</p>
-        <p className="text-sm tabular-nums text-muted-foreground">{thaiTime}</p>
+      <div className="mb-6 overflow-hidden rounded-2xl bg-primary p-5 shadow-lg shadow-primary/20">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-primary-foreground">Daily Sales Report</h1>
+            <p className="mt-1 text-sm font-medium text-primary-foreground/80">{thaiDate}</p>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-xl bg-primary-foreground/15 px-3 py-1.5">
+            <Clock className="h-3.5 w-3.5 text-primary-foreground/70" />
+            <span className="text-sm font-mono font-semibold tabular-nums text-primary-foreground">{thaiTime}</span>
+          </div>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {/* Payment Inputs */}
-        <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="mb-4 text-base font-semibold text-foreground">Payments Received</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">Cash</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{'฿'}</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={cashAmount}
-                  onChange={(e) => setCashAmount(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background py-2 pl-7 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="0.00"
-                />
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="mb-4 text-sm font-bold text-foreground">Payments Received</h2>
+          <div className="flex flex-col gap-3">
+            {[
+              { label: 'Cash', value: cashAmount, setter: setCashAmount, color: 'border-l-emerald-500' },
+              { label: 'PromptPay (QR)', value: promptpayAmount, setter: setPromptpayAmount, color: 'border-l-sky-500' },
+              { label: 'Credit Cards', value: creditCardAmount, setter: setCreditCardAmount, color: 'border-l-amber-500' },
+            ].map((field) => (
+              <div key={field.label} className={`flex items-center gap-3 rounded-xl border border-border bg-background p-3 border-l-4 ${field.color}`}>
+                <span className="flex-1 text-sm font-medium text-foreground">{field.label}</span>
+                <div className="relative w-32">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{'฿'}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={field.value}
+                    onChange={(e) => field.setter(e.target.value)}
+                    className="w-full rounded-lg border-0 bg-transparent py-1 pl-6 pr-2 text-right text-sm font-semibold text-foreground focus:outline-none focus:ring-0"
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">PromptPay</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{'฿'}</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={promptpayAmount}
-                  onChange={(e) => setPromptpayAmount(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background py-2 pl-7 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">Credit Cards</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{'฿'}</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={creditCardAmount}
-                  onChange={(e) => setCreditCardAmount(e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background py-2 pl-7 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
+            ))}
           </div>
-          <div className="mt-4 flex items-center justify-between rounded-lg bg-primary/5 px-4 py-3">
-            <span className="text-sm font-semibold text-foreground">Total</span>
-            <span className="text-lg font-bold text-primary">{formatBaht(total)}</span>
+          <div className="mt-4 flex items-center justify-between rounded-xl bg-primary/10 px-4 py-3">
+            <span className="text-sm font-bold text-primary">Total</span>
+            <span className="text-xl font-bold text-primary">{formatBaht(total)}</span>
           </div>
         </div>
 
         {/* Money Transfers */}
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-foreground">Money Transfers</h2>
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-foreground">Money Transfers</h2>
             <button
               type="button"
               onClick={addTransfer}
-              className="flex items-center gap-1 rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary/80"
+              className="flex items-center gap-1 rounded-lg bg-secondary px-2.5 py-1.5 text-xs font-semibold text-secondary-foreground transition-colors hover:bg-secondary/80"
             >
-              <Plus className="h-3.5 w-3.5" />
+              <Plus className="h-3 w-3" />
               Add
             </button>
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             {transfers.map((t, i) => (
-              <div key={i} className="flex items-center gap-3">
+              <div key={i} className="flex flex-col gap-2 rounded-xl border border-border bg-background p-3 sm:flex-row sm:items-center">
                 <select
                   value={t.destination}
                   onChange={(e) => updateTransfer(i, 'destination', e.target.value)}
-                  className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="">Select destination</option>
                   {BANK_OPTIONS.map((b) => (
                     <option key={b} value={b}>{b}</option>
                   ))}
                 </select>
-                <div className="relative w-36">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{'฿'}</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={t.amount || ''}
-                    onChange={(e) => updateTransfer(i, 'amount', Number(e.target.value))}
-                    className="w-full rounded-lg border border-input bg-background py-2 pl-7 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="0.00"
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1 sm:w-28 sm:flex-none">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{'฿'}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={t.amount || ''}
+                      onChange={(e) => updateTransfer(i, 'amount', Number(e.target.value))}
+                      className="w-full rounded-lg border border-input bg-card py-2 pl-6 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  {transfers.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeTransfer(i)}
+                      className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
-                {transfers.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeTransfer(i)}
-                    className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
               </div>
             ))}
           </div>
         </div>
 
         {/* Tables & To-Go */}
-        <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="mb-4 text-base font-semibold text-foreground">Service Summary</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">Tables Served</label>
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="mb-3 text-sm font-bold text-foreground">Service Summary</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-border bg-background p-3 text-center">
+              <label className="mb-2 block text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tables Served</label>
               <input
                 type="number"
                 min="0"
                 step="1"
                 value={tablesServed}
                 onChange={(e) => setTablesServed(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full bg-transparent text-center text-2xl font-bold text-foreground focus:outline-none"
                 placeholder="0"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">To-Go Orders</label>
+            <div className="rounded-xl border border-border bg-background p-3 text-center">
+              <label className="mb-2 block text-xs font-semibold text-muted-foreground uppercase tracking-wide">To-Go Orders</label>
               <input
                 type="number"
                 min="0"
                 step="1"
                 value={togoOrders}
                 onChange={(e) => setTogoOrders(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full bg-transparent text-center text-2xl font-bold text-foreground focus:outline-none"
                 placeholder="0"
               />
             </div>
@@ -301,28 +284,32 @@ export default function SalesPage() {
         </div>
 
         {/* POS Image Upload */}
-        <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="mb-4 text-base font-semibold text-foreground">POS Sales Report Photo</h2>
-          <p className="mb-3 text-xs text-muted-foreground">Take a photo or upload the end-of-day POS report for record keeping.</p>
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="mb-1 text-sm font-bold text-foreground">POS Sales Report Photo</h2>
+          <p className="mb-3 text-xs text-muted-foreground">Snap a photo of the end-of-day POS report</p>
           {posImage ? (
             <div className="relative">
-              <img src={posImage} alt="POS report" className="max-h-64 rounded-lg object-contain" />
+              <img src={posImage} alt="POS report" className="max-h-52 rounded-xl object-contain" />
               <button
                 type="button"
                 onClick={() => setPosImage(null)}
-                className="absolute right-2 top-2 rounded-full bg-card p-1.5 shadow-sm hover:bg-secondary"
+                className="absolute right-2 top-2 rounded-full bg-card/90 p-1.5 shadow-md hover:bg-destructive/10"
               >
                 <Trash2 className="h-4 w-4 text-destructive" />
               </button>
             </div>
           ) : (
-            <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-input px-6 py-8 transition-colors hover:border-primary/40 hover:bg-primary/5">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Camera className="h-5 w-5" />
-                <Upload className="h-5 w-5" />
+            <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 px-6 py-8 transition-all hover:border-primary/50 hover:bg-primary/10">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15">
+                  <Camera className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
+                  <Upload className="h-5 w-5 text-accent" />
+                </div>
               </div>
-              <span className="text-sm text-muted-foreground">
-                {uploading ? 'Uploading...' : 'Click to upload or take photo'}
+              <span className="text-sm font-medium text-muted-foreground">
+                {uploading ? 'Uploading...' : 'Tap to upload or take photo'}
               </span>
               <input
                 type="file"
@@ -337,32 +324,32 @@ export default function SalesPage() {
         </div>
 
         {/* Weather Widget */}
-        <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="mb-4 text-base font-semibold text-foreground">Weather Today</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="mb-4 text-sm font-bold text-foreground">Weather Today</h2>
+          <div className="grid grid-cols-4 gap-2">
             {WEATHER_OPTIONS.map((w) => (
               <button
                 key={w.value}
                 type="button"
                 onClick={() => setWeather(w.value)}
-                className={`flex flex-col items-center gap-2 rounded-xl border-2 px-4 py-4 transition-all ${
+                className={`flex flex-col items-center gap-1.5 rounded-2xl border-2 px-2 py-3 transition-all duration-200 ${
                   weather === w.value
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border bg-card hover:border-primary/30'
+                    ? 'border-primary bg-primary/10 shadow-md shadow-primary/10 scale-[1.02]'
+                    : 'border-border bg-card hover:border-primary/30 hover:bg-secondary'
                 }`}
               >
-                <Image src={w.icon} alt={w.label} width={48} height={48} />
-                <span className="text-xs font-medium text-foreground">{w.label}</span>
+                <Image src={w.icon} alt={w.label} width={44} height={44} />
+                <span className="text-[11px] font-semibold text-foreground">{w.label}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* Busiest Times Widget */}
-        <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="mb-1 text-base font-semibold text-foreground">Busiest Time(s)?</h2>
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="mb-1 text-sm font-bold text-foreground">Busiest Time(s)?</h2>
           <p className="mb-4 text-xs text-muted-foreground">Select all that apply</p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {TIME_OPTIONS.map((t) => {
               const isSelected = busiestTimes.includes(t.value)
               return (
@@ -370,19 +357,19 @@ export default function SalesPage() {
                   key={t.value}
                   type="button"
                   onClick={() => toggleBusiestTime(t.value)}
-                  className={`relative flex flex-col items-center gap-2 rounded-xl border-2 px-4 py-4 transition-all ${
+                  className={`relative flex flex-col items-center gap-1.5 rounded-2xl border-2 px-2 py-3 transition-all duration-200 ${
                     isSelected
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border bg-card hover:border-primary/30'
+                      ? 'border-primary bg-primary/10 shadow-md shadow-primary/10 scale-[1.02]'
+                      : 'border-border bg-card hover:border-primary/30 hover:bg-secondary'
                   }`}
                 >
                   {isSelected && (
-                    <div className="absolute right-2 top-2 rounded-full bg-primary p-0.5">
+                    <div className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary shadow-sm">
                       <Check className="h-3 w-3 text-primary-foreground" />
                     </div>
                   )}
-                  <Image src={t.icon} alt={t.label} width={48} height={48} />
-                  <span className="text-xs font-medium text-foreground">{t.label}</span>
+                  <Image src={t.icon} alt={t.label} width={44} height={44} />
+                  <span className="text-[11px] font-semibold text-foreground">{t.label}</span>
                   <span className="text-[10px] text-muted-foreground">{t.desc}</span>
                 </button>
               )
@@ -394,7 +381,11 @@ export default function SalesPage() {
         <button
           type="submit"
           disabled={saving}
-          className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          className={`rounded-2xl px-6 py-4 text-sm font-bold shadow-lg transition-all duration-200 disabled:opacity-50 ${
+            saved
+              ? 'bg-emerald-500 text-white shadow-emerald-500/25'
+              : 'bg-primary text-primary-foreground shadow-primary/25 hover:brightness-110'
+          }`}
         >
           {saving ? 'Saving...' : saved ? 'Saved Successfully!' : 'Submit Sales Report'}
         </button>
