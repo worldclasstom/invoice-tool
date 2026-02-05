@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Horizon -->
+  <rect x="4" y="40" width="56" height="20" rx="4" fill="#FEF3C7"/>
+  <!-- Rising sun -->
+  <circle cx="32" cy="40" r="12" fill="#FBBF24"/>
+  <circle cx="32" cy="40" r="10" fill="#FCD34D"/>
+  <!-- Rays -->
+  <line x1="32" y1="22" x2="32" y2="26" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+  <line x1="18" y1="28" x2="21" y2="30.5" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+  <line x1="46" y1="28" x2="43" y2="30.5" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+  <!-- Coffee cup -->
+  <rect x="10" y="44" width="10" height="10" rx="2" fill="#92400E"/>
+  <path d="M20 47 Q24 47 24 50 Q24 53 20 53" stroke="#92400E" stroke-width="1.5" fill="none"/>
+  <path d="M12 42 Q13 40 14 42" stroke="#9CA3AF" stroke-width="1" fill="none"/>
+  <path d="M15 41 Q16 39 17 41" stroke="#9CA3AF" stroke-width="1" fill="none"/>
+</svg>

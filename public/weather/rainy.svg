@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Cloud -->
+  <ellipse cx="30" cy="26" rx="18" ry="10" fill="#94A3B8"/>
+  <ellipse cx="24" cy="20" rx="10" ry="8" fill="#CBD5E1"/>
+  <ellipse cx="36" cy="18" rx="8" ry="7" fill="#CBD5E1"/>
+  <!-- Face -->
+  <circle cx="26" cy="26" r="1.2" fill="#475569"/>
+  <circle cx="34" cy="26" r="1.2" fill="#475569"/>
+  <path d="M28 29 Q30 28 32 29" stroke="#475569" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+  <!-- Rain drops -->
+  <line x1="20" y1="38" x2="18" y2="44" stroke="#60A5FA" stroke-width="2" stroke-linecap="round"/>
+  <line x1="28" y1="38" x2="26" y2="46" stroke="#60A5FA" stroke-width="2" stroke-linecap="round"/>
+  <line x1="36" y1="38" x2="34" y2="44" stroke="#60A5FA" stroke-width="2" stroke-linecap="round"/>
+  <line x1="24" y1="46" x2="22" y2="52" stroke="#60A5FA" stroke-width="2" stroke-linecap="round"/>
+  <line x1="32" y1="48" x2="30" y2="54" stroke="#60A5FA" stroke-width="2" stroke-linecap="round"/>
+</svg>
