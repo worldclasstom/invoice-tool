@@ -84,8 +84,9 @@ export default function SalesPage() {
     Number(creditCardAmount || 0)
 
   const transferTotal = transfers.reduce((sum, t) => sum + Number(t.amount || 0), 0)
-  const remaining = total - transferTotal
-  const isBalanced = total > 0 && Math.abs(remaining) < 0.01
+  // Round to 2 decimal places using integer math to avoid floating point issues (e.g. 0.12 + 0.11 = 0.22999...)
+  const remaining = Math.round((total - transferTotal) * 100) / 100
+  const isBalanced = total > 0 && remaining === 0
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -361,8 +362,8 @@ export default function SalesPage() {
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <h2 className="mb-1 text-sm font-bold text-foreground">POS Sales Report Photo</h2>
           <p className="mb-3 text-xs text-muted-foreground">Snap a photo of the end-of-day POS report</p>
-          {posImage ? (
-            <div className="relative">
+          {posImage && (
+            <div className="relative mb-3">
               <img src={posImage} alt="POS report" className="max-h-52 rounded-xl object-contain" />
               <button
                 type="button"
@@ -372,28 +373,27 @@ export default function SalesPage() {
                 <Trash2 className="h-4 w-4 text-destructive" />
               </button>
             </div>
-          ) : (
-            <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 px-6 py-8 transition-all hover:border-primary/50 hover:bg-primary/10">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15">
-                  <Camera className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
-                  <Upload className="h-5 w-5 text-accent" />
-                </div>
-              </div>
-              <span className="text-sm font-medium text-muted-foreground">
-                {uploading ? 'Uploading...' : 'Tap to upload or take photo'}
-              </span>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="sr-only"
-                disabled={uploading}
-              />
-            </label>
           )}
+          <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 px-4 py-6 transition-all hover:border-primary/50 hover:bg-primary/10">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15">
+                <Camera className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
+                <Upload className="h-5 w-5 text-accent" />
+              </div>
+            </div>
+            <span className="text-sm font-medium text-muted-foreground">
+              {uploading ? 'Uploading...' : posImage ? 'Tap to replace photo' : 'Tap to upload or take photo'}
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="sr-only"
+              disabled={uploading}
+            />
+          </label>
         </div>
 
         {/* Weather Widget */}
