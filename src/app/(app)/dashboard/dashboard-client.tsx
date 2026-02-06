@@ -163,8 +163,8 @@ export function DashboardClient({
                   paddingAngle={4}
                   dataKey="value"
                   strokeWidth={0}
-                  label={({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
+                  label={({ name, value }) =>
+                    `${name} ${formatBaht(value)}`
                   }
                   labelLine={false}
                   fontSize={11}
