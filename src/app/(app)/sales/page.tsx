@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { formatBaht } from '@/lib/utils'
-import { Upload, Camera, Plus, Trash2, Check, Clock } from 'lucide-react'
+import { Upload, Camera, Plus, Trash2, Check, Clock, CalendarDays } from 'lucide-react'
 import Image from 'next/image'
 
 const WEATHER_OPTIONS = [
@@ -23,6 +23,7 @@ const BANK_OPTIONS = ['KBank', 'SCB', 'Bangkok Bank', 'Krungsri', 'Cash Holdings
 
 interface TransferDetail {
   destination: string
+  nickname: string
   amount: number
 }
 
@@ -39,7 +40,7 @@ export default function SalesPage() {
   const [togoOrders, setTogoOrders] = useState('')
 
   const [transfers, setTransfers] = useState<TransferDetail[]>([
-    { destination: '', amount: 0 },
+    { destination: '', nickname: '', amount: 0 },
   ])
 
   const [posImage, setPosImage] = useState<string | null>(null)
@@ -82,6 +83,11 @@ export default function SalesPage() {
     Number(promptpayAmount || 0) +
     Number(creditCardAmount || 0)
 
+  const transferTotal = transfers.reduce((sum, t) => sum + Number(t.amount || 0), 0)
+  // Round to 2 decimal places using integer math to avoid floating point issues (e.g. 0.12 + 0.11 = 0.22999...)
+  const remaining = Math.round((total - transferTotal) * 100) / 100
+  const isBalanced = total > 0 && remaining === 0
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -105,7 +111,7 @@ export default function SalesPage() {
   }
 
   const addTransfer = () => {
-    setTransfers([...transfers, { destination: '', amount: 0 }])
+    setTransfers([...transfers, { destination: '', nickname: '', amount: 0 }])
   }
 
   const removeTransfer = (index: number) => {
@@ -163,6 +169,30 @@ export default function SalesPage() {
             <span className="text-sm font-mono font-semibold tabular-nums text-primary-foreground">{thaiTime}</span>
           </div>
         </div>
+        {/* Date Picker */}
+        <div className="mt-4 flex items-center gap-3 rounded-xl bg-primary-foreground/10 px-3 py-2.5">
+          <CalendarDays className="h-4 w-4 shrink-0 text-primary-foreground/70" />
+          <label className="text-xs font-semibold text-primary-foreground/70 uppercase tracking-wide">Report Date</label>
+          <input
+            type="date"
+            value={reportDate}
+            onChange={(e) => {
+              const newDate = e.target.value
+              setReportDate(newDate)
+              // Update the display date to match the selected date
+              const selected = new Date(newDate + 'T12:00:00')
+              const displayStr = selected.toLocaleDateString('th-TH', {
+                timeZone: 'Asia/Bangkok',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long',
+              })
+              setThaiDate(displayStr)
+            }}
+            className="ml-auto rounded-lg border-0 bg-primary-foreground/15 px-3 py-1.5 text-sm font-semibold text-primary-foreground focus:outline-none focus:ring-2 focus:ring-primary-foreground/30 [color-scheme:dark]"
+          />
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -213,19 +243,37 @@ export default function SalesPage() {
           </div>
           <div className="flex flex-col gap-2.5">
             {transfers.map((t, i) => (
-              <div key={i} className="flex flex-col gap-2 rounded-xl border border-border bg-background p-3 sm:flex-row sm:items-center">
-                <select
-                  value={t.destination}
-                  onChange={(e) => updateTransfer(i, 'destination', e.target.value)}
-                  className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Select destination</option>
-                  {BANK_OPTIONS.map((b) => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
+              <div key={i} className="flex flex-col gap-2 rounded-xl border border-border bg-background p-3">
                 <div className="flex items-center gap-2">
-                  <div className="relative flex-1 sm:w-28 sm:flex-none">
+                  <select
+                    value={t.destination}
+                    onChange={(e) => updateTransfer(i, 'destination', e.target.value)}
+                    className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="">Select destination</option>
+                    {BANK_OPTIONS.map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                  {transfers.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeTransfer(i)}
+                      className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={t.nickname}
+                    onChange={(e) => updateTransfer(i, 'nickname', e.target.value)}
+                    className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="Nickname (e.g. John's card)"
+                  />
+                  <div className="relative w-28 shrink-0">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{'฿'}</span>
                     <input
                       type="number"
@@ -237,18 +285,45 @@ export default function SalesPage() {
                       placeholder="0.00"
                     />
                   </div>
-                  {transfers.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeTransfer(i)}
-                      className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Transfer balance status */}
+          <div className={`mt-4 rounded-xl px-4 py-3 ${
+            total === 0
+              ? 'bg-muted/50'
+              : isBalanced
+                ? 'bg-emerald-500/10'
+                : remaining > 0
+                  ? 'bg-amber-500/10'
+                  : 'bg-destructive/10'
+          }`}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Transferred</span>
+              <span className="text-sm font-bold text-foreground">{formatBaht(transferTotal)}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {isBalanced ? 'Status' : remaining > 0 ? 'Remaining' : 'Over by'}
+              </span>
+              <span className={`text-sm font-bold ${
+                total === 0
+                  ? 'text-muted-foreground'
+                  : isBalanced
+                    ? 'text-emerald-600'
+                    : remaining > 0
+                      ? 'text-amber-600'
+                      : 'text-destructive'
+              }`}>
+                {total === 0
+                  ? 'Enter payments first'
+                  : isBalanced
+                    ? 'All funds accounted for'
+                    : formatBaht(Math.abs(remaining))}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -287,8 +362,8 @@ export default function SalesPage() {
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <h2 className="mb-1 text-sm font-bold text-foreground">POS Sales Report Photo</h2>
           <p className="mb-3 text-xs text-muted-foreground">Snap a photo of the end-of-day POS report</p>
-          {posImage ? (
-            <div className="relative">
+          {posImage && (
+            <div className="relative mb-3">
               <img src={posImage} alt="POS report" className="max-h-52 rounded-xl object-contain" />
               <button
                 type="button"
@@ -298,29 +373,27 @@ export default function SalesPage() {
                 <Trash2 className="h-4 w-4 text-destructive" />
               </button>
             </div>
-          ) : (
-            <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 px-6 py-8 transition-all hover:border-primary/50 hover:bg-primary/10">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15">
-                  <Camera className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
-                  <Upload className="h-5 w-5 text-accent" />
-                </div>
-              </div>
-              <span className="text-sm font-medium text-muted-foreground">
-                {uploading ? 'Uploading...' : 'Tap to upload or take photo'}
-              </span>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleFileUpload}
-                className="sr-only"
-                disabled={uploading}
-              />
-            </label>
           )}
+          <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 px-4 py-6 transition-all hover:border-primary/50 hover:bg-primary/10">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15">
+                <Camera className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
+                <Upload className="h-5 w-5 text-accent" />
+              </div>
+            </div>
+            <span className="text-sm font-medium text-muted-foreground">
+              {uploading ? 'Uploading...' : posImage ? 'Tap to replace photo' : 'Tap to upload or take photo'}
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="sr-only"
+              disabled={uploading}
+            />
+          </label>
         </div>
 
         {/* Weather Widget */}
@@ -380,14 +453,20 @@ export default function SalesPage() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || !isBalanced}
           className={`rounded-2xl px-6 py-4 text-sm font-bold shadow-lg transition-all duration-200 disabled:opacity-50 ${
             saved
               ? 'bg-emerald-500 text-white shadow-emerald-500/25'
               : 'bg-primary text-primary-foreground shadow-primary/25 hover:brightness-110'
           }`}
         >
-          {saving ? 'Saving...' : saved ? 'Saved Successfully!' : 'Submit Sales Report'}
+          {saving
+            ? 'Saving...'
+            : saved
+              ? 'Saved Successfully!'
+              : !isBalanced
+                ? 'All funds must be transferred before submitting'
+                : 'Submit Sales Report'}
         </button>
       </form>
     </div>

@@ -43,19 +43,18 @@ export default function LoginPage() {
 
       <div className="relative z-10 w-full max-w-sm">
         <div className="flex flex-col items-center gap-6">
-          <div className="flex flex-col items-center gap-2">
-            <Image
-              src="/assets/logos/AW_LOGO_MADRE-01.png"
-              alt="Madre Cafe and Restaurant Logo"
-              width={100}
-              height={137}
-              priority
-              className="drop-shadow-lg"
-            />
-            <p className="text-sm font-medium text-primary-foreground/70">Restaurant Management Suite</p>
-          </div>
-
           <div className="w-full rounded-2xl bg-card p-6 shadow-xl shadow-foreground/10">
+            <div className="mb-4 flex flex-col items-center gap-2">
+              <Image
+                src="/assets/logos/AW_LOGO_MADRE-01.png"
+                alt="Madre Cafe and Restaurant Logo"
+                width={100}
+                height={137}
+                priority
+                className="drop-shadow-lg"
+              />
+              <p className="text-sm font-medium text-muted-foreground">Restaurant Management Suite</p>
+            </div>
             <h1 className="mb-1 text-xl font-bold text-foreground">Welcome back</h1>
             <p className="mb-6 text-sm text-muted-foreground">
               Sign in to Madre Tools
