@@ -101,13 +101,29 @@ export function DashboardClient({
 
       {/* Summary Cards - colorful! */}
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="flex items-center gap-4 rounded-2xl bg-emerald-500 p-4 shadow-lg shadow-emerald-500/20">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50/20">
-            <TrendingUp className="h-5 w-5 text-emerald-50" />
+        <div className="rounded-2xl bg-emerald-500 p-4 shadow-lg shadow-emerald-500/20">
+          <div className="flex items-center gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50/20">
+              <TrendingUp className="h-5 w-5 text-emerald-50" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-emerald-50/80 uppercase tracking-wide">Revenue</p>
+              <p className="text-xl font-bold text-white">{formatBaht(totalIncome)}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-medium text-emerald-50/80 uppercase tracking-wide">Revenue</p>
-            <p className="text-xl font-bold text-white">{formatBaht(totalIncome)}</p>
+          <div className="mt-3 flex flex-col gap-1.5 border-t border-emerald-400/30 pt-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-emerald-50/80">Cash</span>
+              <span className="text-xs font-semibold text-white">{formatBaht(totalCash)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-emerald-50/80">PromptPay</span>
+              <span className="text-xs font-semibold text-white">{formatBaht(totalPromptPay)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-emerald-50/80">Credit Card</span>
+              <span className="text-xs font-semibold text-white">{formatBaht(totalCard)}</span>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-4 rounded-2xl bg-rose-500 p-4 shadow-lg shadow-rose-500/20">
