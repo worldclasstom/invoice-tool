@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { formatBaht } from '@/lib/utils'
-import { Upload, Camera, Plus, Trash2, Check, Clock } from 'lucide-react'
+import { Upload, Camera, Plus, Trash2, Check, Clock, CalendarDays } from 'lucide-react'
 import Image from 'next/image'
 
 const WEATHER_OPTIONS = [
@@ -162,6 +162,30 @@ export default function SalesPage() {
             <Clock className="h-3.5 w-3.5 text-primary-foreground/70" />
             <span className="text-sm font-mono font-semibold tabular-nums text-primary-foreground">{thaiTime}</span>
           </div>
+        </div>
+        {/* Date Picker */}
+        <div className="mt-4 flex items-center gap-3 rounded-xl bg-primary-foreground/10 px-3 py-2.5">
+          <CalendarDays className="h-4 w-4 shrink-0 text-primary-foreground/70" />
+          <label className="text-xs font-semibold text-primary-foreground/70 uppercase tracking-wide">Report Date</label>
+          <input
+            type="date"
+            value={reportDate}
+            onChange={(e) => {
+              const newDate = e.target.value
+              setReportDate(newDate)
+              // Update the display date to match the selected date
+              const selected = new Date(newDate + 'T12:00:00')
+              const displayStr = selected.toLocaleDateString('th-TH', {
+                timeZone: 'Asia/Bangkok',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long',
+              })
+              setThaiDate(displayStr)
+            }}
+            className="ml-auto rounded-lg border-0 bg-primary-foreground/15 px-3 py-1.5 text-sm font-semibold text-primary-foreground focus:outline-none focus:ring-2 focus:ring-primary-foreground/30 [color-scheme:dark]"
+          />
         </div>
       </div>
 
