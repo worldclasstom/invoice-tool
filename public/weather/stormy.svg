@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Dark cloud -->
+  <ellipse cx="30" cy="20" rx="20" ry="11" fill="#475569"/>
+  <ellipse cx="22" cy="12" rx="12" ry="10" fill="#64748B"/>
+  <ellipse cx="36" cy="10" rx="10" ry="9" fill="#64748B"/>
+  <ellipse cx="30" cy="20" rx="18" ry="9" fill="#94A3B8"/>
+  <!-- Worried face -->
+  <circle cx="25" cy="18" r="1.8" fill="#1E293B"/>
+  <circle cx="35" cy="18" r="1.8" fill="#1E293B"/>
+  <ellipse cx="30" cy="23" rx="3" ry="2" fill="#1E293B" opacity="0.8"/>
+  <!-- Lightning bolt -->
+  <polygon points="30,28 24,40 30,40 25,54 38,37 32,37 37,28" fill="#FBBF24"/>
+  <polygon points="30,28 24,40 30,40 25,54 38,37 32,37 37,28" fill="#FCD34D" opacity="0.5"/>
+  <!-- Rain -->
+  <line x1="14" y1="33" x2="12" y2="40" stroke="#60A5FA" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="46" y1="33" x2="44" y2="40" stroke="#60A5FA" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="16" y1="44" x2="14" y2="50" stroke="#818CF8" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="44" y1="44" x2="42" y2="50" stroke="#818CF8" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
