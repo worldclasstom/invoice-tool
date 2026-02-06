@@ -83,6 +83,10 @@ export default function SalesPage() {
     Number(promptpayAmount || 0) +
     Number(creditCardAmount || 0)
 
+  const transferTotal = transfers.reduce((sum, t) => sum + Number(t.amount || 0), 0)
+  const remaining = total - transferTotal
+  const isBalanced = total > 0 && Math.abs(remaining) < 0.01
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -284,6 +288,42 @@ export default function SalesPage() {
               </div>
             ))}
           </div>
+
+          {/* Transfer balance status */}
+          <div className={`mt-4 rounded-xl px-4 py-3 ${
+            total === 0
+              ? 'bg-muted/50'
+              : isBalanced
+                ? 'bg-emerald-500/10'
+                : remaining > 0
+                  ? 'bg-amber-500/10'
+                  : 'bg-destructive/10'
+          }`}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Transferred</span>
+              <span className="text-sm font-bold text-foreground">{formatBaht(transferTotal)}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {isBalanced ? 'Status' : remaining > 0 ? 'Remaining' : 'Over by'}
+              </span>
+              <span className={`text-sm font-bold ${
+                total === 0
+                  ? 'text-muted-foreground'
+                  : isBalanced
+                    ? 'text-emerald-600'
+                    : remaining > 0
+                      ? 'text-amber-600'
+                      : 'text-destructive'
+              }`}>
+                {total === 0
+                  ? 'Enter payments first'
+                  : isBalanced
+                    ? 'All funds accounted for'
+                    : formatBaht(Math.abs(remaining))}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Tables & To-Go */}
@@ -413,14 +453,20 @@ export default function SalesPage() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || !isBalanced}
           className={`rounded-2xl px-6 py-4 text-sm font-bold shadow-lg transition-all duration-200 disabled:opacity-50 ${
             saved
               ? 'bg-emerald-500 text-white shadow-emerald-500/25'
               : 'bg-primary text-primary-foreground shadow-primary/25 hover:brightness-110'
           }`}
         >
-          {saving ? 'Saving...' : saved ? 'Saved Successfully!' : 'Submit Sales Report'}
+          {saving
+            ? 'Saving...'
+            : saved
+              ? 'Saved Successfully!'
+              : !isBalanced
+                ? 'All funds must be transferred before submitting'
+                : 'Submit Sales Report'}
         </button>
       </form>
     </div>
