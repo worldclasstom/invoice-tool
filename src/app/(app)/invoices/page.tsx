@@ -64,10 +64,13 @@ export default function InvoicePage() {
       if (!res.ok) throw new Error('Failed to create invoice')
       const data = await res.json()
 
-      const pdfBlob = new Blob(
-        [Buffer.from(data.pdf, 'base64')],
-        { type: 'application/pdf' }
-      )
+      const byteCharacters = atob(data.pdf)
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+      const byteArray = new Uint8Array(byteNumbers)
+      const pdfBlob = new Blob([byteArray], { type: 'application/pdf' })
       const pdfUrl = URL.createObjectURL(pdfBlob)
       window.open(pdfUrl, '_blank')
     } catch (error) {

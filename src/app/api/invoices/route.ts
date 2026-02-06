@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     const pdfDoc = await PDFDocument.create()
     pdfDoc.registerFontkit(fontkit)
     const page = pdfDoc.addPage([612, 792])
-    const { width, height } = page.getSize()
+    const { height } = page.getSize()
     const thaiFont = await pdfDoc.embedFont(fontBytes)
 
     page.drawText('Madre Cafe & Restaurant', {

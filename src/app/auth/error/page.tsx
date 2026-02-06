@@ -1,5 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-
 export default async function Page({
   searchParams,
 }: {
@@ -8,27 +6,27 @@ export default async function Page({
   const params = await searchParams
 
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+    <div className="flex min-h-svh w-full items-center justify-center bg-background p-6">
       <div className="w-full max-w-sm">
-        <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">
-                Sorry, something went wrong.
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {params?.error ? (
-                <p className="text-sm text-muted-foreground">
-                  Code error: {params.error}
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  An unspecified error occurred.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <h1 className="mb-2 text-xl font-bold text-foreground">
+            Something went wrong
+          </h1>
+          {params?.error ? (
+            <p className="text-sm text-muted-foreground">
+              Error: {params.error}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              An unspecified error occurred.
+            </p>
+          )}
+          <a
+            href="/auth/login"
+            className="mt-4 inline-block rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+          >
+            Back to Login
+          </a>
         </div>
       </div>
     </div>

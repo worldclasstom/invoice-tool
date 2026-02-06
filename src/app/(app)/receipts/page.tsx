@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { formatBaht, formatThaiDate } from '@/lib/utils'
-import { Upload, Camera, Trash2, Plus, FileText, Image as ImageIcon } from 'lucide-react'
+import { Upload, Camera, Trash2, Plus, FileText } from 'lucide-react'
 import useSWR, { mutate } from 'swr'
 
 const CATEGORIES = [
