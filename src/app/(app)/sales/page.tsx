@@ -348,7 +348,6 @@ export default function SalesPage() {
               <input
                 type="file"
                 accept="image/*"
-                capture="environment"
                 onChange={handleFileUpload}
                 className="sr-only"
                 disabled={uploading}
