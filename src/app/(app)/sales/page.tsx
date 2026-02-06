@@ -21,13 +21,9 @@ const TIME_OPTIONS = [
 
 const BANK_OPTIONS = ['KBank', 'SCB', 'Bangkok Bank', 'Krungsri', 'Cash Holdings']
 
-interface CreditCardDetail {
-  nickname: string
-  amount: number
-}
-
 interface TransferDetail {
   destination: string
+  nickname: string
   amount: number
 }
 
@@ -38,15 +34,13 @@ export default function SalesPage() {
 
   const [cashAmount, setCashAmount] = useState('')
   const [promptpayAmount, setPromptpayAmount] = useState('')
-  const [creditCards, setCreditCards] = useState<CreditCardDetail[]>([
-    { nickname: '', amount: 0 },
-  ])
+  const [creditCardAmount, setCreditCardAmount] = useState('')
 
   const [tablesServed, setTablesServed] = useState('')
   const [togoOrders, setTogoOrders] = useState('')
 
   const [transfers, setTransfers] = useState<TransferDetail[]>([
-    { destination: '', amount: 0 },
+    { destination: '', nickname: '', amount: 0 },
   ])
 
   const [posImage, setPosImage] = useState<string | null>(null)
@@ -84,12 +78,10 @@ export default function SalesPage() {
     return () => clearInterval(interval)
   }, [])
 
-  const creditCardTotal = creditCards.reduce((sum, c) => sum + Number(c.amount || 0), 0)
-
   const total =
     Number(cashAmount || 0) +
     Number(promptpayAmount || 0) +
-    creditCardTotal
+    Number(creditCardAmount || 0)
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -113,22 +105,8 @@ export default function SalesPage() {
     )
   }
 
-  const addCreditCard = () => {
-    setCreditCards([...creditCards, { nickname: '', amount: 0 }])
-  }
-
-  const removeCreditCard = (index: number) => {
-    setCreditCards(creditCards.filter((_, i) => i !== index))
-  }
-
-  const updateCreditCard = (index: number, field: keyof CreditCardDetail, value: string | number) => {
-    const updated = [...creditCards]
-    updated[index] = { ...updated[index], [field]: value }
-    setCreditCards(updated)
-  }
-
   const addTransfer = () => {
-    setTransfers([...transfers, { destination: '', amount: 0 }])
+    setTransfers([...transfers, { destination: '', nickname: '', amount: 0 }])
   }
 
   const removeTransfer = (index: number) => {
@@ -154,8 +132,7 @@ export default function SalesPage() {
           reportDate,
           cashAmount: Number(cashAmount || 0),
           promptpayAmount: Number(promptpayAmount || 0),
-          creditCardAmount: creditCardTotal,
-          creditCardDetails: creditCards.filter((c) => c.amount > 0),
+          creditCardAmount: Number(creditCardAmount || 0),
           tablesServed: Number(tablesServed || 0),
           togoOrders: Number(togoOrders || 0),
           weather,
@@ -221,6 +198,7 @@ export default function SalesPage() {
             {[
               { label: 'Cash', value: cashAmount, setter: setCashAmount, color: 'border-l-emerald-500' },
               { label: 'PromptPay (QR)', value: promptpayAmount, setter: setPromptpayAmount, color: 'border-l-sky-500' },
+              { label: 'Credit Cards', value: creditCardAmount, setter: setCreditCardAmount, color: 'border-l-amber-500' },
             ].map((field) => (
               <div key={field.label} className={`flex items-center gap-3 rounded-xl border border-border bg-background p-3 border-l-4 ${field.color}`}>
                 <span className="flex-1 text-sm font-medium text-foreground">{field.label}</span>
@@ -238,58 +216,6 @@ export default function SalesPage() {
                 </div>
               </div>
             ))}
-
-            {/* Credit Cards with nicknames */}
-            <div className="rounded-xl border border-border border-l-4 border-l-amber-500 bg-background p-3">
-              <div className="mb-2.5 flex items-center justify-between">
-                <span className="text-sm font-medium text-foreground">Credit Cards</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-muted-foreground">{formatBaht(creditCardTotal)}</span>
-                  <button
-                    type="button"
-                    onClick={addCreditCard}
-                    className="flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-xs font-semibold text-secondary-foreground transition-colors hover:bg-secondary/80"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Add
-                  </button>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                {creditCards.map((card, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-card p-2">
-                    <input
-                      type="text"
-                      value={card.nickname}
-                      onChange={(e) => updateCreditCard(i, 'nickname', e.target.value)}
-                      className="min-w-0 flex-1 rounded-md border-0 bg-transparent px-2 py-1 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0"
-                      placeholder={`Card ${i + 1} nickname`}
-                    />
-                    <div className="relative w-28 shrink-0">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{'฿'}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={card.amount || ''}
-                        onChange={(e) => updateCreditCard(i, 'amount', Number(e.target.value))}
-                        className="w-full rounded-md border-0 bg-transparent py-1 pl-5 pr-2 text-right text-sm font-semibold text-foreground focus:outline-none focus:ring-0"
-                        placeholder="0.00"
-                      />
-                    </div>
-                    {creditCards.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeCreditCard(i)}
-                        className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
           <div className="mt-4 flex items-center justify-between rounded-xl bg-primary/10 px-4 py-3">
             <span className="text-sm font-bold text-primary">Total</span>
@@ -312,19 +238,37 @@ export default function SalesPage() {
           </div>
           <div className="flex flex-col gap-2.5">
             {transfers.map((t, i) => (
-              <div key={i} className="flex flex-col gap-2 rounded-xl border border-border bg-background p-3 sm:flex-row sm:items-center">
-                <select
-                  value={t.destination}
-                  onChange={(e) => updateTransfer(i, 'destination', e.target.value)}
-                  className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Select destination</option>
-                  {BANK_OPTIONS.map((b) => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
+              <div key={i} className="flex flex-col gap-2 rounded-xl border border-border bg-background p-3">
                 <div className="flex items-center gap-2">
-                  <div className="relative flex-1 sm:w-28 sm:flex-none">
+                  <select
+                    value={t.destination}
+                    onChange={(e) => updateTransfer(i, 'destination', e.target.value)}
+                    className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="">Select destination</option>
+                    {BANK_OPTIONS.map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                  {transfers.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeTransfer(i)}
+                      className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={t.nickname}
+                    onChange={(e) => updateTransfer(i, 'nickname', e.target.value)}
+                    className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="Nickname (e.g. John's card)"
+                  />
+                  <div className="relative w-28 shrink-0">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{'฿'}</span>
                     <input
                       type="number"
@@ -336,15 +280,6 @@ export default function SalesPage() {
                       placeholder="0.00"
                     />
                   </div>
-                  {transfers.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeTransfer(i)}
-                      className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
                 </div>
               </div>
             ))}
