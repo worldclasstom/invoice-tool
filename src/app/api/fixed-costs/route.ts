@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = await request.json()
-    const { name, category, amount, paymentMethod, dueDay, periodMonth, periodYear, notes } = body
+    const { name, category, amount, paymentMethod, dueDay, periodMonth, periodYear, notes, receiptImageUrl } = body
 
     const { data: cost, error } = await supabase
       .from('fixed_costs')
@@ -22,6 +22,7 @@ export async function POST(request: Request) {
         period_month: periodMonth,
         period_year: periodYear,
         notes: notes || null,
+        receipt_image_url: receiptImageUrl || null,
         user_id: user.id,
       })
       .select()
