@@ -14,6 +14,7 @@ import { TrendingUp, TrendingDown, Wallet, CalendarDays, Loader2 } from 'lucide-
 
 const INCOME_COLORS = ['#22c55e', '#06b6d4', '#f59e0b', '#a78bfa']
 const EXPENSE_COLORS = ['#f43f5e', '#fb923c', '#a78bfa', '#22c55e', '#06b6d4']
+const DESTINATION_COLORS = ['#0ea5e9', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4']
 
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'custom'
 
@@ -76,11 +77,18 @@ function getDateLabel(mode: ViewMode, from: string, to: string): string {
   }
 }
 
+interface TransferDetail {
+  destination: string
+  nickname: string
+  amount: number
+}
+
 interface DailySale {
   total_amount: number
   cash_amount: number
   promptpay_amount: number
   credit_card_amount: number
+  transfer_details: TransferDetail[] | null
 }
 
 interface ReceiptRow {
@@ -146,6 +154,24 @@ export function DashboardClient() {
   const expenseData = Object.entries(allExpenseCategories)
     .map(([name, value]) => ({ name, value }))
     .filter((d) => d.value > 0)
+
+  // Cash destination data (from transfer_details in daily sales)
+  const destinationTotals: Record<string, number> = {}
+  sales.forEach((s) => {
+    const transfers = s.transfer_details
+    if (transfers && Array.isArray(transfers)) {
+      transfers.forEach((t: TransferDetail) => {
+        const dest = t.destination || 'Unknown'
+        destinationTotals[dest] = (destinationTotals[dest] || 0) + Number(t.amount || 0)
+      })
+    }
+  })
+  const destinationData = Object.entries(destinationTotals)
+    .map(([name, value]) => ({ name, value }))
+    .filter((d) => d.value > 0)
+    .sort((a, b) => b.value - a.value)
+
+  const hasDestinations = destinationData.length > 0
 
   const totalExpenses = expenseData.reduce((s, d) => s + d.value, 0)
   const netProfit = totalIncome - totalExpenses
@@ -269,7 +295,7 @@ export function DashboardClient() {
           </div>
 
           {/* Pie Charts */}
-          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <h2 className="mb-1 text-sm font-bold text-foreground">Revenue by Method</h2>
               <p className="mb-3 text-xs text-muted-foreground">{dateLabel}</p>
@@ -332,6 +358,48 @@ export function DashboardClient() {
               ) : (
                 <div className="flex h-[220px] items-center justify-center">
                   <p className="text-sm text-muted-foreground">No expense data for this period</p>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <h2 className="mb-1 text-sm font-bold text-foreground">Cash Destinations</h2>
+              <p className="mb-3 text-xs text-muted-foreground">Where transfers are stored</p>
+              {hasDestinations ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={destinationData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={80}
+                      paddingAngle={4}
+                      dataKey="value"
+                      strokeWidth={0}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={false}
+                      fontSize={11}
+                    >
+                      {destinationData.map((_, i) => (
+                        <Cell key={i} fill={DESTINATION_COLORS[i % DESTINATION_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(val: number, name: string) => [formatBaht(val), name]}
+                      contentStyle={{
+                        borderRadius: '12px',
+                        border: '1px solid hsl(var(--border))',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                        fontSize: '12px',
+                        padding: '8px 12px',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-[220px] items-center justify-center">
+                  <p className="text-sm text-muted-foreground">No transfer data for this period</p>
                 </div>
               )}
             </div>
