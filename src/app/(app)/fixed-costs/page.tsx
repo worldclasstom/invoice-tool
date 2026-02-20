@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { formatBaht } from "@/lib/utils";
-import { Plus, Check, Upload, Camera, Trash2 } from "lucide-react";
+import { Plus, Check, Upload, Camera, Trash2, RotateCcw, CalendarDays } from "lucide-react";
 import useSWR, { mutate } from "swr";
 import {
   PieChart,
@@ -33,6 +33,7 @@ interface FixedCost {
   payment_method: string;
   due_day: number | null;
   is_paid: boolean;
+  is_recurring: boolean;
   paid_date: string | null;
   period_month: number;
   period_year: number;
@@ -58,6 +59,7 @@ export default function FixedCostsPage() {
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [dueDay, setDueDay] = useState("");
   const [notes, setNotes] = useState("");
+  const [isRecurring, setIsRecurring] = useState(true);
   const [receiptImageUrl, setReceiptImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -88,6 +90,7 @@ export default function FixedCostsPage() {
     setPaymentMethod("Cash");
     setDueDay("");
     setNotes("");
+    setIsRecurring(true);
     setReceiptImageUrl(null);
   };
 
@@ -107,6 +110,7 @@ export default function FixedCostsPage() {
           periodMonth: month,
           periodYear: year,
           notes: notes || null,
+          isRecurring,
           receiptImageUrl: receiptImageUrl || null,
         }),
       });
@@ -135,6 +139,10 @@ export default function FixedCostsPage() {
     }
   };
 
+  // Split costs by type
+  const recurringCosts = costs.filter((c) => c.is_recurring);
+  const oneTimeCosts = costs.filter((c) => !c.is_recurring);
+
   const methodTotals: Record<string, number> = {};
   costs
     .filter((c) => c.is_paid)
@@ -152,6 +160,8 @@ export default function FixedCostsPage() {
   const totalUnpaid = costs
     .filter((c) => !c.is_paid)
     .reduce((s, c) => s + Number(c.amount), 0);
+  const totalAll = totalPaid + totalUnpaid;
+  const paidCount = costs.filter((c) => c.is_paid).length;
 
   const thaiMonth = new Date(year, month - 1).toLocaleDateString("th-TH", {
     month: "long",
@@ -183,6 +193,39 @@ export default function FixedCostsPage() {
             Add Fixed Cost
           </h2>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            {/* Recurring toggle */}
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Cost Type
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsRecurring(true)}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 text-xs font-semibold transition-all ${
+                    isRecurring
+                      ? "border-violet-500 bg-violet-50 text-violet-700"
+                      : "border-border bg-background text-muted-foreground hover:border-violet-300"
+                  }`}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Recurring
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsRecurring(false)}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 text-xs font-semibold transition-all ${
+                    !isRecurring
+                      ? "border-violet-500 bg-violet-50 text-violet-700"
+                      : "border-border bg-background text-muted-foreground hover:border-violet-300"
+                  }`}
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  This Month Only
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -334,13 +377,27 @@ export default function FixedCostsPage() {
       )}
 
       {/* Summary */}
-      <div className="mb-4 grid grid-cols-2 gap-3">
+      <div className="mb-4 grid grid-cols-3 gap-3">
+        <div className="rounded-2xl bg-card border border-border p-4 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Total
+          </p>
+          <p className="text-lg font-bold text-foreground">
+            {formatBaht(totalAll)}
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            {costs.length} items
+          </p>
+        </div>
         <div className="rounded-2xl bg-emerald-500 p-4 shadow-lg shadow-emerald-500/20">
           <p className="text-xs font-medium uppercase tracking-wide text-emerald-50/80">
             Paid
           </p>
           <p className="text-lg font-bold text-white">
             {formatBaht(totalPaid)}
+          </p>
+          <p className="text-[11px] text-emerald-50/70 mt-0.5">
+            {paidCount} of {costs.length}
           </p>
         </div>
         <div className="rounded-2xl bg-amber-500 p-4 shadow-lg shadow-amber-500/20">
@@ -350,147 +407,68 @@ export default function FixedCostsPage() {
           <p className="text-lg font-bold text-white">
             {formatBaht(totalUnpaid)}
           </p>
+          <p className="text-[11px] text-amber-50/70 mt-0.5">
+            {costs.length - paidCount} remaining
+          </p>
         </div>
       </div>
 
-      {/* Cost Table */}
-      <div className="mb-6 rounded-2xl border border-border bg-card shadow-sm">
-        <div className="border-b border-border px-5 py-4">
-          <h2 className="text-sm font-bold text-foreground">
-            Monthly Fixed Costs
-          </h2>
-        </div>
-
-        {isLoading ? (
-          <div className="flex h-40 items-center justify-center">
-            <p className="text-sm text-muted-foreground">Loading...</p>
+      {/* Progress bar */}
+      {costs.length > 0 && (
+        <div className="mb-6">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+              style={{ width: `${totalAll > 0 ? (totalPaid / totalAll) * 100 : 0}%` }}
+            />
           </div>
-        ) : costs.length > 0 ? (
-          <>
-            {/* Desktop table */}
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Name</th>
-                    <th className="px-5 py-3">Category</th>
-                    <th className="px-5 py-3">Payment</th>
-                    <th className="px-5 py-3 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {costs.map((cost) => (
-                    <tr
-                      key={cost.id}
-                      className={`border-b border-border/50 transition-all last:border-0 ${
-                        cost.is_paid ? "bg-emerald-50" : ""
-                      }`}
-                    >
-                      <td className="px-5 py-3">
-                        <button
-                          onClick={() => togglePaid(cost.id, !cost.is_paid)}
-                          className={`flex h-7 w-7 items-center justify-center rounded-full border-2 transition-all ${
-                            cost.is_paid
-                              ? "border-emerald-500 bg-emerald-500 text-white"
-                              : "border-muted-foreground/30 bg-transparent hover:border-emerald-400"
-                          }`}
-                          aria-label={
-                            cost.is_paid ? "Mark unpaid" : "Mark paid"
-                          }
-                        >
-                          {cost.is_paid ? (
-                            <Check className="h-4 w-4" />
-                          ) : null}
-                        </button>
-                      </td>
-                      <td className="px-5 py-3 font-medium text-foreground">
-                        <span className="flex items-center gap-1.5">
-                          {cost.name}
-                          {cost.receipt_image_url && (
-                            <a
-                              href={cost.receipt_image_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex shrink-0"
-                              title="View receipt"
-                            >
-                              <Camera className="h-3.5 w-3.5 text-violet-500" />
-                            </a>
-                          )}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 capitalize text-muted-foreground">
-                        {cost.category}
-                      </td>
-                      <td className="px-5 py-3 text-muted-foreground">
-                        {cost.payment_method}
-                      </td>
-                      <td className="whitespace-nowrap px-5 py-3 text-right font-semibold text-foreground">
-                        {formatBaht(Number(cost.amount))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <p className="mt-1 text-right text-[11px] text-muted-foreground">
+            {totalAll > 0 ? Math.round((totalPaid / totalAll) * 100) : 0}% paid
+          </p>
+        </div>
+      )}
 
-            {/* Mobile cards */}
-            <div className="flex flex-col divide-y divide-border/50 md:hidden">
-              {costs.map((cost) => (
-                <div
-                  key={cost.id}
-                  className={`flex items-center gap-3 px-4 py-3 ${cost.is_paid ? "bg-emerald-50" : ""}`}
-                >
-                  <button
-                    onClick={() => togglePaid(cost.id, !cost.is_paid)}
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
-                      cost.is_paid
-                        ? "border-emerald-500 bg-emerald-500 text-white"
-                        : "border-muted-foreground/30 bg-transparent"
-                    }`}
-                    aria-label={cost.is_paid ? "Mark unpaid" : "Mark paid"}
-                  >
-                    {cost.is_paid ? <Check className="h-4 w-4" /> : null}
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
-                      {cost.name}
-                      {cost.receipt_image_url && (
-                        <a
-                          href={cost.receipt_image_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex shrink-0"
-                          title="View receipt"
-                        >
-                          <Camera className="h-3.5 w-3.5 text-violet-500" />
-                        </a>
-                      )}
-                    </p>
-                    <p className="text-xs capitalize text-muted-foreground">
-                      {cost.category} &middot; {cost.payment_method}
-                    </p>
-                  </div>
-                  <p className="shrink-0 text-sm font-semibold text-foreground">
-                    {formatBaht(Number(cost.amount))}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
+      {isLoading ? (
+        <div className="flex h-40 items-center justify-center">
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      ) : costs.length === 0 ? (
+        <div className="rounded-2xl border border-border bg-card shadow-sm">
           <div className="flex h-40 flex-col items-center justify-center gap-2 px-4 text-center">
             <p className="text-sm text-muted-foreground">
               No fixed costs for this month yet.
             </p>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <>
+          {/* Recurring Costs Section */}
+          {recurringCosts.length > 0 && (
+            <CostSection
+              title="Recurring Costs"
+              subtitle="Every month"
+              icon={<RotateCcw className="h-3.5 w-3.5 text-violet-500" />}
+              costs={recurringCosts}
+              togglePaid={togglePaid}
+            />
+          )}
+
+          {/* This Month Only Section */}
+          {oneTimeCosts.length > 0 && (
+            <CostSection
+              title="This Month Only"
+              subtitle="One-time for this period"
+              icon={<CalendarDays className="h-3.5 w-3.5 text-amber-500" />}
+              costs={oneTimeCosts}
+              togglePaid={togglePaid}
+            />
+          )}
+        </>
+      )}
 
       {/* Pie Chart: Payments by Method */}
       {pieData.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
           <h2 className="mb-1 text-sm font-bold text-foreground">
             Payments by Method
           </h2>
@@ -521,6 +499,181 @@ export default function FixedCostsPage() {
           </ResponsiveContainer>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Cost Section Component ── */
+function CostSection({
+  title,
+  subtitle,
+  icon,
+  costs,
+  togglePaid,
+}: {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  costs: FixedCost[];
+  togglePaid: (id: string, isPaid: boolean) => void;
+}) {
+  const sectionPaid = costs.filter((c) => c.is_paid).length;
+  const allPaid = sectionPaid === costs.length;
+
+  return (
+    <div className="mb-4 rounded-2xl border border-border bg-card shadow-sm">
+      <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <div className="flex items-center gap-2.5">
+          {icon}
+          <div>
+            <h2 className="text-sm font-bold text-foreground">{title}</h2>
+            <p className="text-[11px] text-muted-foreground">{subtitle}</p>
+          </div>
+        </div>
+        {allPaid ? (
+          <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700">
+            <Check className="h-3 w-3" /> All Paid
+          </span>
+        ) : (
+          <span className="text-[11px] text-muted-foreground">
+            {sectionPaid}/{costs.length} paid
+          </span>
+        )}
+      </div>
+
+      {/* Mobile cards */}
+      <div className="flex flex-col divide-y divide-border/50 md:hidden">
+        {costs.map((cost) => (
+          <CostCardMobile key={cost.id} cost={cost} togglePaid={togglePaid} />
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <th className="px-5 py-3 w-16">Status</th>
+              <th className="px-5 py-3">Name</th>
+              <th className="px-5 py-3">Category</th>
+              <th className="px-5 py-3">Payment</th>
+              <th className="px-5 py-3 text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {costs.map((cost) => (
+              <CostRowDesktop key={cost.id} cost={cost} togglePaid={togglePaid} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ── Desktop Row ── */
+function CostRowDesktop({
+  cost,
+  togglePaid,
+}: {
+  cost: FixedCost;
+  togglePaid: (id: string, isPaid: boolean) => void;
+}) {
+  return (
+    <tr
+      className={`border-b border-border/50 transition-all duration-300 last:border-0 ${
+        cost.is_paid ? "bg-emerald-50/60" : ""
+      }`}
+    >
+      <td className="px-5 py-3">
+        <button
+          onClick={() => togglePaid(cost.id, !cost.is_paid)}
+          className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-300 ${
+            cost.is_paid
+              ? "border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
+              : "border-muted-foreground/30 bg-transparent hover:border-emerald-400 hover:bg-emerald-50"
+          }`}
+          aria-label={cost.is_paid ? "Mark unpaid" : "Mark paid"}
+        >
+          {cost.is_paid ? <Check className="h-5 w-5" strokeWidth={3} /> : null}
+        </button>
+      </td>
+      <td className={`px-5 py-3 font-medium ${cost.is_paid ? "text-muted-foreground line-through" : "text-foreground"}`}>
+        <span className="flex items-center gap-1.5">
+          {cost.name}
+          {cost.receipt_image_url && (
+            <a
+              href={cost.receipt_image_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0"
+              title="View receipt"
+            >
+              <Camera className="h-3.5 w-3.5 text-violet-500" />
+            </a>
+          )}
+        </span>
+      </td>
+      <td className={`px-5 py-3 capitalize ${cost.is_paid ? "text-muted-foreground/70" : "text-muted-foreground"}`}>
+        {cost.category}
+      </td>
+      <td className={`px-5 py-3 ${cost.is_paid ? "text-muted-foreground/70" : "text-muted-foreground"}`}>
+        {cost.payment_method}
+      </td>
+      <td className={`whitespace-nowrap px-5 py-3 text-right font-semibold ${cost.is_paid ? "text-emerald-600" : "text-foreground"}`}>
+        {formatBaht(Number(cost.amount))}
+      </td>
+    </tr>
+  );
+}
+
+/* ── Mobile Card ── */
+function CostCardMobile({
+  cost,
+  togglePaid,
+}: {
+  cost: FixedCost;
+  togglePaid: (id: string, isPaid: boolean) => void;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-3 px-4 py-3.5 transition-all duration-300 ${
+        cost.is_paid ? "bg-emerald-50/60" : ""
+      }`}
+    >
+      <button
+        onClick={() => togglePaid(cost.id, !cost.is_paid)}
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 ${
+          cost.is_paid
+            ? "border-emerald-500 bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
+            : "border-muted-foreground/30 bg-transparent"
+        }`}
+        aria-label={cost.is_paid ? "Mark unpaid" : "Mark paid"}
+      >
+        {cost.is_paid ? <Check className="h-6 w-6" strokeWidth={3} /> : null}
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className={`flex items-center gap-1.5 truncate text-sm font-medium ${cost.is_paid ? "text-muted-foreground line-through" : "text-foreground"}`}>
+          {cost.name}
+          {cost.receipt_image_url && (
+            <a
+              href={cost.receipt_image_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0"
+              title="View receipt"
+            >
+              <Camera className="h-3.5 w-3.5 text-violet-500" />
+            </a>
+          )}
+        </p>
+        <p className="text-xs capitalize text-muted-foreground">
+          {cost.category} &middot; {cost.payment_method}
+        </p>
+      </div>
+      <p className={`shrink-0 text-sm font-semibold ${cost.is_paid ? "text-emerald-600" : "text-foreground"}`}>
+        {formatBaht(Number(cost.amount))}
+      </p>
     </div>
   );
 }
