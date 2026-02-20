@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { formatBaht } from '@/lib/utils'
 import { Upload, Camera, Plus, Trash2, Check, Clock, CalendarDays, ChevronLeft, ChevronRight, Pencil, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
@@ -77,9 +77,60 @@ export default function SalesPage() {
   const [isExisting, setIsExisting] = useState(false)
   const [loading, setLoading] = useState(false)
 
+  // Nickname suggestions
+  interface NicknameSuggestion {
+    nickname: string
+    destination: string
+  }
+  const [nicknameSuggestions, setNicknameSuggestions] = useState<NicknameSuggestion[]>([])
+  const [activeNicknameIndex, setActiveNicknameIndex] = useState<number | null>(null)
+  const [nicknameQuery, setNicknameQuery] = useState('')
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+
   const thaiToday = getThaiToday()
   const thaiDate = formatThaiDisplay(reportDate)
   const isToday = reportDate === thaiToday
+
+  // Fetch nickname suggestions once on mount
+  useEffect(() => {
+    async function fetchNicknames() {
+      try {
+        const res = await fetch('/api/sales/nicknames')
+        const data = await res.json()
+        if (data.suggestions) setNicknameSuggestions(data.suggestions)
+      } catch {
+        // silently fail
+      }
+    }
+    fetchNicknames()
+  }, [])
+
+  // Close suggestions dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setActiveNicknameIndex(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const filteredSuggestions = nicknameSuggestions.filter((s) =>
+    s.nickname.toLowerCase().includes(nicknameQuery.toLowerCase())
+  )
+
+  const selectNickname = (index: number, suggestion: NicknameSuggestion) => {
+    const updated = [...transfers]
+    updated[index] = {
+      ...updated[index],
+      nickname: suggestion.nickname,
+      destination: suggestion.destination || updated[index].destination,
+    }
+    setTransfers(updated)
+    setActiveNicknameIndex(null)
+    setNicknameQuery('')
+  }
 
   // Live clock
   useEffect(() => {
@@ -223,6 +274,11 @@ export default function SalesPage() {
       if (!res.ok) throw new Error('Failed to save')
       setSaved(true)
       setIsExisting(true)
+      // Refresh nickname suggestions so new ones are available immediately
+      fetch('/api/sales/nicknames')
+        .then((r) => r.json())
+        .then((d) => { if (d.suggestions) setNicknameSuggestions(d.suggestions) })
+        .catch(() => {})
     } catch (err) {
       alert('Failed to save sales report. Please try again.')
       console.error(err)
@@ -387,13 +443,46 @@ export default function SalesPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={t.nickname}
-                      onChange={(e) => updateTransfer(i, 'nickname', e.target.value)}
-                      className="flex-1 rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring"
-                      placeholder="Nickname (e.g. John's card)"
-                    />
+                    <div className="relative flex-1" ref={activeNicknameIndex === i ? suggestionsRef : undefined}>
+                      <input
+                        type="text"
+                        value={t.nickname}
+                        onChange={(e) => {
+                          updateTransfer(i, 'nickname', e.target.value)
+                          setNicknameQuery(e.target.value)
+                          setActiveNicknameIndex(e.target.value.length > 0 ? i : null)
+                        }}
+                        onFocus={() => {
+                          if (t.nickname.length > 0) {
+                            setNicknameQuery(t.nickname)
+                            setActiveNicknameIndex(i)
+                          } else if (nicknameSuggestions.length > 0) {
+                            setNicknameQuery('')
+                            setActiveNicknameIndex(i)
+                          }
+                        }}
+                        className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring"
+                        placeholder="Nickname (e.g. John's card)"
+                        autoComplete="off"
+                      />
+                      {activeNicknameIndex === i && (nicknameQuery === '' ? nicknameSuggestions : filteredSuggestions).length > 0 && (
+                        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-40 overflow-y-auto rounded-xl border border-border bg-card shadow-lg">
+                          {(nicknameQuery === '' ? nicknameSuggestions : filteredSuggestions).map((s, si) => (
+                            <button
+                              key={si}
+                              type="button"
+                              onClick={() => selectNickname(i, s)}
+                              className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent first:rounded-t-xl last:rounded-b-xl"
+                            >
+                              <span className="font-medium text-foreground">{s.nickname}</span>
+                              {s.destination && (
+                                <span className="ml-2 text-xs text-muted-foreground">{s.destination}</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <div className="relative w-28 shrink-0">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{'฿'}</span>
                       <input
