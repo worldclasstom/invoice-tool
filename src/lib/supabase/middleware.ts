@@ -51,7 +51,9 @@ export async function updateSession(request: NextRequest) {
   }
 
   // If logged in and on auth page, redirect to dashboard
-  if (user && isAuthRoute) {
+  // (except reset-password page which needs to work after clicking email link)
+  const isResetPasswordRoute = request.nextUrl.pathname.startsWith('/auth/reset-password')
+  if (user && isAuthRoute && !isResetPasswordRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
