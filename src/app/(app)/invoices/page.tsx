@@ -2,13 +2,17 @@
 
 import { useState } from 'react'
 import { formatBaht } from '@/lib/utils'
-import { Plus, Trash2 } from 'lucide-react'
-import Image from 'next/image'
+import { Plus, Trash2, FileText } from 'lucide-react'
 
 interface LineItem {
   description: string
-  quantity: number
-  unitPrice: number
+  quantity: string
+  unitPrice: string
+}
+
+function toNum(val: string): number {
+  const n = parseFloat(val)
+  return isNaN(n) ? 0 : n
 }
 
 export default function InvoicePage() {
@@ -17,28 +21,37 @@ export default function InvoicePage() {
   const [customerPhone, setCustomerPhone] = useState('')
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<LineItem[]>([
-    { description: '', quantity: 1, unitPrice: 0 },
+    { description: '', quantity: '1', unitPrice: '' },
   ])
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
   const [date, setDate] = useState(today)
   const [saving, setSaving] = useState(false)
 
   const addLineItem = () => {
-    setItems([...items, { description: '', quantity: 1, unitPrice: 0 }])
+    setItems([...items, { description: '', quantity: '1', unitPrice: '' }])
   }
 
   const removeLineItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index))
   }
 
-  const updateLineItem = (index: number, field: keyof LineItem, value: string | number) => {
+  const updateLineItem = (index: number, field: keyof LineItem, value: string) => {
     const updated = [...items]
     updated[index] = { ...updated[index], [field]: value }
     setItems(updated)
   }
 
-  const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+  const subtotal = items.reduce((sum, item) => sum + toNum(item.quantity) * toNum(item.unitPrice), 0)
   const total = subtotal
+
+  const resetForm = () => {
+    setCustomerName('')
+    setCustomerEmail('')
+    setCustomerPhone('')
+    setNotes('')
+    setItems([{ description: '', quantity: '1', unitPrice: '' }])
+    setDate(today)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,7 +67,11 @@ export default function InvoicePage() {
           customerPhone,
           date,
           notes,
-          items,
+          items: items.map((i) => ({
+            description: i.description,
+            quantity: toNum(i.quantity),
+            unitPrice: toNum(i.unitPrice),
+          })),
           subtotal,
           tax: 0,
           total,
@@ -81,21 +98,20 @@ export default function InvoicePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-100">
-          <Image
-            src="/assets/logos/AW_LOGO_MADRE-01.png"
-            alt="Madre Logo"
-            width={28}
-            height={38}
-            priority
-          />
-        </div>
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">Invoice Generator</h1>
           <p className="text-xs text-muted-foreground">Create and print invoices</p>
         </div>
+        <button
+          type="button"
+          onClick={resetForm}
+          className="flex items-center gap-1.5 rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/20 transition-all hover:brightness-110"
+        >
+          <FileText className="h-4 w-4" />
+          New Invoice
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -112,6 +128,7 @@ export default function InvoicePage() {
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  placeholder="Customer name"
                 />
               </div>
               <div>
@@ -121,6 +138,7 @@ export default function InvoicePage() {
                   value={customerEmail}
                   onChange={(e) => setCustomerEmail(e.target.value)}
                   className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  placeholder="email@example.com"
                 />
               </div>
             </div>
@@ -132,6 +150,7 @@ export default function InvoicePage() {
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
                   className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  placeholder="Phone number"
                 />
               </div>
               <div>
@@ -170,47 +189,59 @@ export default function InvoicePage() {
                   required
                   value={item.description}
                   onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                  placeholder="Description"
-                  className="mb-2 w-full border-0 bg-transparent px-0 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0"
+                  placeholder="Item description"
+                  className="mb-2 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
                     <label className="text-[10px] font-semibold text-muted-foreground uppercase">Qty</label>
                     <input
-                      type="number"
-                      min="0"
-                      step="1"
+                      type="text"
+                      inputMode="numeric"
                       required
                       value={item.quantity}
-                      onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                          updateLineItem(index, 'quantity', val)
+                        }
+                      }}
                       className="w-full rounded-lg border border-input bg-card px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      placeholder="1"
                     />
                   </div>
                   <div className="flex-1">
                     <label className="text-[10px] font-semibold text-muted-foreground uppercase">Unit Price</label>
                     <input
-                      type="number"
-                      min="0"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
                       required
                       value={item.unitPrice}
-                      onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                          updateLineItem(index, 'unitPrice', val)
+                        }
+                      }}
                       className="w-full rounded-lg border border-input bg-card px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      placeholder="0.00"
                     />
                   </div>
                   <div className="flex-1">
                     <label className="text-[10px] font-semibold text-muted-foreground uppercase">Amount</label>
                     <div className="rounded-lg bg-emerald-50 px-2 py-1.5 text-sm font-semibold text-emerald-700">
-                      {formatBaht(item.quantity * item.unitPrice)}
+                      {formatBaht(toNum(item.quantity) * toNum(item.unitPrice))}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeLineItem(index)}
-                    className="mt-3 rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {items.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeLineItem(index)}
+                      className="mt-3 rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -245,13 +276,22 @@ export default function InvoicePage() {
         </div>
 
         {/* Submit */}
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-2xl bg-sky-500 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-sky-500/25 transition-all hover:brightness-110 disabled:opacity-50"
-        >
-          {saving ? 'Generating...' : 'Generate Invoice PDF'}
-        </button>
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-xl bg-primary px-6 py-2.5 text-xs font-bold text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:brightness-110 disabled:opacity-50"
+          >
+            {saving ? 'Generating...' : 'Generate Invoice PDF'}
+          </button>
+          <button
+            type="button"
+            onClick={resetForm}
+            className="rounded-xl border border-border px-4 py-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary"
+          >
+            Reset
+          </button>
+        </div>
       </form>
     </div>
   )
