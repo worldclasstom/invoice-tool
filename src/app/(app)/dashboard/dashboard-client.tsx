@@ -581,7 +581,7 @@ export function DashboardClient() {
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">{time}</p>
                       </div>
-                      {detail.total && (
+                      {detail.total != null && (
                         <span className="shrink-0 text-xs font-semibold text-foreground">
                           {formatBaht(Number(detail.total))}
                         </span>
