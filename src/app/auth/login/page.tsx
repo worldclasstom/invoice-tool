@@ -25,6 +25,8 @@ export default function LoginPage() {
         password,
       })
       if (error) throw error
+      // Log the login activity (fire and forget)
+      fetch('/api/auth/log-login', { method: 'POST' }).catch(() => {})
       router.push('/dashboard')
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An error occurred')

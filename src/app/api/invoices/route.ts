@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { logActivity } from '@/lib/activity-log'
 import { PDFDocument } from 'pdf-lib'
 import fs from 'fs'
 import path from 'path'
@@ -153,6 +154,16 @@ export async function POST(request: Request) {
     }
 
     const pdfBytes = await pdfDoc.save()
+
+    await logActivity({
+      supabase,
+      userId: user.id,
+      userEmail: user.email || '',
+      action: 'created',
+      entityType: 'invoice',
+      entityId: invoice.id,
+      details: { invoiceNumber, customerName, total },
+    })
 
     return NextResponse.json({
       invoice,

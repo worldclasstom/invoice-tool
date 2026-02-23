@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { logActivity } from '@/lib/activity-log'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -38,6 +39,16 @@ export async function POST(request: Request) {
       reference_type: 'receipt',
       reference_id: receipt.id,
       user_id: user.id,
+    })
+
+    await logActivity({
+      supabase,
+      userId: user.id,
+      userEmail: user.email || '',
+      action: 'created',
+      entityType: 'receipt',
+      entityId: receipt.id,
+      details: { vendor, total: Number(total), category: category || 'ingredients' },
     })
 
     return NextResponse.json({ success: true, receipt })

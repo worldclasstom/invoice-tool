@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { logActivity } from '@/lib/activity-log'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -14,7 +15,6 @@ export async function GET(request: NextRequest) {
       .from('daily_sales')
       .select('*')
       .eq('report_date', date)
-      .eq('user_id', user.id)
       .maybeSingle()
 
     if (error) throw error
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       Number(promptpayAmount || 0) +
       Number(creditCardAmount || 0)
 
-    // Upsert daily sales (one per date per user)
+    // Upsert daily sales (one per date, team-shared)
     const { data: sale, error: saleError } = await supabase
       .from('daily_sales')
       .upsert(
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
           user_id: user.id,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: 'report_date,user_id' }
+        { onConflict: 'report_date' }
       )
       .select()
       .single()
@@ -97,6 +97,16 @@ export async function POST(request: Request) {
       reference_type: 'daily_sales',
       reference_id: sale.id,
       user_id: user.id,
+    })
+
+    await logActivity({
+      supabase,
+      userId: user.id,
+      userEmail: user.email || '',
+      action: 'submitted',
+      entityType: 'sales_report',
+      entityId: sale.id,
+      details: { date: reportDate, total: totalAmount },
     })
 
     return NextResponse.json({ success: true, sale })
