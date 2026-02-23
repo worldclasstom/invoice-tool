@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { logActivity } from '@/lib/activity-log'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -30,6 +31,16 @@ export async function POST(request: Request) {
       .single()
 
     if (error) throw error
+
+    await logActivity({
+      supabase,
+      userId: user.id,
+      userEmail: user.email || '',
+      action: 'created',
+      entityType: 'fixed_cost',
+      entityId: cost.id,
+      details: { name, amount: Number(amount), category },
+    })
 
     return NextResponse.json({ success: true, cost })
   } catch (error: unknown) {
@@ -117,6 +128,16 @@ export async function PATCH(request: Request) {
         .eq('reference_type', 'fixed_cost')
         .eq('reference_id', id)
     }
+
+    await logActivity({
+      supabase,
+      userId: user.id,
+      userEmail: user.email || '',
+      action: isPaid ? 'marked_paid' : 'marked_unpaid',
+      entityType: 'fixed_cost',
+      entityId: cost.id,
+      details: { name: cost.name, amount: Number(cost.amount) },
+    })
 
     return NextResponse.json({ success: true, cost })
   } catch (error: unknown) {

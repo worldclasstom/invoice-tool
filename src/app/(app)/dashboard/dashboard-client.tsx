@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts'
-import { TrendingUp, TrendingDown, Wallet, CalendarDays, Loader2 } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, CalendarDays, Loader2, Activity, Receipt, FileText, DollarSign, CheckCircle2, LogIn } from 'lucide-react'
 
 const INCOME_COLORS = ['#22c55e', '#06b6d4', '#f59e0b', '#a78bfa']
 const EXPENSE_COLORS = ['#f43f5e', '#fb923c', '#a78bfa', '#22c55e', '#06b6d4']
@@ -122,6 +122,17 @@ export function DashboardClient() {
   const dateLabel = useMemo(() => getDateLabel(viewMode, from, to), [viewMode, from, to])
 
   const { data, isLoading } = useSWR(`/api/dashboard?from=${from}&to=${to}`, fetcher)
+  const { data: activityData } = useSWR('/api/activity-log?limit=30', fetcher)
+
+  interface ActivityLogEntry {
+    id: string
+    user_email: string
+    action: string
+    entity_type: string
+    details: Record<string, unknown>
+    created_at: string
+  }
+  const activityLogs: ActivityLogEntry[] = activityData?.logs ?? []
 
   const sales: DailySale[] = data?.sales ?? []
   const receipts: ReceiptRow[] = data?.receipts ?? []
@@ -482,6 +493,107 @@ export function DashboardClient() {
                 <p className="text-sm text-muted-foreground">
                   No journal entries for this period. Entries are created when you submit sales reports, receipts, and fixed costs.
                 </p>
+              </div>
+            )}
+          </div>
+
+          {/* Team Activity Log */}
+          <div className="mt-6 rounded-2xl border border-border bg-card shadow-sm">
+            <div className="border-b border-border px-5 py-4">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-bold text-foreground">Team Activity</h2>
+              </div>
+              <p className="text-xs text-muted-foreground">Recent actions by team members</p>
+            </div>
+
+            {activityLogs.length > 0 ? (
+              <div className="flex flex-col divide-y divide-border/50">
+                {activityLogs.map((log) => {
+                  const userName = log.user_email?.split('@')[0] || 'Unknown'
+                  const time = new Date(log.created_at).toLocaleString('en-US', {
+                    timeZone: 'Asia/Bangkok',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+
+                  let icon = <FileText className="h-4 w-4" />
+                  let iconBg = 'bg-secondary'
+                  let actionLabel = log.action
+                  let entityLabel = log.entity_type.replace(/_/g, ' ')
+
+                  switch (log.entity_type) {
+                    case 'sales_report':
+                      icon = <DollarSign className="h-4 w-4 text-emerald-600" />
+                      iconBg = 'bg-emerald-100'
+                      entityLabel = 'sales report'
+                      break
+                    case 'receipt':
+                      icon = <Receipt className="h-4 w-4 text-amber-600" />
+                      iconBg = 'bg-amber-100'
+                      break
+                    case 'fixed_cost':
+                      icon = <FileText className="h-4 w-4 text-sky-600" />
+                      iconBg = 'bg-sky-100'
+                      entityLabel = 'fixed cost'
+                      break
+                    case 'invoice':
+                      icon = <FileText className="h-4 w-4 text-violet-600" />
+                      iconBg = 'bg-violet-100'
+                      break
+                    case 'auth':
+                      icon = <LogIn className="h-4 w-4 text-primary" />
+                      iconBg = 'bg-primary/10'
+                      entityLabel = ''
+                      actionLabel = 'signed in'
+                      break
+                  }
+
+                  if (log.action === 'marked_paid') {
+                    icon = <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    iconBg = 'bg-emerald-100'
+                    actionLabel = 'marked paid'
+                  } else if (log.action === 'marked_unpaid') {
+                    actionLabel = 'marked unpaid'
+                  }
+
+                  const detail = log.details || {}
+                  let extraInfo = ''
+                  if (detail.vendor) extraInfo = String(detail.vendor)
+                  else if (detail.name) extraInfo = String(detail.name)
+                  else if (detail.customerName) extraInfo = String(detail.customerName)
+                  else if (detail.date) extraInfo = String(detail.date)
+
+                  return (
+                    <div key={log.id} className="flex items-start gap-3 px-4 py-3 sm:px-5">
+                      <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg}`}>
+                        {icon}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-foreground">
+                          <span className="font-semibold capitalize">{userName}</span>
+                          {' '}{actionLabel}{entityLabel ? ` ${entityLabel}` : ''}
+                          {extraInfo && (
+                            <span className="text-muted-foreground">{' - '}{extraInfo}</span>
+                          )}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{time}</p>
+                      </div>
+                      {detail.total && (
+                        <span className="shrink-0 text-xs font-semibold text-foreground">
+                          {formatBaht(Number(detail.total))}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="flex h-32 flex-col items-center justify-center gap-2 px-4 text-center">
+                <Activity className="h-6 w-6 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">No activity yet. Actions will appear here as the team uses Madre Tools.</p>
               </div>
             )}
           </div>
