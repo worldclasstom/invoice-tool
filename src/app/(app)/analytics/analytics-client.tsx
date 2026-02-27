@@ -752,69 +752,67 @@ export function AnalyticsClient() {
                 {/* Electricity Costs vs Weather Patterns */}
                 <ChartCard title="Electricity Costs vs Weather Patterns" subtitle="Monthly electricity bill compared with weather distribution">
                   {electricityVsWeather.length > 0 ? (
-                    <div className="grid gap-6 lg:grid-cols-5">
-                      <div className="lg:col-span-3">
-                        <ResponsiveContainer width="100%" height={320}>
-                          <ComposedChart data={electricityVsWeather}>
-                            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
-                            <XAxis dataKey="monthLabel" tick={{ fontSize: 12 }} stroke={AXIS_STROKE} />
-                            <YAxis yAxisId="cost" tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={55} />
-                            <YAxis yAxisId="days" orientation="right" tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={35} label={{ value: 'Days', angle: 90, position: 'insideRight', style: { fontSize: 11, fill: AXIS_STROKE } }} />
-                            <Tooltip
-                              content={({ active, payload, label }) => {
-                                if (!active || !payload?.length) return null
-                                const d = payload[0]?.payload
-                                return (
-                                  <div className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-xl shadow-black/5">
-                                    <p className="mb-2 text-sm font-bold text-foreground">{label}</p>
-                                    <div className="flex flex-col gap-1">
-                                      <div className="flex items-center gap-2 text-xs">
-                                        <Zap className="h-3 w-3 text-amber-500" />
-                                        <span className="text-muted-foreground">Electricity:</span>
-                                        <span className="font-semibold text-foreground">{formatBaht(d?.electricity ?? 0)}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2 text-xs">
-                                        <Sun className="h-3 w-3 text-amber-400" />
-                                        <span className="text-muted-foreground">Sunny days:</span>
-                                        <span className="font-semibold text-foreground">{d?.sunnyDays ?? 0}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2 text-xs">
-                                        <CloudRain className="h-3 w-3 text-sky-400" />
-                                        <span className="text-muted-foreground">Rainy days:</span>
-                                        <span className="font-semibold text-foreground">{d?.rainyDays ?? 0}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2 text-xs">
-                                        <Cloud className="h-3 w-3 text-muted-foreground" />
-                                        <span className="text-muted-foreground">Cloudy days:</span>
-                                        <span className="font-semibold text-foreground">{d?.cloudyDays ?? 0}</span>
-                                      </div>
+                    <div className="flex flex-col gap-5">
+                      <ResponsiveContainer width="100%" height={320}>
+                        <ComposedChart data={electricityVsWeather}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                          <XAxis dataKey="monthLabel" tick={{ fontSize: 12 }} stroke={AXIS_STROKE} />
+                          <YAxis yAxisId="cost" tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={55} />
+                          <YAxis yAxisId="days" orientation="right" tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={35} label={{ value: 'Days', angle: 90, position: 'insideRight', style: { fontSize: 11, fill: AXIS_STROKE } }} />
+                          <Tooltip
+                            content={({ active, payload, label }) => {
+                              if (!active || !payload?.length) return null
+                              const d = payload[0]?.payload
+                              return (
+                                <div className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-xl shadow-black/5">
+                                  <p className="mb-2 text-sm font-bold text-foreground">{label}</p>
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <Zap className="h-3 w-3 text-amber-500" />
+                                      <span className="text-muted-foreground">Electricity:</span>
+                                      <span className="font-semibold text-foreground">{formatBaht(d?.electricity ?? 0)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <Sun className="h-3 w-3 text-amber-400" />
+                                      <span className="text-muted-foreground">Sunny days:</span>
+                                      <span className="font-semibold text-foreground">{d?.sunnyDays ?? 0}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <CloudRain className="h-3 w-3 text-sky-400" />
+                                      <span className="text-muted-foreground">Rainy days:</span>
+                                      <span className="font-semibold text-foreground">{d?.rainyDays ?? 0}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <Cloud className="h-3 w-3 text-muted-foreground" />
+                                      <span className="text-muted-foreground">Cloudy days:</span>
+                                      <span className="font-semibold text-foreground">{d?.cloudyDays ?? 0}</span>
                                     </div>
                                   </div>
-                                )
-                              }}
-                            />
-                            <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
-                            <Bar yAxisId="cost" dataKey="electricity" name="Electricity" fill={COLORS.electricity} radius={[4, 4, 0, 0]} barSize={36} />
-                            <Line yAxisId="days" type="monotone" dataKey="sunnyDays" name="Sunny Days" stroke={COLORS.sunny} strokeWidth={2} dot={{ r: 4, fill: COLORS.sunny }} />
-                            <Line yAxisId="days" type="monotone" dataKey="rainyDays" name="Rainy Days" stroke={COLORS.rainy} strokeWidth={2} dot={{ r: 4, fill: COLORS.rainy }} />
-                            <Line yAxisId="days" type="monotone" dataKey="cloudyDays" name="Cloudy Days" stroke={COLORS.cloudy} strokeWidth={2} dot={{ r: 4, fill: COLORS.cloudy }} />
-                          </ComposedChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="flex flex-col gap-3 lg:col-span-2">
+                                </div>
+                              )
+                            }}
+                          />
+                          <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                          <Bar yAxisId="cost" dataKey="electricity" name="Electricity" fill={COLORS.electricity} radius={[4, 4, 0, 0]} barSize={36} />
+                          <Line yAxisId="days" type="monotone" dataKey="sunnyDays" name="Sunny Days" stroke={COLORS.sunny} strokeWidth={2} dot={{ r: 4, fill: COLORS.sunny }} />
+                          <Line yAxisId="days" type="monotone" dataKey="rainyDays" name="Rainy Days" stroke={COLORS.rainy} strokeWidth={2} dot={{ r: 4, fill: COLORS.rainy }} />
+                          <Line yAxisId="days" type="monotone" dataKey="cloudyDays" name="Cloudy Days" stroke={COLORS.cloudy} strokeWidth={2} dot={{ r: 4, fill: COLORS.cloudy }} />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {electricityVsWeather.map((m: { monthLabel: string; electricity: number; sunnyDays: number; rainyDays: number; cloudyDays: number; totalDays: number }) => (
-                          <div key={m.monthLabel} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                          <div key={m.monthLabel} className="rounded-xl border border-border bg-secondary/30 p-3">
                             <div className="mb-2 flex items-center justify-between">
                               <span className="text-sm font-bold text-foreground">{m.monthLabel}</span>
-                              <span className="flex items-center gap-1 text-sm font-bold text-amber-600">
-                                <Zap className="h-3.5 w-3.5" />
+                              <span className="flex items-center gap-1 text-xs font-bold text-amber-600">
+                                <Zap className="h-3 w-3" />
                                 {formatBaht(m.electricity)}
                               </span>
                             </div>
-                            <div className="flex gap-3">
-                              <WeatherBadge icon={<Sun className="h-3.5 w-3.5 text-amber-500" />} label="Sunny" count={m.sunnyDays} />
-                              <WeatherBadge icon={<CloudRain className="h-3.5 w-3.5 text-sky-500" />} label="Rainy" count={m.rainyDays} />
-                              <WeatherBadge icon={<Cloud className="h-3.5 w-3.5 text-muted-foreground" />} label="Cloudy" count={m.cloudyDays} />
+                            <div className="flex flex-wrap gap-2">
+                              <WeatherBadge icon={<Sun className="h-3 w-3 text-amber-500" />} label="Sunny" count={m.sunnyDays} />
+                              <WeatherBadge icon={<CloudRain className="h-3 w-3 text-sky-500" />} label="Rainy" count={m.rainyDays} />
+                              <WeatherBadge icon={<Cloud className="h-3 w-3 text-muted-foreground" />} label="Cloudy" count={m.cloudyDays} />
                             </div>
                           </div>
                         ))}
@@ -873,10 +871,10 @@ function EmptyChart() {
 
 function WeatherBadge({ icon, label, count }: { icon: React.ReactNode; label: string; count: number }) {
   return (
-    <div className="flex items-center gap-1.5 rounded-lg bg-secondary/60 px-2.5 py-1.5">
-      {icon}
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-xs font-bold text-foreground">{count}</span>
-    </div>
+  <div className="flex items-center gap-1 rounded-md bg-secondary/60 px-2 py-1">
+  {icon}
+  <span className="text-[11px] text-muted-foreground">{label}</span>
+  <span className="text-[11px] font-bold text-foreground">{count}</span>
+  </div>
   )
-}
+  }
