@@ -10,7 +10,8 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts'
-import { TrendingUp, TrendingDown, Wallet, CalendarDays, Loader2, Activity, Receipt, FileText, DollarSign, CheckCircle2, LogIn, ChevronDown } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, CalendarDays, Loader2, Activity, Receipt, FileText, DollarSign, CheckCircle2, LogIn, ChevronDown, AlertTriangle } from 'lucide-react'
+import Link from 'next/link'
 
 const INCOME_COLORS = ['#22c55e', '#06b6d4', '#f59e0b', '#a78bfa']
 const EXPENSE_COLORS = ['#f43f5e', '#fb923c', '#a78bfa', '#22c55e', '#06b6d4']
@@ -33,7 +34,7 @@ function toDateStr(d: Date): string {
 
 function getDateRange(mode: ViewMode, customFrom: string, customTo: string): { from: string; to: string } {
   const today = getThaiToday()
-  const d = new Date(today + 'T12:00:00')
+  const d = new Date(today + 'T00:00:00+07:00')
 
   switch (mode) {
     case 'daily':
@@ -122,6 +123,25 @@ interface LedgerEntry {
   reference_type: string | null
 }
 
+// Fixed cost reminder bills (mirrored from fixed-costs page)
+const REMINDER_BILLS = [
+  { name: 'Electricity', category: 'utilities' },
+  { name: 'Water', category: 'utilities' },
+  { name: 'UMB Credit Card', category: 'credit_card' },
+  { name: 'First Half Salary', category: 'employees' },
+  { name: 'Second Half Salary', category: 'employees' },
+]
+
+interface FixedCostFull {
+  id: string
+  name: string
+  category: string
+  amount: number
+  is_paid: boolean
+  period_month: number
+  period_year: number
+}
+
 export function DashboardClient() {
   const [mounted, setMounted] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('daily')
@@ -186,6 +206,49 @@ export function DashboardClient() {
       setActivityLoadingMore(false)
     }
   }
+
+  // ── Overdue Fixed Cost Reminders ──
+  // Get current month/year in Bangkok timezone
+  const bkkParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const bkkGet = (t: string) => Number(bkkParts.find(p => p.type === t)?.value ?? '0')
+  const bkkMonth = bkkGet('month')
+  const bkkYear = bkkGet('year')
+  const bkkDay = bkkGet('day')
+
+  const { data: fixedCostData } = useSWR(
+    `/api/fixed-costs?month=${bkkMonth}&year=${bkkYear}`,
+    fetcher
+  )
+  const currentMonthCosts: FixedCostFull[] = fixedCostData?.costs ?? []
+  const lastDayOfMonth = new Date(bkkYear, bkkMonth, 0).getDate()
+
+  const overdueItems = useMemo(() => {
+    return REMINDER_BILLS.map((bill) => {
+      const match = currentMonthCosts.find(
+        (c) =>
+          c.name.toLowerCase().includes(bill.name.toLowerCase()) ||
+          (bill.name === 'UMB Credit Card' && c.name.toLowerCase().includes('umb'))
+      )
+      const isPaid = match?.is_paid ?? false
+
+      let dueDate: number
+      if (bill.name === 'First Half Salary') {
+        dueDate = 15
+      } else if (bill.name === 'Second Half Salary') {
+        dueDate = lastDayOfMonth
+      } else {
+        dueDate = lastDayOfMonth - 2
+      }
+
+      const isOverdue = !isPaid && bkkDay >= dueDate
+      return { ...bill, isPaid, isOverdue, dueDate }
+    }).filter((item) => item.isOverdue)
+  }, [currentMonthCosts, bkkDay, lastDayOfMonth])
 
   const sales: DailySale[] = data?.sales ?? []
   const receipts: ReceiptRow[] = data?.receipts ?? []
@@ -357,6 +420,45 @@ export function DashboardClient() {
               </div>
             </div>
           </div>
+
+          {/* Overdue Fixed Cost Reminders */}
+          {overdueItems.length > 0 && (
+            <div className="mb-6 rounded-2xl border-2 border-red-200 bg-red-50/50 p-4 shadow-sm">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-red-700">Overdue Bills</h2>
+                    <p className="text-[11px] text-red-500">{overdueItems.length} unpaid fixed cost{overdueItems.length > 1 ? 's' : ''} past due</p>
+                  </div>
+                </div>
+                <Link
+                  href="/fixed-costs"
+                  className="rounded-lg bg-red-100 px-3 py-1.5 text-[11px] font-semibold text-red-700 transition-colors hover:bg-red-200"
+                >
+                  Go to Fixed Costs
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {overdueItems.map((item) => (
+                  <div
+                    key={item.name}
+                    className="flex items-center gap-3 rounded-xl border border-red-200 bg-white/80 px-3 py-2.5"
+                  >
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-100">
+                      <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold text-red-700">{item.name}</p>
+                      <p className="text-[10px] font-medium text-red-400">Due by {item.dueDate}{item.dueDate === 1 ? 'st' : item.dueDate === 2 ? 'nd' : item.dueDate === 3 ? 'rd' : 'th'}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Pie Charts */}
           <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">

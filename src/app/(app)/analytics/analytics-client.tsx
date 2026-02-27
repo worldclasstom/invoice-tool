@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import useSWR from 'swr'
-import { TrendingUp, TrendingDown, Wallet, Loader2, BarChart3, DollarSign, ChevronLeft, ChevronRight, Zap, Leaf, Cloud, Sun, CloudRain, Users, ShoppingBag, Clock, Receipt, CreditCard, CheckCircle2, XCircle } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, Loader2, BarChart3, DollarSign, ChevronLeft, ChevronRight, Zap, Leaf, Cloud, Sun, CloudRain, Users, ShoppingBag, Clock, Receipt, CreditCard, CheckCircle2, XCircle, Megaphone } from 'lucide-react'
 import { Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ComposedChart, PieChart, Pie, Cell } from 'recharts'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -87,6 +87,11 @@ const COLORS = {
   sunny: 'hsl(42, 68%, 52%)',
   rainy: 'hsl(210, 48%, 54%)',
   cloudy: 'hsl(200, 12%, 64%)',
+  facebook: '#1877F2',
+  tiktok: '#010101',
+  instagram: '#E4405F',
+  influencers: '#F59E0B',
+  others: '#6B7280',
 }
 
 const CATEGORY_COLORS = [
@@ -197,6 +202,8 @@ export function AnalyticsClient() {
   const serviceBreakdown = data?.serviceBreakdown ?? []
   const fixedCostsDetail = data?.fixedCostsDetail ?? []
   const categoryTotals = data?.categoryTotals ?? []
+  const adSpendVsIncomeDaily = data?.adSpendVsIncomeDaily ?? []
+  const adSpendVsIncomeMonthly = data?.adSpendVsIncomeMonthly ?? []
 
   const formatChartDate = (date: string) => {
     if (!date) return ''
@@ -691,6 +698,79 @@ export function AnalyticsClient() {
                     </div>
                   ) : <EmptyChart />}
                 </ChartCard>
+                {/* Ad Spend vs Daily Income */}
+                <ChartCard title="Ad Spend vs Daily Income" subtitle="Daily advertising investment by platform compared to revenue">
+                  {adSpendVsIncomeDaily.some((d: { totalAds: number }) => d.totalAds > 0) ? (
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={adSpendVsIncomeDaily}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
+                        <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={50} />
+                        <Tooltip
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload?.length) return null
+                            const d = payload[0]?.payload
+                            return (
+                              <div className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-xl shadow-black/5">
+                                <p className="mb-2 text-xs font-bold text-foreground">{formatChartDate(label)}</p>
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.sales }} />
+                                    <span className="text-muted-foreground">Income:</span>
+                                    <span className="font-bold text-foreground">{formatBaht(d?.income ?? 0)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.facebook }} />
+                                    <span className="text-muted-foreground">Facebook:</span>
+                                    <span className="font-bold text-foreground">{formatBaht(d?.facebook ?? 0)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.tiktok }} />
+                                    <span className="text-muted-foreground">TikTok:</span>
+                                    <span className="font-bold text-foreground">{formatBaht(d?.tiktok ?? 0)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.instagram }} />
+                                    <span className="text-muted-foreground">Instagram:</span>
+                                    <span className="font-bold text-foreground">{formatBaht(d?.instagram ?? 0)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.influencers }} />
+                                    <span className="text-muted-foreground">Influencers:</span>
+                                    <span className="font-bold text-foreground">{formatBaht(d?.influencers ?? 0)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.others }} />
+                                    <span className="text-muted-foreground">Others:</span>
+                                    <span className="font-bold text-foreground">{formatBaht(d?.others ?? 0)}</span>
+                                  </div>
+                                  <div className="mt-1 border-t border-border/40 pt-1 flex items-center gap-2 text-xs">
+                                    <Megaphone className="h-3 w-3 text-muted-foreground" />
+                                    <span className="text-muted-foreground">Total Ads:</span>
+                                    <span className="font-bold text-foreground">{formatBaht(d?.totalAds ?? 0)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                        <Bar dataKey="income" name="Income" fill={COLORS.sales} radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="facebook" name="Facebook" fill={COLORS.facebook} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="tiktok" name="TikTok" fill={COLORS.tiktok} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="instagram" name="Instagram" fill={COLORS.instagram} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="influencers" name="Influencers" fill={COLORS.influencers} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="others" name="Others" fill={COLORS.others} stackId="ads" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-48 flex-col items-center justify-center gap-2 text-center">
+                      <Megaphone className="h-8 w-8 text-muted-foreground/30" />
+                      <p className="text-sm text-muted-foreground">No ad spend recorded for this period</p>
+                      <p className="text-xs text-muted-foreground/60">Add ad costs from the Ad Costs page</p>
+                    </div>
+                  )}
+                </ChartCard>
               </>
             )}
 
@@ -791,6 +871,49 @@ export function AnalyticsClient() {
                       </div>
                     </div>
                   ) : <EmptyChart />}
+                </ChartCard>
+                {/* Quarterly: Ad Spend vs Monthly Income */}
+                <ChartCard title="Ad Spend vs Monthly Income" subtitle="Monthly advertising investment by platform compared to revenue">
+                  {adSpendVsIncomeMonthly.some((d: { totalAds: number }) => d.totalAds > 0) ? (
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={adSpendVsIncomeMonthly}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis dataKey="monthLabel" tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
+                        <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={50} />
+                        <Tooltip content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null
+                          const d = payload[0]?.payload
+                          return (
+                            <div className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-xl shadow-black/5">
+                              <p className="mb-2 text-xs font-bold text-foreground">{label}</p>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.sales }} /><span className="text-muted-foreground">Income:</span><span className="font-bold text-foreground">{formatBaht(d?.income ?? 0)}</span></div>
+                                <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.facebook }} /><span className="text-muted-foreground">Facebook:</span><span className="font-bold text-foreground">{formatBaht(d?.facebook ?? 0)}</span></div>
+                                <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.tiktok }} /><span className="text-muted-foreground">TikTok:</span><span className="font-bold text-foreground">{formatBaht(d?.tiktok ?? 0)}</span></div>
+                                <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.instagram }} /><span className="text-muted-foreground">Instagram:</span><span className="font-bold text-foreground">{formatBaht(d?.instagram ?? 0)}</span></div>
+                                <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.influencers }} /><span className="text-muted-foreground">Influencers:</span><span className="font-bold text-foreground">{formatBaht(d?.influencers ?? 0)}</span></div>
+                                <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.others }} /><span className="text-muted-foreground">Others:</span><span className="font-bold text-foreground">{formatBaht(d?.others ?? 0)}</span></div>
+                                <div className="mt-1 border-t border-border/40 pt-1 flex items-center gap-2 text-xs"><Megaphone className="h-3 w-3 text-muted-foreground" /><span className="text-muted-foreground">Total Ads:</span><span className="font-bold text-foreground">{formatBaht(d?.totalAds ?? 0)}</span></div>
+                              </div>
+                            </div>
+                          )
+                        }} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                        <Bar dataKey="income" name="Income" fill={COLORS.sales} radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="facebook" name="Facebook" fill={COLORS.facebook} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="tiktok" name="TikTok" fill={COLORS.tiktok} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="instagram" name="Instagram" fill={COLORS.instagram} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="influencers" name="Influencers" fill={COLORS.influencers} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="others" name="Others" fill={COLORS.others} stackId="ads" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-48 flex-col items-center justify-center gap-2 text-center">
+                      <Megaphone className="h-8 w-8 text-muted-foreground/30" />
+                      <p className="text-sm text-muted-foreground">No ad spend recorded for this quarter</p>
+                      <p className="text-xs text-muted-foreground/60">Add ad costs from the Ad Costs page</p>
+                    </div>
+                  )}
                 </ChartCard>
               </>
             )}
@@ -1104,6 +1227,49 @@ export function AnalyticsClient() {
                       </div>
                     </div>
                   ) : <EmptyChart />}
+                </ChartCard>
+                {/* Yearly: Ad Spend vs Monthly Income */}
+                <ChartCard title="Ad Spend vs Monthly Income" subtitle="Full year advertising investment by platform compared to monthly revenue">
+                  {adSpendVsIncomeMonthly.some((d: { totalAds: number }) => d.totalAds > 0) ? (
+                    <ResponsiveContainer width="100%" height={360}>
+                      <BarChart data={adSpendVsIncomeMonthly}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis dataKey="monthLabel" tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
+                        <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={50} />
+                        <Tooltip content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null
+                          const d = payload[0]?.payload
+                          return (
+                            <div className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-xl shadow-black/5">
+                              <p className="mb-2 text-xs font-bold text-foreground">{label}</p>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.sales }} /><span className="text-muted-foreground">Income:</span><span className="font-bold text-foreground">{formatBaht(d?.income ?? 0)}</span></div>
+                                <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.facebook }} /><span className="text-muted-foreground">Facebook:</span><span className="font-bold text-foreground">{formatBaht(d?.facebook ?? 0)}</span></div>
+                                <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.tiktok }} /><span className="text-muted-foreground">TikTok:</span><span className="font-bold text-foreground">{formatBaht(d?.tiktok ?? 0)}</span></div>
+                                <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.instagram }} /><span className="text-muted-foreground">Instagram:</span><span className="font-bold text-foreground">{formatBaht(d?.instagram ?? 0)}</span></div>
+                                <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.influencers }} /><span className="text-muted-foreground">Influencers:</span><span className="font-bold text-foreground">{formatBaht(d?.influencers ?? 0)}</span></div>
+                                <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.others }} /><span className="text-muted-foreground">Others:</span><span className="font-bold text-foreground">{formatBaht(d?.others ?? 0)}</span></div>
+                                <div className="mt-1 border-t border-border/40 pt-1 flex items-center gap-2 text-xs"><Megaphone className="h-3 w-3 text-muted-foreground" /><span className="text-muted-foreground">Total Ads:</span><span className="font-bold text-foreground">{formatBaht(d?.totalAds ?? 0)}</span></div>
+                              </div>
+                            </div>
+                          )
+                        }} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                        <Bar dataKey="income" name="Income" fill={COLORS.sales} radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="facebook" name="Facebook" fill={COLORS.facebook} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="tiktok" name="TikTok" fill={COLORS.tiktok} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="instagram" name="Instagram" fill={COLORS.instagram} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="influencers" name="Influencers" fill={COLORS.influencers} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="others" name="Others" fill={COLORS.others} stackId="ads" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-48 flex-col items-center justify-center gap-2 text-center">
+                      <Megaphone className="h-8 w-8 text-muted-foreground/30" />
+                      <p className="text-sm text-muted-foreground">No ad spend recorded for this year</p>
+                      <p className="text-xs text-muted-foreground/60">Add ad costs from the Ad Costs page</p>
+                    </div>
+                  )}
                 </ChartCard>
               </>
             )}
