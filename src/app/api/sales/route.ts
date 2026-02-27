@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { logActivity } from '@/lib/activity-log'
+import { getThaiISOString } from '@/lib/utils'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
           pos_image_url: posImageUrl || null,
           transfer_details: transferDetails || [],
           user_id: user.id,
-          updated_at: new Date().toISOString(),
+          updated_at: getThaiISOString(),
         },
         { onConflict: 'report_date' }
       )

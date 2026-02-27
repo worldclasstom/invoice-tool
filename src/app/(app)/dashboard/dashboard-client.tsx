@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import useSWR from 'swr'
 import { formatBaht, formatThaiDate } from '@/lib/utils'
 import {
@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts'
-import { TrendingUp, TrendingDown, Wallet, CalendarDays, Loader2, Activity, Receipt, FileText, DollarSign, CheckCircle2, LogIn } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, CalendarDays, Loader2, Activity, Receipt, FileText, DollarSign, CheckCircle2, LogIn, ChevronDown } from 'lucide-react'
 
 const INCOME_COLORS = ['#22c55e', '#06b6d4', '#f59e0b', '#a78bfa']
 const EXPENSE_COLORS = ['#f43f5e', '#fb923c', '#a78bfa', '#22c55e', '#06b6d4']
@@ -21,9 +21,14 @@ type ViewMode = 'daily' | 'weekly' | 'monthly' | 'custom'
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 function getThaiToday(): string {
-  const now = new Date()
-  const thai = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
-  return thai.toISOString().split('T')[0]
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
+}
+
+function toDateStr(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 function getDateRange(mode: ViewMode, customFrom: string, customTo: string): { from: string; to: string } {
@@ -34,23 +39,17 @@ function getDateRange(mode: ViewMode, customFrom: string, customTo: string): { f
     case 'daily':
       return { from: today, to: today }
     case 'weekly': {
-      const day = d.getDay()
+      const dow = d.getDay()
       const monday = new Date(d)
-      monday.setDate(d.getDate() - ((day + 6) % 7))
+      monday.setDate(d.getDate() - ((dow + 6) % 7))
       const sunday = new Date(monday)
       sunday.setDate(monday.getDate() + 6)
-      return {
-        from: monday.toISOString().split('T')[0],
-        to: sunday.toISOString().split('T')[0],
-      }
+      return { from: toDateStr(monday), to: toDateStr(sunday) }
     }
     case 'monthly': {
       const start = new Date(d.getFullYear(), d.getMonth(), 1)
       const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
-      return {
-        from: start.toISOString().split('T')[0],
-        to: end.toISOString().split('T')[0],
-      }
+      return { from: toDateStr(start), to: toDateStr(end) }
     }
     case 'custom':
       return { from: customFrom || today, to: customTo || today }
@@ -58,22 +57,32 @@ function getDateRange(mode: ViewMode, customFrom: string, customTo: string): { f
 }
 
 function getDateLabel(mode: ViewMode, from: string, to: string): string {
-  const opts: Intl.DateTimeFormatOptions = {
+  const full: Intl.DateTimeFormatOptions = {
     timeZone: 'Asia/Bangkok',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   }
+  const short: Intl.DateTimeFormatOptions = {
+    timeZone: 'Asia/Bangkok',
+    day: 'numeric',
+    month: 'short',
+  }
+  const monthYear: Intl.DateTimeFormatOptions = {
+    timeZone: 'Asia/Bangkok',
+    month: 'long',
+    year: 'numeric',
+  }
   switch (mode) {
     case 'daily':
-      return new Date(from + 'T12:00:00').toLocaleDateString('th-TH', opts)
+      return new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', full)
     case 'weekly':
-      return `${new Date(from + 'T12:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })} - ${new Date(to + 'T12:00:00').toLocaleDateString('th-TH', opts)}`
+      return `${new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', short)} - ${new Date(to + 'T12:00:00Z').toLocaleDateString('th-TH', full)}`
     case 'monthly':
-      return new Date(from + 'T12:00:00').toLocaleDateString('th-TH', { month: 'long', year: 'numeric', timeZone: 'Asia/Bangkok' })
+      return new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', monthYear)
     case 'custom':
-      if (from === to) return new Date(from + 'T12:00:00').toLocaleDateString('th-TH', opts)
-      return `${new Date(from + 'T12:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })} - ${new Date(to + 'T12:00:00').toLocaleDateString('th-TH', opts)}`
+      if (from === to) return new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', full)
+      return `${new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', short)} - ${new Date(to + 'T12:00:00Z').toLocaleDateString('th-TH', full)}`
   }
 }
 
@@ -114,15 +123,34 @@ interface LedgerEntry {
 }
 
 export function DashboardClient() {
+  const [mounted, setMounted] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('daily')
-  const [customFrom, setCustomFrom] = useState(getThaiToday())
-  const [customTo, setCustomTo] = useState(getThaiToday())
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
 
-  const { from, to } = useMemo(() => getDateRange(viewMode, customFrom, customTo), [viewMode, customFrom, customTo])
-  const dateLabel = useMemo(() => getDateLabel(viewMode, from, to), [viewMode, from, to])
+  useEffect(() => {
+    const today = getThaiToday()
+    setCustomFrom(today)
+    setCustomTo(today)
+    setMounted(true)
+  }, [])
 
-  const { data, isLoading } = useSWR(`/api/dashboard?from=${from}&to=${to}`, fetcher)
-  const { data: activityData } = useSWR('/api/activity-log?limit=30', fetcher)
+  const { from, to } = useMemo(() => {
+    if (!mounted) return { from: '', to: '' }
+    return getDateRange(viewMode, customFrom, customTo)
+  }, [mounted, viewMode, customFrom, customTo])
+  const dateLabel = useMemo(() => {
+    if (!from || !to) return ''
+    return getDateLabel(viewMode, from, to)
+  }, [viewMode, from, to])
+
+  const { data, isLoading } = useSWR(from && to ? `/api/dashboard?from=${from}&to=${to}` : null, fetcher)
+
+  const ACTIVITY_PAGE_SIZE = 5
+  const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>([])
+  const [activityTotal, setActivityTotal] = useState(0)
+  const [activityHasMore, setActivityHasMore] = useState(false)
+  const [activityLoadingMore, setActivityLoadingMore] = useState(false)
 
   interface ActivityLogEntry {
     id: string
@@ -132,7 +160,32 @@ export function DashboardClient() {
     details: Record<string, unknown>
     created_at: string
   }
-  const activityLogs: ActivityLogEntry[] = activityData?.logs ?? []
+
+  // Initial load of first 6 activities
+  const { data: activityData } = useSWR(`/api/activity-log?limit=${ACTIVITY_PAGE_SIZE}&offset=0`, fetcher)
+
+  useEffect(() => {
+    if (activityData) {
+      setActivityLogs(activityData.logs ?? [])
+      setActivityTotal(activityData.total ?? 0)
+      setActivityHasMore(activityData.hasMore ?? false)
+    }
+  }, [activityData])
+
+  async function loadMoreActivity() {
+    setActivityLoadingMore(true)
+    try {
+      const res = await fetch(`/api/activity-log?limit=${ACTIVITY_PAGE_SIZE}&offset=${activityLogs.length}`)
+      const json = await res.json()
+      if (json.logs) {
+        setActivityLogs((prev) => [...prev, ...json.logs])
+        setActivityHasMore(json.hasMore ?? false)
+        setActivityTotal(json.total ?? 0)
+      }
+    } finally {
+      setActivityLoadingMore(false)
+    }
+  }
 
   const sales: DailySale[] = data?.sales ?? []
   const receipts: ReceiptRow[] = data?.receipts ?? []
@@ -503,93 +556,122 @@ export function DashboardClient() {
               <div className="flex items-center gap-2">
                 <Activity className="h-4 w-4 text-primary" />
                 <h2 className="text-sm font-bold text-foreground">Team Activity</h2>
+                {activityTotal > 0 && (
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                    {activityLogs.length} of {activityTotal}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-muted-foreground">Recent actions by team members</p>
             </div>
 
             {activityLogs.length > 0 ? (
-              <div className="flex flex-col divide-y divide-border/50">
-                {activityLogs.map((log) => {
-                  const userName = log.user_email?.split('@')[0] || 'Unknown'
-                  const time = new Date(log.created_at).toLocaleString('en-US', {
-                    timeZone: 'Asia/Bangkok',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
+              <>
+                <div className="flex flex-col divide-y divide-border/50">
+                  {activityLogs.map((log) => {
+                    const userName = log.user_email?.split('@')[0] || 'Unknown'
+                    const time = new Date(log.created_at).toLocaleString('en-US', {
+                      timeZone: 'Asia/Bangkok',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
 
-                  let icon = <FileText className="h-4 w-4" />
-                  let iconBg = 'bg-secondary'
-                  let actionLabel = log.action
-                  let entityLabel = log.entity_type.replace(/_/g, ' ')
+                    let icon = <FileText className="h-4 w-4" />
+                    let iconBg = 'bg-secondary'
+                    let actionLabel = log.action
+                    let entityLabel = log.entity_type.replace(/_/g, ' ')
 
-                  switch (log.entity_type) {
-                    case 'sales_report':
-                      icon = <DollarSign className="h-4 w-4 text-emerald-600" />
+                    switch (log.entity_type) {
+                      case 'sales_report':
+                        icon = <DollarSign className="h-4 w-4 text-emerald-600" />
+                        iconBg = 'bg-emerald-100'
+                        entityLabel = 'sales report'
+                        break
+                      case 'receipt':
+                        icon = <Receipt className="h-4 w-4 text-amber-600" />
+                        iconBg = 'bg-amber-100'
+                        break
+                      case 'fixed_cost':
+                        icon = <FileText className="h-4 w-4 text-sky-600" />
+                        iconBg = 'bg-sky-100'
+                        entityLabel = 'fixed cost'
+                        break
+                      case 'invoice':
+                        icon = <FileText className="h-4 w-4 text-violet-600" />
+                        iconBg = 'bg-violet-100'
+                        break
+                      case 'auth':
+                        icon = <LogIn className="h-4 w-4 text-primary" />
+                        iconBg = 'bg-primary/10'
+                        entityLabel = ''
+                        actionLabel = 'signed in'
+                        break
+                    }
+
+                    if (log.action === 'marked_paid') {
+                      icon = <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                       iconBg = 'bg-emerald-100'
-                      entityLabel = 'sales report'
-                      break
-                    case 'receipt':
-                      icon = <Receipt className="h-4 w-4 text-amber-600" />
-                      iconBg = 'bg-amber-100'
-                      break
-                    case 'fixed_cost':
-                      icon = <FileText className="h-4 w-4 text-sky-600" />
-                      iconBg = 'bg-sky-100'
-                      entityLabel = 'fixed cost'
-                      break
-                    case 'invoice':
-                      icon = <FileText className="h-4 w-4 text-violet-600" />
-                      iconBg = 'bg-violet-100'
-                      break
-                    case 'auth':
-                      icon = <LogIn className="h-4 w-4 text-primary" />
-                      iconBg = 'bg-primary/10'
-                      entityLabel = ''
-                      actionLabel = 'signed in'
-                      break
-                  }
+                      actionLabel = 'marked paid'
+                    } else if (log.action === 'marked_unpaid') {
+                      actionLabel = 'marked unpaid'
+                    }
 
-                  if (log.action === 'marked_paid') {
-                    icon = <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    iconBg = 'bg-emerald-100'
-                    actionLabel = 'marked paid'
-                  } else if (log.action === 'marked_unpaid') {
-                    actionLabel = 'marked unpaid'
-                  }
+                    const detail = log.details || {}
+                    let extraInfo = ''
+                    if (detail.vendor) extraInfo = String(detail.vendor)
+                    else if (detail.name) extraInfo = String(detail.name)
+                    else if (detail.customerName) extraInfo = String(detail.customerName)
+                    else if (detail.date) extraInfo = String(detail.date)
 
-                  const detail = log.details || {}
-                  let extraInfo = ''
-                  if (detail.vendor) extraInfo = String(detail.vendor)
-                  else if (detail.name) extraInfo = String(detail.name)
-                  else if (detail.customerName) extraInfo = String(detail.customerName)
-                  else if (detail.date) extraInfo = String(detail.date)
-
-                  return (
-                    <div key={log.id} className="flex items-start gap-3 px-4 py-3 sm:px-5">
-                      <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg}`}>
-                        {icon}
+                    return (
+                      <div key={log.id} className="flex items-start gap-3 px-4 py-3 sm:px-5">
+                        <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg}`}>
+                          {icon}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-foreground">
+                            <span className="font-semibold capitalize">{userName}</span>
+                            {' '}{actionLabel}{entityLabel ? ` ${entityLabel}` : ''}
+                            {extraInfo && (
+                              <span className="text-muted-foreground">{' - '}{extraInfo}</span>
+                            )}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">{time}</p>
+                        </div>
+                        {detail.total != null && (
+                          <span className="shrink-0 text-xs font-semibold text-foreground">
+                            {formatBaht(Number(detail.total))}
+                          </span>
+                        )}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-foreground">
-                          <span className="font-semibold capitalize">{userName}</span>
-                          {' '}{actionLabel}{entityLabel ? ` ${entityLabel}` : ''}
-                          {extraInfo && (
-                            <span className="text-muted-foreground">{' - '}{extraInfo}</span>
-                          )}
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">{time}</p>
-                      </div>
-                      {detail.total != null && (
-                        <span className="shrink-0 text-xs font-semibold text-foreground">
-                          {formatBaht(Number(detail.total))}
-                        </span>
+                    )
+                  })}
+                </div>
+
+                {activityHasMore && (
+                  <div className="border-t border-border px-5 py-3">
+                    <button
+                      onClick={loadMoreActivity}
+                      disabled={activityLoadingMore}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary py-2.5 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:opacity-50"
+                    >
+                      {activityLoadingMore ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-4 w-4" />
+                          Load More ({activityTotal - activityLogs.length} remaining)
+                        </>
                       )}
-                    </div>
-                  )
-                })}
-              </div>
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="flex h-32 flex-col items-center justify-center gap-2 px-4 text-center">
                 <Activity className="h-6 w-6 text-muted-foreground/40" />

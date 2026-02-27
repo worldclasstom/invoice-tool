@@ -176,7 +176,6 @@ export default function ReceiptsPage() {
                     <input
                       type="file"
                       accept="image/*"
-                      capture="environment"
                       onChange={handleFileUpload}
                       className="sr-only"
                       disabled={uploading}

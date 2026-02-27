@@ -36,7 +36,7 @@ export async function POST(request: Request) {
         customer_name: customerName,
         customer_email: customerEmail || null,
         customer_phone: customerPhone || null,
-        date: new Date(date).toISOString(),
+        date: date,
         notes: notes || null,
         subtotal,
         tax,
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
 
     // Create a ledger entry
     await supabase.from('ledger_entries').insert({
-      entry_date: new Date(date).toISOString().split('T')[0],
+      entry_date: date,
       description: `Invoice ${invoiceNumber} - ${customerName}`,
       entry_type: 'income',
       category: 'invoices',
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
       x: 50, y: currentY, size: 12, font: thaiFont,
     })
 
-    const thaiDate = new Date(date).toLocaleDateString('th-TH', { dateStyle: 'long' })
+    const thaiDate = new Date(date + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
     page.drawText(`Date: ${thaiDate}`, {
       x: 50, y: currentY - 20, size: 12, font: thaiFont,
     })
