@@ -235,24 +235,88 @@ export async function GET(request: NextRequest) {
     }
   })
 
+  // ──────────── Payment Methods breakdown ────────────
+  let totalCash = 0, totalPromptPay = 0, totalCreditCard = 0
+  for (const s of sales ?? []) {
+    totalCash += Number(s.cash_amount) || 0
+    totalPromptPay += Number(s.promptpay_amount) || 0
+    totalCreditCard += Number(s.credit_card_amount) || 0
+  }
+  const paymentMethods = [
+    { name: 'Cash', value: totalCash },
+    { name: 'PromptPay', value: totalPromptPay },
+    { name: 'Credit Card', value: totalCreditCard },
+  ].filter((p) => p.value > 0)
+
+  // ──────────── Top Vendors ────────────
+  const vendorMap: Record<string, number> = {}
+  for (const r of receipts ?? []) {
+    const v = r.vendor || 'Unknown'
+    vendorMap[v] = (vendorMap[v] || 0) + (Number(r.total) || 0)
+  }
+  const topVendors = Object.entries(vendorMap)
+    .map(([vendor, total]) => ({ vendor, total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8)
+
+  // ──────────── Busiest Times ────────────
+  const timesMap: Record<string, number> = {}
+  for (const s of sales ?? []) {
+    if (s.busiest_times) {
+      const times = String(s.busiest_times).split(',').map((t: string) => t.trim()).filter(Boolean)
+      for (const t of times) {
+        timesMap[t] = (timesMap[t] || 0) + 1
+      }
+    }
+  }
+  const busiestTimes = Object.entries(timesMap)
+    .map(([time, count]) => ({ time, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6)
+
+  // ──────────── Service Breakdown (dine-in vs to-go) ────────────
+  const totalTables = (sales ?? []).reduce((s, r) => s + (r.tables_served || 0), 0)
+  const totalTogo = (sales ?? []).reduce((s, r) => s + (r.togo_orders || 0), 0)
+  const serviceBreakdown = [
+    { name: 'Dine-in (Tables)', value: totalTables },
+    { name: 'To-Go Orders', value: totalTogo },
+  ].filter((s) => s.value > 0)
+
+  // ──────────── Fixed Costs Detail ────────────
+  const fixedCostsDetail = filteredFixed.map((f) => ({
+    name: f.name,
+    category: f.category,
+    amount: Number(f.amount) || 0,
+    isPaid: f.is_paid,
+    month: f.period_month,
+    year: f.period_year,
+  })).sort((a, b) => b.amount - a.amount)
+
+  // ──────────── Expense Category Totals (for pie/donut) ────────────
+  const categoryTotals = Object.entries(
+    (receipts ?? []).reduce((acc: Record<string, number>, r) => {
+      const cat = r.category || 'other'
+      acc[cat] = (acc[cat] || 0) + (Number(r.total) || 0)
+      return acc
+    }, {} as Record<string, number>)
+  ).map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value }))
+    .sort((a, b) => b.value - a.value)
+
   // ──────────── Summary KPIs ────────────
   const totalRevenue = (sales ?? []).reduce((s, r) => s + (Number(r.total_amount) || 0), 0)
   const totalReceiptExpenses = (receipts ?? []).reduce((s, r) => s + (Number(r.total) || 0), 0)
-  const totalFixedCosts = filteredFixed.reduce((s, f) => s + (Number(f.amount) || 0), 0)
-  const totalExpenses = totalReceiptExpenses + totalFixedCosts
+  const totalFixedCostsSum = filteredFixed.reduce((s, f) => s + (Number(f.amount) || 0), 0)
+  const totalExpenses = totalReceiptExpenses + totalFixedCostsSum
   const totalIngredients = (receipts ?? []).filter((r) => r.category === 'ingredients').reduce((s, r) => s + (Number(r.total) || 0), 0)
   const daysCount = (sales ?? []).length || 1
-  const totalTables = (sales ?? []).reduce((s, r) => s + (r.tables_served || 0), 0)
-  const totalTogo = (sales ?? []).reduce((s, r) => s + (r.togo_orders || 0), 0)
 
   return NextResponse.json({
     view,
-    // Summary
     summary: {
       totalRevenue,
       totalExpenses,
       totalReceiptExpenses,
-      totalFixedCosts,
+      totalFixedCosts: totalFixedCostsSum,
       totalIngredients,
       netProfit: totalRevenue - totalExpenses,
       avgDailySales: Math.round(totalRevenue / daysCount),
@@ -260,15 +324,22 @@ export async function GET(request: NextRequest) {
       totalTables,
       totalTogo,
     },
-    // Monthly view data
+    // Monthly charts
     salesVsExpenses,
     salesVsIngredients,
     salesVsFixed,
     expenseCategoryDaily,
     expenseCategories: sortedCategories,
     weatherVsSales,
-    // Quarterly view data
+    // Quarterly charts
     electricityVsWeather,
     monthlySales,
+    // Shared / previous charts
+    paymentMethods,
+    topVendors,
+    busiestTimes,
+    serviceBreakdown,
+    fixedCostsDetail,
+    categoryTotals,
   })
 }

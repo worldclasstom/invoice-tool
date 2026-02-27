@@ -20,6 +20,11 @@ import {
   CloudRain,
   Users,
   ShoppingBag,
+  Clock,
+  Receipt,
+  CreditCard,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react'
 import {
   LineChart,
@@ -35,6 +40,9 @@ import {
   Area,
   AreaChart,
   ComposedChart,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -120,6 +128,8 @@ const CATEGORY_COLORS = [
   'hsl(90, 50%, 45%)',
 ]
 
+const PAYMENT_COLORS = ['hsl(152, 55%, 38%)', 'hsl(210, 60%, 52%)', 'hsl(42, 92%, 56%)']
+
 const GRID_STROKE = 'hsl(48, 20%, 88%)'
 const AXIS_STROKE = 'hsl(160, 10%, 46%)'
 
@@ -183,6 +193,13 @@ export function AnalyticsClient() {
   const weatherVsSales = data?.weatherVsSales ?? []
   const electricityVsWeather = data?.electricityVsWeather ?? []
   const monthlySales = data?.monthlySales ?? []
+
+  const paymentMethods = data?.paymentMethods ?? []
+  const topVendors = data?.topVendors ?? []
+  const busiestTimes = data?.busiestTimes ?? []
+  const serviceBreakdown = data?.serviceBreakdown ?? []
+  const fixedCostsDetail = data?.fixedCostsDetail ?? []
+  const categoryTotals = data?.categoryTotals ?? []
 
   const formatChartDate = (date: string) => {
     if (!date) return ''
@@ -538,6 +555,269 @@ export function AnalyticsClient() {
                 </ChartCard>
               </>
             )}
+
+            {/* ══════════ GENERAL INSIGHTS (shown in both views) ══════════ */}
+            <div className="mb-4 mt-8 flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">General Insights</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            {/* Row: Payment Methods + Service Breakdown + Expense Categories */}
+            <div className="mb-6 grid gap-4 lg:grid-cols-3">
+              {/* Payment Methods Donut */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-bold text-foreground">Payment Methods</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Revenue split by payment type</p>
+                </div>
+                {paymentMethods.length > 0 ? (
+                  <div className="flex flex-col items-center gap-4">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={paymentMethods}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={85}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {paymentMethods.map((_: { name: string; value: number }, i: number) => (
+                            <Cell key={i} fill={PAYMENT_COLORS[i % PAYMENT_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null
+                            const d = payload[0]
+                            return (
+                              <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
+                                <p className="text-xs font-semibold text-foreground">{d.name}: {formatBaht(Number(d.value))}</p>
+                              </div>
+                            )
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {paymentMethods.map((p: { name: string; value: number }, i: number) => (
+                        <div key={p.name} className="flex items-center gap-1.5 text-xs">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PAYMENT_COLORS[i % PAYMENT_COLORS.length] }} />
+                          <span className="text-muted-foreground">{p.name}</span>
+                          <span className="font-semibold text-foreground">{formatBaht(p.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : <EmptyChart />}
+              </div>
+
+              {/* Service Breakdown Donut */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-sky-500" />
+                    <h3 className="text-sm font-bold text-foreground">Service Breakdown</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Dine-in tables vs to-go orders</p>
+                </div>
+                {serviceBreakdown.length > 0 ? (
+                  <div className="flex flex-col items-center gap-4">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={serviceBreakdown}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={85}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          <Cell fill={COLORS.sales} />
+                          <Cell fill={CATEGORY_COLORS[3]} />
+                        </Pie>
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null
+                            const d = payload[0]
+                            return (
+                              <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
+                                <p className="text-xs font-semibold text-foreground">{d.name}: {d.value}</p>
+                              </div>
+                            )
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {serviceBreakdown.map((s: { name: string; value: number }, i: number) => (
+                        <div key={s.name} className="flex items-center gap-1.5 text-xs">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: i === 0 ? COLORS.sales : CATEGORY_COLORS[3] }} />
+                          <span className="text-muted-foreground">{s.name}</span>
+                          <span className="font-semibold text-foreground">{s.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : <EmptyChart />}
+              </div>
+
+              {/* Expense Category Totals Donut */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="h-4 w-4 text-amber-500" />
+                    <h3 className="text-sm font-bold text-foreground">Expense Categories</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Total spending by category</p>
+                </div>
+                {categoryTotals.length > 0 ? (
+                  <div className="flex flex-col items-center gap-4">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={categoryTotals}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={85}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {categoryTotals.map((_: { name: string; value: number }, i: number) => (
+                            <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null
+                            const d = payload[0]
+                            return (
+                              <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
+                                <p className="text-xs font-semibold text-foreground">{d.name}: {formatBaht(Number(d.value))}</p>
+                              </div>
+                            )
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {categoryTotals.map((c: { name: string; value: number }, i: number) => (
+                        <div key={c.name} className="flex items-center gap-1.5 text-xs">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }} />
+                          <span className="text-muted-foreground">{c.name}</span>
+                          <span className="font-semibold text-foreground">{formatBaht(c.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : <EmptyChart />}
+              </div>
+            </div>
+
+            {/* Row: Top Vendors + Busiest Times + Fixed Costs */}
+            <div className="mb-6 grid gap-4 lg:grid-cols-3">
+              {/* Top Vendors */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag className="h-4 w-4 text-rose-500" />
+                    <h3 className="text-sm font-bold text-foreground">Top Vendors</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Highest spending vendors</p>
+                </div>
+                {topVendors.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {topVendors.map((v: { vendor: string; total: number }, i: number) => {
+                      const maxVal = topVendors[0]?.total || 1
+                      return (
+                        <div key={v.vendor} className="flex items-center gap-3">
+                          <span className="w-5 shrink-0 text-right text-xs font-bold text-muted-foreground">{i + 1}</span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="truncate text-sm font-medium text-foreground">{v.vendor}</span>
+                              <span className="shrink-0 text-xs font-bold text-foreground">{formatBaht(v.total)}</span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-secondary">
+                              <div className="h-full rounded-full bg-rose-400 transition-all" style={{ width: `${(v.total / maxVal) * 100}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : <EmptyChart />}
+              </div>
+
+              {/* Busiest Times */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-violet-500" />
+                    <h3 className="text-sm font-bold text-foreground">Busiest Times</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Most frequently reported peak periods</p>
+                </div>
+                {busiestTimes.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {busiestTimes.map((t: { time: string; count: number }) => {
+                      const maxCount = busiestTimes[0]?.count || 1
+                      return (
+                        <div key={t.time} className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+                            <Clock className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium text-foreground">{t.time}</span>
+                              <span className="text-xs font-bold text-muted-foreground">{t.count}x</span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-secondary">
+                              <div className="h-full rounded-full bg-violet-400 transition-all" style={{ width: `${(t.count / maxCount) * 100}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : <EmptyChart />}
+              </div>
+
+              {/* Fixed Costs Status */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-bold text-foreground">Fixed Costs</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Payment status for recurring expenses</p>
+                </div>
+                {fixedCostsDetail.length > 0 ? (
+                  <div className="flex flex-col gap-2.5 max-h-[340px] overflow-y-auto">
+                    {fixedCostsDetail.map((f: { name: string; category: string; amount: number; isPaid: boolean; month: number; year: number }, i: number) => (
+                      <div key={`${f.name}-${f.month}-${f.year}-${i}`} className="flex items-center gap-3 rounded-xl bg-secondary/40 px-3 py-2.5">
+                        {f.isPaid ? (
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                        ) : (
+                          <XCircle className="h-4 w-4 shrink-0 text-rose-400" />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-foreground">{f.name}</p>
+                          <p className="text-[11px] text-muted-foreground capitalize">{f.category} &middot; {f.month}/{f.year}</p>
+                        </div>
+                        <span className="shrink-0 text-sm font-bold text-foreground">{formatBaht(f.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : <EmptyChart />}
+              </div>
+            </div>
           </>
         )}
       </div>
