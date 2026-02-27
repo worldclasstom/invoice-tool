@@ -734,17 +734,16 @@ export function AnalyticsClient() {
                 <ChartCard title="Quarterly Sales Overview" subtitle="Monthly revenue, expenses, and fixed costs">
                   {monthlySales.length > 0 ? (
                     <ResponsiveContainer width="100%" height={320}>
-                      <ComposedChart data={monthlySales}>
+                      <BarChart data={monthlySales}>
                         <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
                         <XAxis dataKey="monthLabel" tick={{ fontSize: 12 }} stroke={AXIS_STROKE} />
                         <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={55} />
                         <Tooltip content={<ChartTooltip />} />
                         <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
                         <Bar dataKey="sales" name="Sales" fill={COLORS.sales} radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="expenses" name="Receipt Expenses" fill={COLORS.expenses} radius={[4, 4, 0, 0]} opacity={0.7} />
-                        <Bar dataKey="fixedCosts" name="Fixed Costs" fill={COLORS.fixedCosts} radius={[4, 4, 0, 0]} opacity={0.7} />
-                        <Line type="monotone" dataKey="profit" name="Net Profit" stroke={COLORS.sales} strokeWidth={2.5} dot={{ r: 5, fill: COLORS.sales }} />
-                      </ComposedChart>
+                        <Bar dataKey="expenses" name="Receipt Expenses" fill={COLORS.expenses} radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="fixedCosts" name="Fixed Costs" fill={COLORS.fixedCosts} radius={[4, 4, 0, 0]} />
+                      </BarChart>
                     </ResponsiveContainer>
                   ) : <EmptyChart />}
                 </ChartCard>
