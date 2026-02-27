@@ -56,14 +56,12 @@ const REMINDER_BILLS = [
   { name: "Electricity", category: "utilities" },
   { name: "Water", category: "utilities" },
   { name: "UMB Credit Card", category: "credit_card" },
-  { name: "Rent", category: "rent" },
-  { name: "Insurance", category: "insurance" },
   { name: "First Half Salary", category: "employees" },
   { name: "Second Half Salary", category: "employees" },
 ];
 
 const PAYMENT_METHODS = ["Cash", "KBank", "SCB", "Bangkok Bank", "Krungsri"];
-const PIE_COLORS = ["#22c55e", "#06b6d4", "#f59e0b", "#a78bfa", "#f43f5e", "#8b5cf6"];
+const PIE_COLORS = ["#8b5cf6", "#06b6d4", "#f59e0b", "#22c55e", "#f43f5e", "#3b82f6", "#ec4899", "#14b8a6"];
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -224,15 +222,14 @@ export default function FixedCostsPage() {
   const recurringCosts = costs.filter((c) => c.is_recurring);
   const oneTimeCosts = costs.filter((c) => !c.is_recurring);
 
-  const methodTotals: Record<string, number> = {};
-  costs
-    .filter((c) => c.is_paid)
-    .forEach((c) => {
-      methodTotals[c.payment_method] =
-        (methodTotals[c.payment_method] || 0) + Number(c.amount);
-    });
-  const pieData = Object.entries(methodTotals)
+  const categoryTotals: Record<string, number> = {};
+  costs.forEach((c) => {
+    const label = CATEGORY_LABELS[c.category] || c.category;
+    categoryTotals[label] = (categoryTotals[label] || 0) + Number(c.amount);
+  });
+  const pieData = Object.entries(categoryTotals)
     .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
     .filter((d) => d.value > 0);
 
   const totalPaid = costs
@@ -739,9 +736,9 @@ export default function FixedCostsPage() {
       {pieData.length > 0 && (
         <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
           <h2 className="mb-1 text-sm font-bold text-foreground">
-            Payments by Method
+            Fixed Cost Breakdown
           </h2>
-          <p className="mb-3 text-xs text-muted-foreground">Paid costs only</p>
+          <p className="mb-3 text-xs text-muted-foreground">By category this month</p>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie
