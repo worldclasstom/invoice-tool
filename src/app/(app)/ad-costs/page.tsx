@@ -10,13 +10,14 @@ const formatBaht = (n: number) => n.toLocaleString('th-TH', { style: 'currency',
 const toDateStr = (d: Date) => d.toISOString().split('T')[0]
 
 /* ── platform config ── */
-type Platform = 'facebook' | 'tiktok' | 'instagram' | 'others'
+type Platform = 'facebook' | 'tiktok' | 'instagram' | 'influencers' | 'others'
 type PeriodType = 'weekly' | 'monthly' | 'yearly'
 
 const PLATFORMS: { id: Platform; label: string; color: string; bgColor: string; borderColor: string }[] = [
   { id: 'facebook', label: 'Facebook', color: '#1877F2', bgColor: 'bg-[#1877F2]/10', borderColor: 'border-[#1877F2]/30' },
   { id: 'tiktok', label: 'TikTok', color: '#000000', bgColor: 'bg-neutral-900/10', borderColor: 'border-neutral-900/30' },
   { id: 'instagram', label: 'Instagram', color: '#E4405F', bgColor: 'bg-[#E4405F]/10', borderColor: 'border-[#E4405F]/30' },
+  { id: 'influencers', label: 'Influencers', color: '#F59E0B', bgColor: 'bg-amber-500/10', borderColor: 'border-amber-500/30' },
   { id: 'others', label: 'Others', color: '#6B7280', bgColor: 'bg-neutral-500/10', borderColor: 'border-neutral-500/30' },
 ]
 
@@ -50,6 +51,14 @@ function InstagramIcon({ className }: { className?: string }) {
   )
 }
 
+function InfluencersIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+    </svg>
+  )
+}
+
 function OthersIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -65,6 +74,7 @@ function PlatformIcon({ platform, className }: { platform: Platform; className?:
     case 'facebook': return <FacebookIcon className={className} />
     case 'tiktok': return <TikTokIcon className={className} />
     case 'instagram': return <InstagramIcon className={className} />
+    case 'influencers': return <InfluencersIcon className={className} />
     case 'others': return <OthersIcon className={className} />
   }
 }
@@ -217,7 +227,7 @@ export default function AdCostsPage() {
         </div>
 
         {/* Platform Summary Cards */}
-        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           {/* Total */}
           <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <div className="mb-2 flex items-center gap-2">
