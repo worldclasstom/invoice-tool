@@ -1000,22 +1000,51 @@ export function AnalyticsClient() {
                       .map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value, color: getCategoryColor(name) }))
                       .sort((a, b) => b.value - a.value)
 
+                    const totalFixed = catData.reduce((s, c) => s + c.value, 0)
+
                     return (
-                      <div className="flex flex-col gap-6">
-                        <ResponsiveContainer width="100%" height={280}>
-                          <BarChart data={catData} layout="vertical" barSize={20}>
-                            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
-                            <XAxis type="number" tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
-                            <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} stroke={AXIS_STROKE} width={100} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Bar dataKey="value" name="Amount" radius={[0, 4, 4, 0]}>
-                              {catData.map((entry, i) => (
-                                <Cell key={i} fill={entry.color} />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                        <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto">
+                      <div className="grid gap-6 lg:grid-cols-5">
+                        <div className="flex flex-col items-center gap-4 lg:col-span-2">
+                          <ResponsiveContainer width="100%" height={240}>
+                            <PieChart>
+                              <Pie
+                                data={catData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={60}
+                                outerRadius={95}
+                                paddingAngle={3}
+                                dataKey="value"
+                              >
+                                {catData.map((entry, i) => (
+                                  <Cell key={i} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              <Tooltip
+                                content={({ active, payload }) => {
+                                  if (!active || !payload?.length) return null
+                                  const d = payload[0]
+                                  return (
+                                    <div className="rounded-xl border border-border/60 bg-card px-3 py-2 shadow-xl shadow-black/5">
+                                      <p className="text-xs font-semibold text-foreground">{d.name}: {formatBaht(Number(d.value))}</p>
+                                    </div>
+                                  )
+                                }}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+                            {catData.map((c) => (
+                              <div key={c.name} className="flex items-center gap-1.5 text-xs">
+                                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
+                                <span className="text-muted-foreground">{c.name}</span>
+                                <span className="font-bold text-foreground">{formatBaht(c.value)}</span>
+                                <span className="text-muted-foreground/60">({totalFixed > 0 ? Math.round((c.value / totalFixed) * 100) : 0}%)</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto lg:col-span-3">
                           {fixedCostsDetail.map((f: { name: string; category: string; amount: number; isPaid: boolean; month: number; year: number }, i: number) => {
                             const catColor = getCategoryColor(f.category)
                             return (
@@ -1037,6 +1066,7 @@ export function AnalyticsClient() {
                               </div>
                             )
                           })}
+                        </div>
                         </div>
                       </div>
                     )
