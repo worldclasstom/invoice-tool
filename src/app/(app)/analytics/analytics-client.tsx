@@ -2,48 +2,8 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import useSWR from 'swr'
-import {
-  TrendingUp,
-  TrendingDown,
-  Wallet,
-  Loader2,
-  BarChart3,
-  DollarSign,
-  ChevronLeft,
-  ChevronRight,
-  Minus,
-  CalendarDays,
-  Zap,
-  Leaf,
-  Cloud,
-  Sun,
-  CloudRain,
-  Users,
-  ShoppingBag,
-  Clock,
-  Receipt,
-  CreditCard,
-  CheckCircle2,
-  XCircle,
-} from 'lucide-react'
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  Area,
-  AreaChart,
-  ComposedChart,
-  PieChart,
-  Pie,
-  Cell,
-} from 'recharts'
+import { TrendingUp, TrendingDown, Wallet, Loader2, BarChart3, DollarSign, ChevronLeft, ChevronRight, Zap, Leaf, Cloud, Sun, CloudRain, Users, ShoppingBag, Clock, Receipt, CreditCard, CheckCircle2, XCircle } from 'lucide-react'
+import { Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ComposedChart, PieChart, Pie, Cell } from 'recharts'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -244,7 +204,9 @@ export function AnalyticsClient() {
     return d.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short' })
   }
 
-  if (!mounted) return null
+  if (!mounted) {
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-background pb-28 lg:pb-8">
