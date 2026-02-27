@@ -2,37 +2,39 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import useSWR from 'swr'
-import { formatThaiDate } from '@/lib/utils'
 import {
   TrendingUp,
   TrendingDown,
   Wallet,
-  CalendarDays,
   Loader2,
   BarChart3,
   DollarSign,
-  Users,
-  ShoppingBag,
-  Clock,
-  Cloud,
   ChevronLeft,
   ChevronRight,
   Minus,
+  CalendarDays,
+  Zap,
+  Leaf,
+  Cloud,
+  Sun,
+  CloudRain,
+  Users,
+  ShoppingBag,
 } from 'lucide-react'
 import {
-  AreaChart,
-  Area,
+  LineChart,
+  Line,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   Legend,
+  Area,
+  AreaChart,
+  ComposedChart,
 } from 'recharts'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -48,21 +50,11 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-type ViewMode = 'weekly' | 'monthly' | 'quarterly' | 'custom'
+type ViewMode = 'monthly' | 'quarterly'
 
-function getDateRange(mode: ViewMode, customFrom: string, customTo: string): { from: string; to: string } {
-  const today = getThaiToday()
-  const d = new Date(today + 'T12:00:00')
-
+function getDateRange(mode: ViewMode, ref: string): { from: string; to: string } {
+  const d = new Date(ref + 'T12:00:00')
   switch (mode) {
-    case 'weekly': {
-      const dow = d.getDay()
-      const monday = new Date(d)
-      monday.setDate(d.getDate() - ((dow + 6) % 7))
-      const sunday = new Date(monday)
-      sunday.setDate(monday.getDate() + 6)
-      return { from: toDateStr(monday), to: toDateStr(sunday) }
-    }
     case 'monthly': {
       const start = new Date(d.getFullYear(), d.getMonth(), 1)
       const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
@@ -74,60 +66,26 @@ function getDateRange(mode: ViewMode, customFrom: string, customTo: string): { f
       const end = new Date(d.getFullYear(), qMonth + 3, 0)
       return { from: toDateStr(start), to: toDateStr(end) }
     }
-    case 'custom':
-      return { from: customFrom || today, to: customTo || today }
   }
 }
 
 function getDateLabel(mode: ViewMode, from: string, to: string): string {
-  const full: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Bangkok', year: 'numeric', month: 'long', day: 'numeric' }
-  const short: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short' }
-  const monthYear: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Bangkok', month: 'long', year: 'numeric' }
-
   switch (mode) {
-    case 'weekly':
-      return `${new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', short)} - ${new Date(to + 'T12:00:00Z').toLocaleDateString('th-TH', full)}`
     case 'monthly':
-      return new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', monthYear)
+      return new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', month: 'long', year: 'numeric' })
     case 'quarterly': {
-      const fromLabel = new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', month: 'short' })
-      const toLabel = new Date(to + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', month: 'short', year: 'numeric' })
-      return `${fromLabel} - ${toLabel}`
+      const fromL = new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', month: 'short' })
+      const toL = new Date(to + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', month: 'short', year: 'numeric' })
+      return `${fromL} - ${toL}`
     }
-    case 'custom':
-      if (from === to) return new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', full)
-      return `${new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', short)} - ${new Date(to + 'T12:00:00Z').toLocaleDateString('th-TH', full)}`
   }
 }
 
-function navigateRange(mode: ViewMode, from: string, direction: number): { from: string; to: string } {
+function navigateRange(mode: ViewMode, from: string, direction: number): string {
   const d = new Date(from + 'T12:00:00')
-  switch (mode) {
-    case 'weekly': {
-      d.setDate(d.getDate() + direction * 7)
-      const dow = d.getDay()
-      const monday = new Date(d)
-      monday.setDate(d.getDate() - ((dow + 6) % 7))
-      const sunday = new Date(monday)
-      sunday.setDate(monday.getDate() + 6)
-      return { from: toDateStr(monday), to: toDateStr(sunday) }
-    }
-    case 'monthly': {
-      d.setMonth(d.getMonth() + direction)
-      const start = new Date(d.getFullYear(), d.getMonth(), 1)
-      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
-      return { from: toDateStr(start), to: toDateStr(end) }
-    }
-    case 'quarterly': {
-      d.setMonth(d.getMonth() + direction * 3)
-      const qMonth = Math.floor(d.getMonth() / 3) * 3
-      const start = new Date(d.getFullYear(), qMonth, 1)
-      const end = new Date(d.getFullYear(), qMonth + 3, 0)
-      return { from: toDateStr(start), to: toDateStr(end) }
-    }
-    case 'custom':
-      return { from, to: from }
-  }
+  if (mode === 'monthly') d.setMonth(d.getMonth() + direction)
+  else d.setMonth(d.getMonth() + direction * 3)
+  return toDateStr(d)
 }
 
 function formatBaht(v: number): string {
@@ -140,31 +98,40 @@ function formatShortBaht(v: number): string {
   return String(v)
 }
 
-const CHART_COLORS = [
-  'hsl(152, 55%, 38%)',   // primary green
-  'hsl(16, 85%, 58%)',    // accent orange
-  'hsl(42, 92%, 56%)',    // gold
-  'hsl(174, 60%, 46%)',   // tropical teal
-  'hsl(210, 60%, 52%)',   // sky blue
-  'hsl(280, 50%, 56%)',   // violet
-  'hsl(340, 65%, 55%)',   // rose
-  'hsl(90, 50%, 45%)',    // lime
-]
-
-interface CustomTooltipProps {
-  active?: boolean
-  payload?: Array<{ name: string; value: number; color: string }>
-  label?: string
+const COLORS = {
+  sales: 'hsl(152, 55%, 38%)',
+  expenses: 'hsl(0, 78%, 58%)',
+  ingredients: 'hsl(16, 85%, 58%)',
+  fixedCosts: 'hsl(280, 50%, 56%)',
+  electricity: 'hsl(42, 92%, 56%)',
+  sunny: 'hsl(42, 92%, 56%)',
+  rainy: 'hsl(210, 60%, 52%)',
+  cloudy: 'hsl(160, 10%, 66%)',
 }
 
-function ChartTooltip({ active, payload, label }: CustomTooltipProps) {
+const CATEGORY_COLORS = [
+  'hsl(16, 85%, 58%)',
+  'hsl(152, 55%, 38%)',
+  'hsl(42, 92%, 56%)',
+  'hsl(174, 60%, 46%)',
+  'hsl(210, 60%, 52%)',
+  'hsl(280, 50%, 56%)',
+  'hsl(340, 65%, 55%)',
+  'hsl(90, 50%, 45%)',
+]
+
+const GRID_STROKE = 'hsl(48, 20%, 88%)'
+const AXIS_STROKE = 'hsl(160, 10%, 46%)'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   return (
     <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
       <p className="mb-1 text-xs font-semibold text-foreground">{label}</p>
-      {payload.map((p, i) => (
+      {payload.map((p: { name: string; value: number; color: string }, i: number) => (
         <div key={i} className="flex items-center gap-2 text-xs">
-          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />
+          <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
           <span className="text-muted-foreground">{p.name}:</span>
           <span className="font-semibold text-foreground">{formatBaht(p.value)}</span>
         </div>
@@ -176,22 +143,17 @@ function ChartTooltip({ active, payload, label }: CustomTooltipProps) {
 export function AnalyticsClient() {
   const [mounted, setMounted] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('monthly')
-  const [customFrom, setCustomFrom] = useState('')
-  const [customTo, setCustomTo] = useState('')
-  const [manualRange, setManualRange] = useState<{ from: string; to: string } | null>(null)
+  const [refDate, setRefDate] = useState('')
 
   useEffect(() => {
-    const today = getThaiToday()
-    setCustomFrom(today)
-    setCustomTo(today)
+    setRefDate(getThaiToday())
     setMounted(true)
   }, [])
 
   const { from, to } = useMemo(() => {
-    if (!mounted) return { from: '', to: '' }
-    if (manualRange) return manualRange
-    return getDateRange(viewMode, customFrom, customTo)
-  }, [mounted, viewMode, customFrom, customTo, manualRange])
+    if (!mounted || !refDate) return { from: '', to: '' }
+    return getDateRange(viewMode, refDate)
+  }, [mounted, viewMode, refDate])
 
   const dateLabel = useMemo(() => {
     if (!from || !to) return ''
@@ -199,43 +161,31 @@ export function AnalyticsClient() {
   }, [viewMode, from, to])
 
   const { data, isLoading } = useSWR(
-    from && to ? `/api/analytics?from=${from}&to=${to}` : null,
+    from && to ? `/api/analytics?from=${from}&to=${to}&view=${viewMode}` : null,
     fetcher
   )
 
   const handleNavigate = useCallback((direction: number) => {
-    const currentFrom = manualRange?.from ?? from
-    if (!currentFrom) return
-    const newRange = navigateRange(viewMode, currentFrom, direction)
-    setManualRange(newRange)
-  }, [viewMode, from, manualRange])
+    setRefDate((prev) => navigateRange(viewMode, prev, direction))
+  }, [viewMode])
 
   const handleModeChange = (mode: ViewMode) => {
     setViewMode(mode)
-    setManualRange(null)
+    setRefDate(getThaiToday())
   }
 
   const summary = data?.summary
-  const dailyRevenue = data?.dailyRevenue ?? []
-  const paymentMethods = data?.paymentMethods
-  const expenseByCategory = data?.expenseByCategory ?? []
-  const topVendors = data?.topVendors ?? []
-  const revenueVsExpense = data?.revenueVsExpense ?? []
-  const weatherImpact = data?.weatherImpact ?? []
-  const busiestTimes = data?.busiestTimes ?? []
-  const fixedCostsData = data?.fixedCosts ?? []
+  const salesVsExpenses = data?.salesVsExpenses ?? []
+  const salesVsIngredients = data?.salesVsIngredients ?? []
+  const salesVsFixed = data?.salesVsFixed ?? []
+  const expenseCategoryDaily = data?.expenseCategoryDaily ?? []
+  const expenseCategories: string[] = data?.expenseCategories ?? []
+  const weatherVsSales = data?.weatherVsSales ?? []
+  const electricityVsWeather = data?.electricityVsWeather ?? []
+  const monthlySales = data?.monthlySales ?? []
 
-  // Payment methods pie data
-  const pieData = paymentMethods
-    ? [
-        { name: 'Cash', value: paymentMethods.cash },
-        { name: 'PromptPay', value: paymentMethods.promptpay },
-        { name: 'Credit Card', value: paymentMethods.creditCard },
-      ].filter((d) => d.value > 0)
-    : []
-
-  // Format date for chart x-axis
   const formatChartDate = (date: string) => {
+    if (!date) return ''
     const d = new Date(date + 'T12:00:00Z')
     return d.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short' })
   }
@@ -251,14 +201,14 @@ export function AnalyticsClient() {
           <p className="mt-0.5 text-sm text-muted-foreground">{dateLabel || 'Loading...'}</p>
         </div>
 
-        {/* Date Controls */}
+        {/* Controls */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-1 rounded-xl bg-card p-1 shadow-sm border border-border">
-            {(['weekly', 'monthly', 'quarterly', 'custom'] as ViewMode[]).map((m) => (
+            {(['monthly', 'quarterly'] as ViewMode[]).map((m) => (
               <button
                 key={m}
                 onClick={() => handleModeChange(m)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition-all ${
+                className={`rounded-lg px-4 py-2 text-sm font-semibold capitalize transition-all ${
                   viewMode === m
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -269,46 +219,22 @@ export function AnalyticsClient() {
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
-            {viewMode !== 'custom' && (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => handleNavigate(-1)}
-                  className="rounded-lg border border-border bg-card p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                  aria-label="Previous period"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleNavigate(1)}
-                  className="rounded-lg border border-border bg-card p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                  aria-label="Next period"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-
-            {viewMode === 'custom' && (
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5">
-                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                  <input
-                    type="date"
-                    value={customFrom}
-                    onChange={(e) => { setCustomFrom(e.target.value); setManualRange(null) }}
-                    className="rounded-lg border border-border bg-card px-2 py-1.5 text-xs text-foreground"
-                  />
-                </div>
-                <Minus className="h-3 w-3 text-muted-foreground" />
-                <input
-                  type="date"
-                  value={customTo}
-                  onChange={(e) => { setCustomTo(e.target.value); setManualRange(null) }}
-                  className="rounded-lg border border-border bg-card px-2 py-1.5 text-xs text-foreground"
-                />
-              </div>
-            )}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleNavigate(-1)}
+              className="rounded-lg border border-border bg-card p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              aria-label="Previous period"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="min-w-[180px] text-center text-sm font-semibold text-foreground">{dateLabel}</span>
+            <button
+              onClick={() => handleNavigate(1)}
+              className="rounded-lg border border-border bg-card p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              aria-label="Next period"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
         </div>
 
@@ -325,7 +251,7 @@ export function AnalyticsClient() {
                 iconBg="bg-emerald-100 text-emerald-600"
                 label="Total Revenue"
                 value={formatBaht(summary?.totalRevenue ?? 0)}
-                trend={summary?.totalRevenue > summary?.totalExpenses ? 'up' : 'down'}
+                trend={(summary?.totalRevenue ?? 0) > (summary?.totalExpenses ?? 0) ? 'up' : 'down'}
               />
               <KPICard
                 icon={<Wallet className="h-4 w-4" />}
@@ -341,10 +267,10 @@ export function AnalyticsClient() {
                 trend={(summary?.netProfit ?? 0) >= 0 ? 'up' : 'down'}
               />
               <KPICard
-                icon={<BarChart3 className="h-4 w-4" />}
+                icon={<Leaf className="h-4 w-4" />}
                 iconBg="bg-amber-100 text-amber-600"
-                label="Avg Daily Sales"
-                value={formatBaht(summary?.avgDailySales ?? 0)}
+                label="Ingredients"
+                value={formatBaht(summary?.totalIngredients ?? 0)}
               />
               <KPICard
                 icon={<Users className="h-4 w-4" />}
@@ -360,266 +286,257 @@ export function AnalyticsClient() {
               />
             </div>
 
-            {/* Revenue Trend + Payment Breakdown */}
-            <div className="mb-6 grid gap-4 lg:grid-cols-3">
-              <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <h3 className="mb-4 text-sm font-bold text-foreground">Revenue Trend</h3>
-                {dailyRevenue.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <AreaChart data={dailyRevenue}>
-                      <defs>
-                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(152, 55%, 38%)" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(152, 55%, 38%)" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(48, 20%, 88%)" />
-                      <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 11 }} stroke="hsl(160, 10%, 46%)" />
-                      <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke="hsl(160, 10%, 46%)" width={50} />
-                      <Tooltip content={<ChartTooltip />} />
-                      <Area
-                        type="monotone"
-                        dataKey="total"
-                        name="Revenue"
-                        stroke="hsl(152, 55%, 38%)"
-                        strokeWidth={2}
-                        fill="url(#colorRevenue)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <EmptyChart message="No sales data for this period" />
-                )}
-              </div>
-
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <h3 className="mb-4 text-sm font-bold text-foreground">Payment Methods</h3>
-                {pieData.length > 0 ? (
-                  <div className="flex flex-col items-center">
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={50}
-                          outerRadius={80}
-                          paddingAngle={4}
-                          dataKey="value"
-                        >
-                          {pieData.map((_, i) => (
-                            <Cell key={i} fill={CHART_COLORS[i]} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(v: number) => formatBaht(v)} />
-                      </PieChart>
+            {/* ══════════ MONTHLY VIEW ══════════ */}
+            {viewMode === 'monthly' && (
+              <>
+                {/* 1) Daily Sales vs All Expenses */}
+                <ChartCard title="Daily Sales vs All Expenses" subtitle="Compare daily revenue against receipt-based expenses">
+                  {salesVsExpenses.some((d: { sales: number; expenses: number }) => d.sales > 0 || d.expenses > 0) ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={salesVsExpenses}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
+                        <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={50} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                        <Line type="monotone" dataKey="sales" name="Sales" stroke={COLORS.sales} strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
+                        <Line type="monotone" dataKey="expenses" name="Expenses" stroke={COLORS.expenses} strokeWidth={2} dot={false} strokeDasharray="6 3" activeDot={{ r: 5 }} />
+                      </LineChart>
                     </ResponsiveContainer>
-                    <div className="mt-2 flex flex-wrap justify-center gap-3">
-                      {pieData.map((d, i) => (
-                        <div key={d.name} className="flex items-center gap-1.5 text-xs">
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CHART_COLORS[i] }} />
-                          <span className="text-muted-foreground">{d.name}</span>
-                          <span className="font-semibold text-foreground">{formatBaht(d.value)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <EmptyChart message="No payment data" />
-                )}
-              </div>
-            </div>
+                  ) : <EmptyChart />}
+                </ChartCard>
 
-            {/* Revenue vs Expenses */}
-            <div className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <h3 className="mb-4 text-sm font-bold text-foreground">Revenue vs Expenses</h3>
-              {revenueVsExpense.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={revenueVsExpense} barGap={2}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(48, 20%, 88%)" />
-                    <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 11 }} stroke="hsl(160, 10%, 46%)" />
-                    <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke="hsl(160, 10%, 46%)" width={50} />
-                    <Tooltip content={<ChartTooltip />} />
-                    <Legend
-                      wrapperStyle={{ fontSize: 12 }}
-                      formatter={(value: string) => <span className="text-xs text-muted-foreground">{value}</span>}
-                    />
-                    <Bar dataKey="revenue" name="Revenue" fill="hsl(152, 55%, 38%)" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="expense" name="Expense" fill="hsl(16, 85%, 58%)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <EmptyChart message="No ledger data for this period" />
-              )}
-            </div>
+                {/* 2) Daily Sales vs Ingredient Costs */}
+                <ChartCard title="Daily Sales vs Ingredient Costs" subtitle="Track ingredient spending relative to daily revenue">
+                  {salesVsIngredients.some((d: { sales: number; ingredients: number }) => d.sales > 0 || d.ingredients > 0) ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <AreaChart data={salesVsIngredients}>
+                        <defs>
+                          <linearGradient id="gradSales" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={COLORS.sales} stopOpacity={0.15} />
+                            <stop offset="95%" stopColor={COLORS.sales} stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="gradIngredients" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={COLORS.ingredients} stopOpacity={0.15} />
+                            <stop offset="95%" stopColor={COLORS.ingredients} stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
+                        <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={50} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                        <Area type="monotone" dataKey="sales" name="Sales" stroke={COLORS.sales} strokeWidth={2.5} fill="url(#gradSales)" activeDot={{ r: 5 }} />
+                        <Area type="monotone" dataKey="ingredients" name="Ingredients" stroke={COLORS.ingredients} strokeWidth={2} fill="url(#gradIngredients)" activeDot={{ r: 5 }} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : <EmptyChart />}
+                </ChartCard>
 
-            {/* Expenses by Category + Top Vendors */}
-            <div className="mb-6 grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <h3 className="mb-4 text-sm font-bold text-foreground">Expenses by Category</h3>
-                {expenseByCategory.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={expenseByCategory} layout="vertical" barSize={18}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(48, 20%, 88%)" horizontal={false} />
-                      <XAxis type="number" tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke="hsl(160, 10%, 46%)" />
-                      <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(160, 10%, 46%)" width={90} />
-                      <Tooltip formatter={(v: number) => formatBaht(v)} />
-                      <Bar dataKey="amount" name="Amount" radius={[0, 4, 4, 0]}>
-                        {expenseByCategory.map((_: unknown, i: number) => (
-                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <EmptyChart message="No expense data" />
-                )}
-              </div>
+                {/* 3) Sales vs Fixed Costs */}
+                <ChartCard title="Daily Sales vs Fixed Costs" subtitle="Fixed costs spread evenly across the month vs daily sales">
+                  {salesVsFixed.some((d: { sales: number; fixedCosts: number }) => d.sales > 0 || d.fixedCosts > 0) ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <ComposedChart data={salesVsFixed}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
+                        <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={50} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                        <Bar dataKey="sales" name="Sales" fill={COLORS.sales} radius={[3, 3, 0, 0]} opacity={0.8} />
+                        <Line type="monotone" dataKey="fixedCosts" name="Fixed Costs" stroke={COLORS.fixedCosts} strokeWidth={2.5} dot={false} strokeDasharray="8 4" />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  ) : <EmptyChart />}
+                </ChartCard>
 
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <h3 className="mb-4 text-sm font-bold text-foreground">Top Vendors</h3>
-                {topVendors.length > 0 ? (
-                  <div className="flex flex-col gap-3">
-                    {topVendors.map((v: { name: string; amount: number }, i: number) => {
-                      const maxAmount = topVendors[0]?.amount || 1
-                      const pct = (v.amount / maxAmount) * 100
-                      return (
-                        <div key={v.name} className="flex items-center gap-3">
-                          <span className="w-5 text-right text-xs font-semibold text-muted-foreground">{i + 1}</span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-baseline justify-between gap-2">
-                              <span className="truncate text-sm font-medium text-foreground">{v.name}</span>
-                              <span className="shrink-0 text-xs font-semibold text-foreground">{formatBaht(v.amount)}</span>
-                            </div>
-                            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                              <div
-                                className="h-full rounded-full transition-all"
-                                style={{ width: `${pct}%`, backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <EmptyChart message="No vendor data" />
-                )}
-              </div>
-            </div>
-
-            {/* Fixed Costs + Weather + Busiest Times */}
-            <div className="mb-6 grid gap-4 lg:grid-cols-3">
-              {/* Fixed Costs */}
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <h3 className="mb-4 text-sm font-bold text-foreground">Fixed Costs</h3>
-                {fixedCostsData.length > 0 ? (
-                  <div className="flex flex-col gap-3">
-                    {fixedCostsData.map((f: { name: string; total: number; paid: number; unpaid: number }, i: number) => (
-                      <div key={f.name} className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span
-                            className="h-2.5 w-2.5 shrink-0 rounded-full"
-                            style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
+                {/* 4) All Expense Categories Separately */}
+                <ChartCard title="Expense Breakdown by Category" subtitle="Every expense category plotted individually over the period">
+                  {expenseCategoryDaily.length > 0 && expenseCategories.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={expenseCategoryDaily} barSize={expenseCategories.length > 4 ? 8 : 14}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
+                        <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={50} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend
+                          wrapperStyle={{ fontSize: 12 }}
+                          formatter={(v: string) => <span className="text-xs capitalize text-muted-foreground">{v}</span>}
+                        />
+                        {expenseCategories.map((cat: string, i: number) => (
+                          <Bar
+                            key={cat}
+                            dataKey={cat}
+                            name={cat.charAt(0).toUpperCase() + cat.slice(1)}
+                            fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]}
+                            radius={[2, 2, 0, 0]}
+                            stackId="expenses"
                           />
-                          <span className="truncate text-sm text-foreground capitalize">{f.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-xs font-semibold text-foreground">{formatBaht(f.total)}</span>
-                          {f.unpaid > 0 && (
-                            <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Unpaid</span>
-                          )}
-                          {f.unpaid === 0 && f.total > 0 && (
-                            <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">Paid</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyChart message="No fixed costs" />
-                )}
-              </div>
+                        ))}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : <EmptyChart />}
+                </ChartCard>
 
-              {/* Weather Impact */}
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <div className="mb-4 flex items-center gap-2">
-                  <Cloud className="h-4 w-4 text-sky-500" />
-                  <h3 className="text-sm font-bold text-foreground">Weather Impact</h3>
-                </div>
-                {weatherImpact.length > 0 ? (
-                  <div className="flex flex-col gap-3">
-                    {weatherImpact.map((w: { weather: string; avgSales: number; days: number }, i: number) => (
-                      <div key={w.weather} className="flex items-center justify-between gap-2 rounded-xl bg-secondary/50 px-3 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">{w.weather === 'sunny' ? '\u2600\uFE0F' : w.weather === 'rainy' ? '\uD83C\uDF27\uFE0F' : w.weather === 'cloudy' ? '\u2601\uFE0F' : '\uD83C\uDF24\uFE0F'}</span>
-                          <div>
-                            <p className="text-sm font-medium text-foreground capitalize">{w.weather}</p>
-                            <p className="text-[11px] text-muted-foreground">{w.days} day{w.days > 1 ? 's' : ''}</p>
-                          </div>
-                        </div>
-                        <span className="text-sm font-bold text-foreground">{formatBaht(w.avgSales)}</span>
+                {/* 5) Weather vs Average Daily Sales */}
+                <ChartCard title="Weather vs Average Daily Sales" subtitle="How weather conditions affect average revenue per day">
+                  {weatherVsSales.length > 0 ? (
+                    <div className="grid gap-6 lg:grid-cols-5">
+                      <div className="lg:col-span-3">
+                        <ResponsiveContainer width="100%" height={280}>
+                          <BarChart data={weatherVsSales} barSize={48}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
+                            <XAxis dataKey="weather" tick={{ fontSize: 12 }} stroke={AXIS_STROKE} />
+                            <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={50} />
+                            <Tooltip
+                              content={({ active, payload, label }) => {
+                                if (!active || !payload?.length) return null
+                                const d = payload[0].payload
+                                return (
+                                  <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-lg">
+                                    <p className="mb-1 text-sm font-bold text-foreground">{label}</p>
+                                    <p className="text-xs text-muted-foreground">Avg Sales: <span className="font-semibold text-foreground">{formatBaht(d.avgSales)}</span></p>
+                                    <p className="text-xs text-muted-foreground">Days: <span className="font-semibold text-foreground">{d.days}</span></p>
+                                    <p className="text-xs text-muted-foreground">Total: <span className="font-semibold text-foreground">{formatBaht(d.totalSales)}</span></p>
+                                  </div>
+                                )
+                              }}
+                            />
+                            <Bar dataKey="avgSales" name="Avg Sales" radius={[6, 6, 0, 0]}>
+                              {weatherVsSales.map((entry: { weather: string }, i: number) => {
+                                const w = entry.weather.toLowerCase()
+                                const color = w === 'sunny' ? COLORS.sunny : w === 'rainy' ? COLORS.rainy : w === 'cloudy' ? COLORS.cloudy : CATEGORY_COLORS[i % CATEGORY_COLORS.length]
+                                return <rect key={i} fill={color} />
+                              })}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyChart message="No weather data" />
-                )}
-              </div>
-
-              {/* Busiest Times */}
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <div className="mb-4 flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-amber-500" />
-                  <h3 className="text-sm font-bold text-foreground">Busiest Times</h3>
-                </div>
-                {busiestTimes.length > 0 ? (
-                  <div className="flex flex-col gap-2">
-                    {busiestTimes.slice(0, 6).map((t: { time: string; count: number }, i: number) => {
-                      const maxCount = busiestTimes[0]?.count || 1
-                      const pct = (t.count / maxCount) * 100
-                      return (
-                        <div key={t.time} className="flex items-center gap-3">
-                          <span className="w-16 shrink-0 text-xs font-medium text-foreground">{t.time}</span>
-                          <div className="flex-1">
-                            <div className="h-5 w-full overflow-hidden rounded-md bg-secondary">
-                              <div
-                                className="flex h-full items-center rounded-md pl-2 transition-all"
-                                style={{ width: `${Math.max(pct, 15)}%`, backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
-                              >
-                                <span className="text-[10px] font-bold text-card">{t.count}x</span>
+                      <div className="flex flex-col gap-3 lg:col-span-2">
+                        {weatherVsSales.map((w: { weather: string; avgSales: number; days: number; totalSales: number }) => {
+                          const weatherLower = w.weather.toLowerCase()
+                          return (
+                            <div key={w.weather} className="flex items-center gap-3 rounded-xl bg-secondary/50 px-4 py-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card shadow-sm">
+                                {weatherLower === 'sunny' && <Sun className="h-5 w-5 text-amber-500" />}
+                                {weatherLower === 'rainy' && <CloudRain className="h-5 w-5 text-sky-500" />}
+                                {weatherLower === 'cloudy' && <Cloud className="h-5 w-5 text-muted-foreground" />}
+                                {!['sunny', 'rainy', 'cloudy'].includes(weatherLower) && <Cloud className="h-5 w-5 text-muted-foreground" />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-foreground">{w.weather}</p>
+                                <p className="text-xs text-muted-foreground">{w.days} day{w.days > 1 ? 's' : ''} recorded</p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-sm font-bold text-foreground">{formatBaht(w.avgSales)}</p>
+                                <p className="text-[11px] text-muted-foreground">avg/day</p>
                               </div>
                             </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <EmptyChart message="No time data" />
-                )}
-              </div>
-            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : <EmptyChart />}
+                </ChartCard>
+              </>
+            )}
 
-            {/* Service Breakdown (Tables & Togo Trend) */}
-            {dailyRevenue.length > 0 && (
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <h3 className="mb-4 text-sm font-bold text-foreground">Service Breakdown</h3>
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={dailyRevenue} barGap={2}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(48, 20%, 88%)" />
-                    <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 11 }} stroke="hsl(160, 10%, 46%)" />
-                    <YAxis tick={{ fontSize: 11 }} stroke="hsl(160, 10%, 46%)" width={30} />
-                    <Tooltip />
-                    <Legend
-                      wrapperStyle={{ fontSize: 12 }}
-                      formatter={(value: string) => <span className="text-xs text-muted-foreground">{value}</span>}
-                    />
-                    <Bar dataKey="tables" name="Tables" fill="hsl(174, 60%, 46%)" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="togo" name="To-Go" fill="hsl(42, 92%, 56%)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+            {/* ══════════ QUARTERLY VIEW ══════════ */}
+            {viewMode === 'quarterly' && (
+              <>
+                {/* Quarterly Sales Overview */}
+                <ChartCard title="Quarterly Sales Overview" subtitle="Monthly revenue, expenses, and fixed costs">
+                  {monthlySales.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={320}>
+                      <ComposedChart data={monthlySales}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis dataKey="monthLabel" tick={{ fontSize: 12 }} stroke={AXIS_STROKE} />
+                        <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={55} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                        <Bar dataKey="sales" name="Sales" fill={COLORS.sales} radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="expenses" name="Receipt Expenses" fill={COLORS.expenses} radius={[4, 4, 0, 0]} opacity={0.7} />
+                        <Bar dataKey="fixedCosts" name="Fixed Costs" fill={COLORS.fixedCosts} radius={[4, 4, 0, 0]} opacity={0.7} />
+                        <Line type="monotone" dataKey="profit" name="Net Profit" stroke={COLORS.sales} strokeWidth={2.5} dot={{ r: 5, fill: COLORS.sales }} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  ) : <EmptyChart />}
+                </ChartCard>
+
+                {/* Electricity Costs vs Weather Patterns */}
+                <ChartCard title="Electricity Costs vs Weather Patterns" subtitle="Monthly electricity bill compared with weather distribution">
+                  {electricityVsWeather.length > 0 ? (
+                    <div className="grid gap-6 lg:grid-cols-5">
+                      <div className="lg:col-span-3">
+                        <ResponsiveContainer width="100%" height={320}>
+                          <ComposedChart data={electricityVsWeather}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                            <XAxis dataKey="monthLabel" tick={{ fontSize: 12 }} stroke={AXIS_STROKE} />
+                            <YAxis yAxisId="cost" tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={55} />
+                            <YAxis yAxisId="days" orientation="right" tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={35} label={{ value: 'Days', angle: 90, position: 'insideRight', style: { fontSize: 11, fill: AXIS_STROKE } }} />
+                            <Tooltip
+                              content={({ active, payload, label }) => {
+                                if (!active || !payload?.length) return null
+                                const d = payload[0]?.payload
+                                return (
+                                  <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-lg">
+                                    <p className="mb-2 text-sm font-bold text-foreground">{label}</p>
+                                    <div className="flex flex-col gap-1">
+                                      <div className="flex items-center gap-2 text-xs">
+                                        <Zap className="h-3 w-3 text-amber-500" />
+                                        <span className="text-muted-foreground">Electricity:</span>
+                                        <span className="font-semibold text-foreground">{formatBaht(d?.electricity ?? 0)}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 text-xs">
+                                        <Sun className="h-3 w-3 text-amber-400" />
+                                        <span className="text-muted-foreground">Sunny days:</span>
+                                        <span className="font-semibold text-foreground">{d?.sunnyDays ?? 0}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 text-xs">
+                                        <CloudRain className="h-3 w-3 text-sky-400" />
+                                        <span className="text-muted-foreground">Rainy days:</span>
+                                        <span className="font-semibold text-foreground">{d?.rainyDays ?? 0}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 text-xs">
+                                        <Cloud className="h-3 w-3 text-muted-foreground" />
+                                        <span className="text-muted-foreground">Cloudy days:</span>
+                                        <span className="font-semibold text-foreground">{d?.cloudyDays ?? 0}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )
+                              }}
+                            />
+                            <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                            <Bar yAxisId="cost" dataKey="electricity" name="Electricity" fill={COLORS.electricity} radius={[4, 4, 0, 0]} barSize={36} />
+                            <Line yAxisId="days" type="monotone" dataKey="sunnyDays" name="Sunny Days" stroke={COLORS.sunny} strokeWidth={2} dot={{ r: 4, fill: COLORS.sunny }} />
+                            <Line yAxisId="days" type="monotone" dataKey="rainyDays" name="Rainy Days" stroke={COLORS.rainy} strokeWidth={2} dot={{ r: 4, fill: COLORS.rainy }} />
+                            <Line yAxisId="days" type="monotone" dataKey="cloudyDays" name="Cloudy Days" stroke={COLORS.cloudy} strokeWidth={2} dot={{ r: 4, fill: COLORS.cloudy }} />
+                          </ComposedChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="flex flex-col gap-3 lg:col-span-2">
+                        {electricityVsWeather.map((m: { monthLabel: string; electricity: number; sunnyDays: number; rainyDays: number; cloudyDays: number; totalDays: number }) => (
+                          <div key={m.monthLabel} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className="text-sm font-bold text-foreground">{m.monthLabel}</span>
+                              <span className="flex items-center gap-1 text-sm font-bold text-amber-600">
+                                <Zap className="h-3.5 w-3.5" />
+                                {formatBaht(m.electricity)}
+                              </span>
+                            </div>
+                            <div className="flex gap-3">
+                              <WeatherBadge icon={<Sun className="h-3.5 w-3.5 text-amber-500" />} label="Sunny" count={m.sunnyDays} />
+                              <WeatherBadge icon={<CloudRain className="h-3.5 w-3.5 text-sky-500" />} label="Rainy" count={m.rainyDays} />
+                              <WeatherBadge icon={<Cloud className="h-3.5 w-3.5 text-muted-foreground" />} label="Cloudy" count={m.cloudyDays} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : <EmptyChart />}
+                </ChartCard>
+              </>
             )}
           </>
         )}
@@ -628,19 +545,21 @@ export function AnalyticsClient() {
   )
 }
 
-function KPICard({
-  icon,
-  iconBg,
-  label,
-  value,
-  trend,
-}: {
-  icon: React.ReactNode
-  iconBg: string
-  label: string
-  value: string
-  trend?: 'up' | 'down'
-}) {
+/* ─── Sub-components ─── */
+
+function ChartCard({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="mb-4">
+        <h3 className="text-sm font-bold text-foreground">{title}</h3>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function KPICard({ icon, iconBg, label, value, trend }: { icon: React.ReactNode; iconBg: string; label: string; value: string; trend?: 'up' | 'down' }) {
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-center justify-between">
@@ -656,11 +575,21 @@ function KPICard({
   )
 }
 
-function EmptyChart({ message }: { message: string }) {
+function EmptyChart() {
   return (
     <div className="flex h-48 flex-col items-center justify-center gap-2 text-center">
       <BarChart3 className="h-6 w-6 text-muted-foreground/40" />
-      <p className="text-sm text-muted-foreground">{message}</p>
+      <p className="text-sm text-muted-foreground">No data available for this period</p>
+    </div>
+  )
+}
+
+function WeatherBadge({ icon, label, count }: { icon: React.ReactNode; label: string; count: number }) {
+  return (
+    <div className="flex items-center gap-1.5 rounded-lg bg-secondary/60 px-2.5 py-1.5">
+      {icon}
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-xs font-bold text-foreground">{count}</span>
     </div>
   )
 }
