@@ -257,29 +257,47 @@ export default function TaxPage() {
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <h3 className="mb-4 text-sm font-bold text-foreground">Monthly Breakdown</h3>
               <div className="overflow-x-auto -mx-2">
-                <table className="w-full min-w-[560px] text-xs">
+                <table className="w-full min-w-[780px] text-[11px]">
                   <thead>
+                    <tr className="border-b-2 border-border">
+                      <th rowSpan={2} className="px-1.5 py-2 text-left font-bold text-muted-foreground uppercase tracking-wide">Month</th>
+                      <th rowSpan={2} className="px-1.5 py-2 text-right font-bold text-emerald-700 uppercase tracking-wide">Income</th>
+                      <th colSpan={4} className="px-1.5 py-1.5 text-center font-bold text-red-500 uppercase tracking-wide border-b border-red-200">Expenses</th>
+                      <th colSpan={5} className="px-1.5 py-1.5 text-center font-bold text-orange-500 uppercase tracking-wide border-b border-orange-200">Fixed Costs</th>
+                      <th rowSpan={2} className="px-1.5 py-2 text-right font-bold text-muted-foreground uppercase tracking-wide">Net</th>
+                    </tr>
                     <tr className="border-b border-border">
-                      <th className="px-2 py-2.5 text-left font-bold text-muted-foreground uppercase tracking-wide">Month</th>
-                      <th className="px-2 py-2.5 text-right font-bold text-muted-foreground uppercase tracking-wide">Income</th>
-                      <th className="px-2 py-2.5 text-right font-bold text-muted-foreground uppercase tracking-wide">Expenses</th>
-                      <th className="px-2 py-2.5 text-right font-bold text-muted-foreground uppercase tracking-wide">Fixed Costs</th>
-                      <th className="px-2 py-2.5 text-right font-bold text-muted-foreground uppercase tracking-wide">Net</th>
+                      <th className="px-1.5 py-1.5 text-right font-medium text-red-400">Ingr.</th>
+                      <th className="px-1.5 py-1.5 text-right font-medium text-red-400">Drinks</th>
+                      <th className="px-1.5 py-1.5 text-right font-medium text-red-400">Other</th>
+                      <th className="px-1.5 py-1.5 text-right font-bold text-red-600">Total</th>
+                      <th className="px-1.5 py-1.5 text-right font-medium text-orange-400">Elec.</th>
+                      <th className="px-1.5 py-1.5 text-right font-medium text-orange-400">Water</th>
+                      <th className="px-1.5 py-1.5 text-right font-medium text-orange-400">Emp.</th>
+                      <th className="px-1.5 py-1.5 text-right font-medium text-orange-400">Other</th>
+                      <th className="px-1.5 py-1.5 text-right font-bold text-orange-600">Total</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.monthlyRows.map((row: { month: string; income: number; receiptExpenses: number; fixedCosts: number; totalExpenses: number; netProfit: number; days: number }) => {
+                    {data.monthlyRows.map((row: { month: string; income: number; expIngredients: number; expDrinks: number; expOther: number; receiptExpenses: number; fcElectricity: number; fcWater: number; fcEmployee: number; fcOther: number; fixedCosts: number; totalExpenses: number; netProfit: number; days: number }) => {
                       const monthLabel = new Date(row.month + '-15T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', month: 'short', year: '2-digit' })
                       return (
-                        <tr key={row.month} className="border-b border-border/50 last:border-0">
-                          <td className="px-2 py-2.5 font-semibold text-foreground">
+                        <tr key={row.month} className="border-b border-border/40 last:border-0 hover:bg-secondary/30 transition-colors">
+                          <td className="px-1.5 py-2 font-semibold text-foreground">
                             {monthLabel}
-                            <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">({row.days}d)</span>
+                            <span className="ml-1 text-[9px] font-normal text-muted-foreground">({row.days}d)</span>
                           </td>
-                          <td className="px-2 py-2.5 text-right font-semibold text-emerald-700">{formatBaht(row.income)}</td>
-                          <td className="px-2 py-2.5 text-right font-semibold text-red-600">{formatBaht(row.receiptExpenses)}</td>
-                          <td className="px-2 py-2.5 text-right font-semibold text-orange-600">{formatBaht(row.fixedCosts)}</td>
-                          <td className={`px-2 py-2.5 text-right font-bold ${row.netProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                          <td className="px-1.5 py-2 text-right font-semibold text-emerald-700">{formatBaht(row.income)}</td>
+                          <td className="px-1.5 py-2 text-right text-red-500">{formatBaht(row.expIngredients)}</td>
+                          <td className="px-1.5 py-2 text-right text-red-500">{formatBaht(row.expDrinks)}</td>
+                          <td className="px-1.5 py-2 text-right text-red-500">{formatBaht(row.expOther)}</td>
+                          <td className="px-1.5 py-2 text-right font-semibold text-red-600">{formatBaht(row.receiptExpenses)}</td>
+                          <td className="px-1.5 py-2 text-right text-orange-500">{formatBaht(row.fcElectricity)}</td>
+                          <td className="px-1.5 py-2 text-right text-orange-500">{formatBaht(row.fcWater)}</td>
+                          <td className="px-1.5 py-2 text-right text-orange-500">{formatBaht(row.fcEmployee)}</td>
+                          <td className="px-1.5 py-2 text-right text-orange-500">{formatBaht(row.fcOther)}</td>
+                          <td className="px-1.5 py-2 text-right font-semibold text-orange-600">{formatBaht(row.fixedCosts)}</td>
+                          <td className={`px-1.5 py-2 text-right font-bold ${row.netProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                             {formatBaht(row.netProfit)}
                           </td>
                         </tr>
@@ -287,12 +305,33 @@ export default function TaxPage() {
                     })}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t-2 border-border">
-                      <td className="px-2 py-2.5 font-bold text-foreground">Total</td>
-                      <td className="px-2 py-2.5 text-right font-bold text-emerald-700">{formatBaht(summary.totalRevenue)}</td>
-                      <td className="px-2 py-2.5 text-right font-bold text-red-600">{formatBaht(summary.totalReceiptExpenses)}</td>
-                      <td className="px-2 py-2.5 text-right font-bold text-orange-600">{formatBaht(summary.totalFixedCosts)}</td>
-                      <td className={`px-2 py-2.5 text-right font-bold ${summary.netProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                    <tr className="border-t-2 border-border bg-secondary/20">
+                      <td className="px-1.5 py-2.5 font-bold text-foreground">Total</td>
+                      <td className="px-1.5 py-2.5 text-right font-bold text-emerald-700">{formatBaht(summary.totalRevenue)}</td>
+                      <td className="px-1.5 py-2.5 text-right font-bold text-red-500">
+                        {formatBaht(data.monthlyRows.reduce((s: number, r: { expIngredients: number }) => s + r.expIngredients, 0))}
+                      </td>
+                      <td className="px-1.5 py-2.5 text-right font-bold text-red-500">
+                        {formatBaht(data.monthlyRows.reduce((s: number, r: { expDrinks: number }) => s + r.expDrinks, 0))}
+                      </td>
+                      <td className="px-1.5 py-2.5 text-right font-bold text-red-500">
+                        {formatBaht(data.monthlyRows.reduce((s: number, r: { expOther: number }) => s + r.expOther, 0))}
+                      </td>
+                      <td className="px-1.5 py-2.5 text-right font-bold text-red-600">{formatBaht(summary.totalReceiptExpenses)}</td>
+                      <td className="px-1.5 py-2.5 text-right font-bold text-orange-500">
+                        {formatBaht(data.monthlyRows.reduce((s: number, r: { fcElectricity: number }) => s + r.fcElectricity, 0))}
+                      </td>
+                      <td className="px-1.5 py-2.5 text-right font-bold text-orange-500">
+                        {formatBaht(data.monthlyRows.reduce((s: number, r: { fcWater: number }) => s + r.fcWater, 0))}
+                      </td>
+                      <td className="px-1.5 py-2.5 text-right font-bold text-orange-500">
+                        {formatBaht(data.monthlyRows.reduce((s: number, r: { fcEmployee: number }) => s + r.fcEmployee, 0))}
+                      </td>
+                      <td className="px-1.5 py-2.5 text-right font-bold text-orange-500">
+                        {formatBaht(data.monthlyRows.reduce((s: number, r: { fcOther: number }) => s + r.fcOther, 0))}
+                      </td>
+                      <td className="px-1.5 py-2.5 text-right font-bold text-orange-600">{formatBaht(summary.totalFixedCosts)}</td>
+                      <td className={`px-1.5 py-2.5 text-right font-bold ${summary.netProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                         {formatBaht(summary.netProfit)}
                       </td>
                     </tr>

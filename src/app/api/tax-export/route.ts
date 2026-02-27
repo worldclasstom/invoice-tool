@@ -69,19 +69,33 @@ export async function GET(request: NextRequest) {
     expensesByCategory[cat] = (expensesByCategory[cat] || 0) + (Number(f.amount) || 0)
   }
 
-  // Build monthly aggregation
-  const monthlyData: Record<string, { income: number; cash: number; promptpay: number; creditCard: number; receiptExpenses: number; fixedCosts: number; days: number }> = {}
+  // Build monthly aggregation with category breakdowns
+  interface MonthData {
+    income: number; cash: number; promptpay: number; creditCard: number
+    // Receipt expense categories
+    expIngredients: number; expDrinks: number; expOther: number
+    receiptExpenses: number
+    // Fixed cost categories
+    fcElectricity: number; fcWater: number; fcEmployee: number; fcOther: number
+    fixedCosts: number
+    days: number
+  }
+  const monthlyData: Record<string, MonthData> = {}
 
-  // Helper to init a month key
   const initMonth = (key: string) => {
     if (!monthlyData[key]) {
-      monthlyData[key] = { income: 0, cash: 0, promptpay: 0, creditCard: 0, receiptExpenses: 0, fixedCosts: 0, days: 0 }
+      monthlyData[key] = {
+        income: 0, cash: 0, promptpay: 0, creditCard: 0,
+        expIngredients: 0, expDrinks: 0, expOther: 0, receiptExpenses: 0,
+        fcElectricity: 0, fcWater: 0, fcEmployee: 0, fcOther: 0, fixedCosts: 0,
+        days: 0,
+      }
     }
   }
 
   // Aggregate sales by month
   for (const s of sales ?? []) {
-    const key = String(s.report_date).substring(0, 7) // "YYYY-MM"
+    const key = String(s.report_date).substring(0, 7)
     initMonth(key)
     monthlyData[key].income += Number(s.total_amount) || 0
     monthlyData[key].cash += Number(s.cash_amount) || 0
@@ -90,18 +104,38 @@ export async function GET(request: NextRequest) {
     monthlyData[key].days += 1
   }
 
-  // Aggregate receipt expenses by month
+  // Aggregate receipt expenses by month + category
   for (const r of receipts ?? []) {
     const key = String(r.receipt_date).substring(0, 7)
     initMonth(key)
-    monthlyData[key].receiptExpenses += Number(r.total) || 0
+    const amt = Number(r.total) || 0
+    monthlyData[key].receiptExpenses += amt
+    const cat = (r.category || '').toLowerCase()
+    if (cat === 'ingredients' || cat === 'ingredient') {
+      monthlyData[key].expIngredients += amt
+    } else if (cat === 'drinks' || cat === 'drink' || cat === 'beverages' || cat === 'beverage') {
+      monthlyData[key].expDrinks += amt
+    } else {
+      monthlyData[key].expOther += amt
+    }
   }
 
-  // Aggregate fixed costs by month
+  // Aggregate fixed costs by month + category
   for (const f of filteredFixed) {
     const key = `${f.period_year}-${String(f.period_month).padStart(2, '0')}`
     initMonth(key)
-    monthlyData[key].fixedCosts += Number(f.amount) || 0
+    const amt = Number(f.amount) || 0
+    monthlyData[key].fixedCosts += amt
+    const cat = (f.category || '').toLowerCase()
+    if (cat === 'electricity' || cat === 'electric') {
+      monthlyData[key].fcElectricity += amt
+    } else if (cat === 'water') {
+      monthlyData[key].fcWater += amt
+    } else if (cat === 'employee' || cat === 'salary' || cat === 'staff' || cat === 'labor') {
+      monthlyData[key].fcEmployee += amt
+    } else {
+      monthlyData[key].fcOther += amt
+    }
   }
 
   const sortedMonths = Object.keys(monthlyData).sort()
@@ -123,14 +157,14 @@ export async function GET(request: NextRequest) {
     lines.push(`Net Profit/Loss,"${netProfit.toFixed(2)}"`)
     lines.push('')
 
-    // Section 2: Monthly Breakdown
+    // Section 2: Monthly Breakdown with category details
     lines.push('=== MONTHLY BREAKDOWN ===')
-    lines.push('Month,Income,Receipt Expenses,Fixed Costs,Total Expenses,Net Profit/Loss,Days')
+    lines.push('Month,Income,Exp: Ingredients,Exp: Drinks,Exp: Others,Total Expenses,FC: Electricity,FC: Water,FC: Employee,FC: Others,Total Fixed Costs,Grand Total Costs,Net Profit/Loss,Days')
     for (const m of sortedMonths) {
       const d = monthlyData[m]
-      const monthExpenses = d.receiptExpenses + d.fixedCosts
-      const monthNet = d.income - monthExpenses
-      lines.push(`${m},"${d.income.toFixed(2)}","${d.receiptExpenses.toFixed(2)}","${d.fixedCosts.toFixed(2)}","${monthExpenses.toFixed(2)}","${monthNet.toFixed(2)}",${d.days}`)
+      const totalCosts = d.receiptExpenses + d.fixedCosts
+      const monthNet = d.income - totalCosts
+      lines.push(`${m},"${d.income.toFixed(2)}","${d.expIngredients.toFixed(2)}","${d.expDrinks.toFixed(2)}","${d.expOther.toFixed(2)}","${d.receiptExpenses.toFixed(2)}","${d.fcElectricity.toFixed(2)}","${d.fcWater.toFixed(2)}","${d.fcEmployee.toFixed(2)}","${d.fcOther.toFixed(2)}","${d.fixedCosts.toFixed(2)}","${totalCosts.toFixed(2)}","${monthNet.toFixed(2)}",${d.days}`)
     }
 
     const csv = lines.join('\n')
@@ -146,17 +180,24 @@ export async function GET(request: NextRequest) {
   // Build monthly rows for JSON preview
   const monthlyRows = sortedMonths.map((m) => {
     const d = monthlyData[m]
-    const monthExpenses = d.receiptExpenses + d.fixedCosts
+    const totalCosts = d.receiptExpenses + d.fixedCosts
     return {
       month: m,
       income: d.income,
       cash: d.cash,
       promptpay: d.promptpay,
       creditCard: d.creditCard,
+      expIngredients: d.expIngredients,
+      expDrinks: d.expDrinks,
+      expOther: d.expOther,
       receiptExpenses: d.receiptExpenses,
+      fcElectricity: d.fcElectricity,
+      fcWater: d.fcWater,
+      fcEmployee: d.fcEmployee,
+      fcOther: d.fcOther,
       fixedCosts: d.fixedCosts,
-      totalExpenses: monthExpenses,
-      netProfit: d.income - monthExpenses,
+      totalExpenses: totalCosts,
+      netProfit: d.income - totalCosts,
       days: d.days,
     }
   })
