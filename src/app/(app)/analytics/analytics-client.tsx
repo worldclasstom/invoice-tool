@@ -1029,7 +1029,6 @@ export function AnalyticsClient() {
                             )
                           })}
                         </div>
-                        </div>
                       </div>
                     )
                   })() : <EmptyChart />}
