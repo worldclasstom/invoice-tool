@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { logActivity } from '@/lib/activity-log'
+import { getThaiToday, getThaiISOString } from '@/lib/utils'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -59,8 +60,9 @@ export async function GET(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
-    const month = Number(searchParams.get('month') || new Date().getMonth() + 1)
-    const year = Number(searchParams.get('year') || new Date().getFullYear())
+    const thaiToday = getThaiToday()
+    const month = Number(searchParams.get('month') || Number(thaiToday.split('-')[1]))
+    const year = Number(searchParams.get('year') || Number(thaiToday.split('-')[0]))
 
     const { data: costs, error } = await supabase
       .from('fixed_costs')
@@ -91,10 +93,10 @@ export async function PATCH(request: Request) {
 
     const updateData: Record<string, unknown> = {
       is_paid: isPaid,
-      updated_at: new Date().toISOString(),
+      updated_at: getThaiISOString(),
     }
     if (isPaid) {
-      updateData.paid_date = new Date().toISOString().split('T')[0]
+      updateData.paid_date = getThaiToday()
     } else {
       updateData.paid_date = null
     }
@@ -111,7 +113,7 @@ export async function PATCH(request: Request) {
     // Create or remove ledger entry
     if (isPaid) {
       await supabase.from('ledger_entries').insert({
-        entry_date: new Date().toISOString().split('T')[0],
+        entry_date: getThaiToday(),
         description: `Fixed cost - ${cost.name}`,
         entry_type: 'expense',
         category: cost.category,
