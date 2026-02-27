@@ -905,11 +905,9 @@ function CostRowDesktop({
         {cost.payment_method}
       </td>
       <td
-        className={`whitespace-nowrap px-5 py-3 text-right font-semibold ${
-          cost.is_paid ? "text-emerald-600" : "text-foreground"
-        }`}
+        className="whitespace-nowrap px-5 py-3 text-right font-semibold text-red-600"
       >
-        {formatBaht(Number(cost.amount))}
+        -{formatBaht(Number(cost.amount))}
       </td>
     </tr>
   );
@@ -966,12 +964,8 @@ function CostCardMobile({
           {cost.payment_method}
         </p>
       </div>
-      <p
-        className={`shrink-0 text-sm font-semibold ${
-          cost.is_paid ? "text-emerald-600" : "text-foreground"
-        }`}
-      >
-        {formatBaht(Number(cost.amount))}
+      <p className="shrink-0 text-sm font-semibold text-red-600">
+        -{formatBaht(Number(cost.amount))}
       </p>
     </div>
   );
