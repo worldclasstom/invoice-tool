@@ -21,9 +21,7 @@ type ViewMode = 'daily' | 'weekly' | 'monthly' | 'custom'
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 function getThaiToday(): string {
-  const now = new Date()
-  const thai = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
-  return thai.toISOString().split('T')[0]
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
 }
 
 function getDateRange(mode: ViewMode, customFrom: string, customTo: string): { from: string; to: string } {

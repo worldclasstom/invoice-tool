@@ -7,6 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatThaiDate(date: Date | string): string {
   return new Date(date).toLocaleDateString('th-TH', {
+    timeZone: 'Asia/Bangkok',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -15,6 +16,7 @@ export function formatThaiDate(date: Date | string): string {
 
 export function formatThaiDateTime(date: Date | string): string {
   return new Date(date).toLocaleDateString('th-TH', {
+    timeZone: 'Asia/Bangkok',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
