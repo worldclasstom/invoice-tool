@@ -295,6 +295,7 @@ export function AnalyticsClient() {
                 label="Total Revenue"
                 value={formatBaht(summary?.totalRevenue ?? 0)}
                 trend={(summary?.totalRevenue ?? 0) > (summary?.totalExpenses ?? 0) ? 'up' : 'down'}
+                subtitle={`${summary?.daysReported ?? 0} day${(summary?.daysReported ?? 0) === 1 ? '' : 's'} reported`}
               />
               <KPICard
                 icon={<Wallet className="h-4 w-4" />}
@@ -844,7 +845,7 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle: str
   )
 }
 
-function KPICard({ icon, iconBg, label, value, trend }: { icon: React.ReactNode; iconBg: string; label: string; value: string; trend?: 'up' | 'down' }) {
+function KPICard({ icon, iconBg, label, value, trend, subtitle }: { icon: React.ReactNode; iconBg: string; label: string; value: string; trend?: 'up' | 'down'; subtitle?: string }) {
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-center justify-between">
@@ -855,6 +856,7 @@ function KPICard({ icon, iconBg, label, value, trend }: { icon: React.ReactNode;
       <div>
         <p className="text-lg font-bold text-foreground leading-tight">{value}</p>
         <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">{label}</p>
+        {subtitle && <p className="mt-0.5 text-[10px] font-medium text-muted-foreground/70">{subtitle}</p>}
       </div>
     </div>
   )
