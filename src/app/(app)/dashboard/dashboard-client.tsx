@@ -33,7 +33,7 @@ function toDateStr(d: Date): string {
 
 function getDateRange(mode: ViewMode, customFrom: string, customTo: string): { from: string; to: string } {
   const today = getThaiToday()
-  const d = new Date(today + 'T12:00:00')
+  const d = new Date(today + 'T00:00:00+07:00')
 
   switch (mode) {
     case 'daily':

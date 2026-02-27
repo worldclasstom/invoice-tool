@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { formatBaht } from '@/lib/utils'
+import { formatBaht, getThaiToday, getThaiDateOffset, formatFullThaiDate } from '@/lib/utils'
 import { Upload, Camera, Plus, Trash2, Check, Clock, CalendarDays, ChevronLeft, ChevronRight, Pencil, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
 
@@ -25,30 +25,6 @@ interface TransferDetail {
   destination: string
   nickname: string
   amount: number
-}
-
-/** Get today's date string (YYYY-MM-DD) in Thailand timezone */
-function getThaiToday(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
-}
-
-/** Get a date offset from today in Thailand timezone */
-function getThaiDateOffset(days: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() + days)
-  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
-}
-
-/** Format a date string to Thai display */
-function formatThaiDisplay(dateStr: string): string {
-  const d = new Date(dateStr + 'T12:00:00')
-  return d.toLocaleDateString('th-TH', {
-    timeZone: 'Asia/Bangkok',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  })
 }
 
 export default function SalesPage() {
@@ -88,7 +64,7 @@ export default function SalesPage() {
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
   const thaiToday = getThaiToday()
-  const thaiDate = formatThaiDisplay(reportDate)
+  const thaiDate = formatFullThaiDate(reportDate)
   const isToday = reportDate === thaiToday
 
   // Fetch nickname suggestions once on mount
@@ -244,9 +220,13 @@ export default function SalesPage() {
   }
 
   const navigateDate = (offset: number) => {
-    const d = new Date(reportDate + 'T12:00:00')
+    // Parse the current report date as Bangkok midnight to avoid TZ shifts
+    const d = new Date(reportDate + 'T00:00:00+07:00')
     d.setDate(d.getDate() + offset)
-    setReportDate(d.toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' }))
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    setReportDate(`${y}-${m}-${day}`)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

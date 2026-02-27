@@ -82,9 +82,19 @@ interface FixedCost {
 }
 
 export default function FixedCostsPage() {
-  const now = new Date();
-  const [month] = useState(now.getMonth() + 1);
-  const [year] = useState(now.getFullYear());
+  // Use Bangkok timezone to determine current month/year
+  const bkkParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const bkkGet = (t: string) => Number(bkkParts.find(p => p.type === t)?.value ?? '0');
+  const bkkYear = bkkGet('year');
+  const bkkMonth = bkkGet('month');
+  const bkkDay = bkkGet('day');
+  const [month] = useState(bkkMonth);
+  const [year] = useState(bkkYear);
 
   const { data, isLoading } = useSWR(
     `/api/fixed-costs?month=${month}&year=${year}`,
@@ -251,7 +261,7 @@ export default function FixedCostsPage() {
   // - "Second Half Salary": due by the last day
   // - All other bills: due 2 days before end of month
   const lastDayOfMonth = new Date(year, month, 0).getDate(); // e.g. 28/30/31
-  const today = now.getDate();
+  const today = bkkDay;
 
   const reminderItems = REMINDER_BILLS.map((bill) => {
     // Check current month for matching paid entry

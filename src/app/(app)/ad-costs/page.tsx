@@ -7,7 +7,12 @@ import { Loader2, Plus, Trash2, Edit3, X, Check, CalendarRange, TrendingUp, Doll
 /* ── helpers ── */
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 const formatBaht = (n: number) => n.toLocaleString('th-TH', { style: 'currency', currency: 'THB', minimumFractionDigits: 0, maximumFractionDigits: 0 })
-const toDateStr = (d: Date) => d.toISOString().split('T')[0]
+  const toDateStr = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
 
 /* ── platform config ── */
 type Platform = 'facebook' | 'tiktok' | 'instagram' | 'influencers' | 'others'
@@ -93,7 +98,8 @@ interface AdCostEntry {
 
 /* ── main page ── */
 export default function AdCostsPage() {
-  const now = new Date()
+  // Use Bangkok timezone for "today"
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
   const yearStart = `${now.getFullYear()}-01-01`
   const yearEnd = `${now.getFullYear()}-12-31`
 
@@ -185,9 +191,10 @@ export default function AdCostsPage() {
     setFormNote(entry.note || '')
   }, [])
 
-  // Quick date preset helpers
+  // Quick date preset helpers (Bangkok timezone)
+  const bkkNow = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
   const setThisWeek = () => {
-    const d = new Date()
+    const d = bkkNow()
     const day = d.getDay()
     const monday = new Date(d)
     monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
@@ -197,7 +204,7 @@ export default function AdCostsPage() {
     setDateTo(toDateStr(sunday))
   }
   const setThisMonth = () => {
-    const d = new Date()
+    const d = bkkNow()
     setDateFrom(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`)
     const last = new Date(d.getFullYear(), d.getMonth() + 1, 0)
     setDateTo(toDateStr(last))
