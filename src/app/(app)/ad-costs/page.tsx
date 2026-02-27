@@ -103,7 +103,6 @@ export default function AdCostsPage() {
   const [filterPeriod, setFilterPeriod] = useState<PeriodType | ''>('')
 
   // Form state
-  const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formPlatform, setFormPlatform] = useState<Platform>('facebook')
   const [formPeriod, setFormPeriod] = useState<PeriodType>('weekly')
@@ -129,7 +128,6 @@ export default function AdCostsPage() {
   const summary = data?.summary ?? { totalSpend: 0, byPlatform: {}, byPeriod: {}, count: 0 }
 
   const resetForm = useCallback(() => {
-    setShowForm(false)
     setEditingId(null)
     setFormPlatform('facebook')
     setFormPeriod('weekly')
@@ -185,7 +183,6 @@ export default function AdCostsPage() {
     setFormEndDate(entry.end_date)
     setFormAmount(String(entry.amount))
     setFormNote(entry.note || '')
-    setShowForm(true)
   }, [])
 
   // Quick date preset helpers
@@ -226,30 +223,7 @@ export default function AdCostsPage() {
           </div>
         </div>
 
-        {/* Platform Summary Cards */}
-        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-          {/* Total */}
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <div className="mb-2 flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-primary" />
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Total Spend</span>
-            </div>
-            <p className="text-lg font-bold text-foreground">{formatBaht(summary.totalSpend)}</p>
-            <p className="text-[11px] text-muted-foreground">{summary.count} entries</p>
-          </div>
-          {/* Per platform */}
-          {PLATFORMS.map((p) => (
-            <div key={p.id} className={`rounded-2xl border ${p.borderColor} ${p.bgColor} p-4 shadow-sm`}>
-              <div className="mb-2 flex items-center gap-2">
-                <PlatformIcon platform={p.id} className="h-4 w-4" style={{ color: p.color } as React.CSSProperties} />
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{p.label}</span>
-              </div>
-              <p className="text-lg font-bold text-foreground">{formatBaht(summary.byPlatform[p.id] || 0)}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Date Range & Filters */}
+        {/* ── SECTION 1: Date Range & Filters ── */}
         <div className="mb-5 rounded-2xl border border-border bg-card p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <CalendarRange className="h-4 w-4 text-muted-foreground" />
@@ -292,118 +266,131 @@ export default function AdCostsPage() {
           </div>
         </div>
 
-        {/* Add New Button */}
-        {!showForm && (
+        {/* ── Platform Summary Cards (reflects date range above) ── */}
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          {/* Total */}
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="mb-2 flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-primary" />
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Total Spend</span>
+            </div>
+            <p className="text-lg font-bold text-foreground">{formatBaht(summary.totalSpend)}</p>
+            <p className="text-[11px] text-muted-foreground">{summary.count} entries</p>
+          </div>
+          {/* Per platform */}
+          {PLATFORMS.map((p) => (
+            <div key={p.id} className={`rounded-2xl border ${p.borderColor} ${p.bgColor} p-4 shadow-sm`}>
+              <div className="mb-2 flex items-center gap-2">
+                <PlatformIcon platform={p.id} className="h-4 w-4" style={{ color: p.color } as React.CSSProperties} />
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{p.label}</span>
+              </div>
+              <p className="text-lg font-bold text-foreground">{formatBaht(summary.byPlatform[p.id] || 0)}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── SECTION 2: New Ad Spend Entry (always visible, separate) ── */}
+        <div className="mb-5 rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Plus className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-bold text-foreground">{editingId ? 'Edit Ad Spend Entry' : 'New Ad Spend Entry'}</h3>
+            </div>
+            {editingId && (
+              <button type="button" onClick={resetForm} className="rounded-lg px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors">
+                Cancel Edit
+              </button>
+            )}
+          </div>
+
+          {/* Platform Selection */}
+          <div className="mb-4">
+            <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Platform</label>
+            <div className="flex flex-wrap gap-2">
+              {PLATFORMS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setFormPlatform(p.id)}
+                  className={`flex flex-1 min-w-[60px] items-center justify-center gap-2 rounded-xl border-2 px-3 py-3 text-xs font-semibold transition-all ${
+                    formPlatform === p.id
+                      ? `border-current ${p.bgColor} shadow-sm`
+                      : 'border-border bg-background text-muted-foreground hover:border-border/80'
+                  }`}
+                  style={formPlatform === p.id ? { color: p.color, borderColor: p.color } : undefined}
+                >
+                  <PlatformIcon platform={p.id} className="h-4 w-4" />
+                  <span className="hidden sm:inline">{p.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Period Type */}
+          <div className="mb-4">
+            <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Period Type</label>
+            <div className="flex gap-2">
+              {PERIODS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setFormPeriod(p.id)
+                    const start = new Date(formStartDate + 'T12:00:00')
+                    if (p.id === 'weekly') {
+                      const end = new Date(start)
+                      end.setDate(start.getDate() + 6)
+                      setFormEndDate(toDateStr(end))
+                    } else if (p.id === 'monthly') {
+                      const end = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+                      setFormEndDate(toDateStr(end))
+                    } else {
+                      const end = new Date(start.getFullYear(), 11, 31)
+                      setFormEndDate(toDateStr(end))
+                    }
+                  }}
+                  className={`flex-1 rounded-xl border-2 px-3 py-2.5 text-xs font-semibold transition-all ${
+                    formPeriod === p.id
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-background text-muted-foreground hover:border-border/80'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Dates + Amount */}
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Start Date</label>
+              <input type="date" value={formStartDate} onChange={(e) => setFormStartDate(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">End Date</label>
+              <input type="date" value={formEndDate} onChange={(e) => setFormEndDate(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Amount (THB)</label>
+              <input type="number" value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="0" min="0" step="0.01" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Note (optional)</label>
+              <input type="text" value={formNote} onChange={(e) => setFormNote(e.target.value)} placeholder="e.g. Boost post #12" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
+            </div>
+          </div>
+
           <button
             type="button"
-            onClick={() => { resetForm(); setShowForm(true) }}
-            className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 px-4 py-3.5 text-sm font-semibold text-primary transition-colors hover:border-primary/50 hover:bg-primary/10"
+            onClick={handleSubmit}
+            disabled={saving || !formAmount || Number(formAmount) <= 0}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Plus className="h-4 w-4" />
-            Add Ad Spend Entry
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            {saving ? 'Saving...' : editingId ? 'Update Entry' : 'Save Entry'}
           </button>
-        )}
-
-        {/* Add / Edit Form */}
-        {showForm && (
-          <div className="mb-5 rounded-2xl border-2 border-primary/20 bg-card p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-foreground">{editingId ? 'Edit Entry' : 'New Ad Spend Entry'}</h3>
-              <button type="button" onClick={resetForm} className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Platform Selection */}
-            <div className="mb-4">
-              <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Platform</label>
-              <div className="flex gap-2">
-                {PLATFORMS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setFormPlatform(p.id)}
-                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 px-3 py-3 text-xs font-semibold transition-all ${
-                      formPlatform === p.id
-                        ? `border-current ${p.bgColor} shadow-sm`
-                        : 'border-border bg-background text-muted-foreground hover:border-border/80'
-                    }`}
-                    style={formPlatform === p.id ? { color: p.color, borderColor: p.color } : undefined}
-                  >
-                    <PlatformIcon platform={p.id} className="h-4 w-4" />
-                    <span className="hidden sm:inline">{p.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Period Type */}
-            <div className="mb-4">
-              <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Period Type</label>
-              <div className="flex gap-2">
-                {PERIODS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => {
-                      setFormPeriod(p.id)
-                      // Auto-adjust end date based on period
-                      const start = new Date(formStartDate + 'T12:00:00')
-                      if (p.id === 'weekly') {
-                        const end = new Date(start)
-                        end.setDate(start.getDate() + 6)
-                        setFormEndDate(toDateStr(end))
-                      } else if (p.id === 'monthly') {
-                        const end = new Date(start.getFullYear(), start.getMonth() + 1, 0)
-                        setFormEndDate(toDateStr(end))
-                      } else {
-                        const end = new Date(start.getFullYear(), 11, 31)
-                        setFormEndDate(toDateStr(end))
-                      }
-                    }}
-                    className={`flex-1 rounded-xl border-2 px-3 py-2.5 text-xs font-semibold transition-all ${
-                      formPeriod === p.id
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border bg-background text-muted-foreground hover:border-border/80'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Dates + Amount */}
-            <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <div>
-                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Start Date</label>
-                <input type="date" value={formStartDate} onChange={(e) => setFormStartDate(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
-              </div>
-              <div>
-                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">End Date</label>
-                <input type="date" value={formEndDate} onChange={(e) => setFormEndDate(e.target.value)} className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
-              </div>
-              <div>
-                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Amount (THB)</label>
-                <input type="number" value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="0" min="0" step="0.01" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
-              </div>
-              <div>
-                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Note (optional)</label>
-                <input type="text" value={formNote} onChange={(e) => setFormNote(e.target.value)} placeholder="e.g. Boost post #12" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/30" />
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saving || !formAmount || Number(formAmount) <= 0}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              {saving ? 'Saving...' : editingId ? 'Update Entry' : 'Save Entry'}
-            </button>
-          </div>
-        )}
+        </div>
 
         {/* Entries List */}
         <div className="rounded-2xl border border-border bg-card shadow-sm">
