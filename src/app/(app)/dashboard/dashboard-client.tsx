@@ -24,6 +24,13 @@ function getThaiToday(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
 }
 
+function toDateStr(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 function getDateRange(mode: ViewMode, customFrom: string, customTo: string): { from: string; to: string } {
   const today = getThaiToday()
   const d = new Date(today + 'T12:00:00')
@@ -32,23 +39,17 @@ function getDateRange(mode: ViewMode, customFrom: string, customTo: string): { f
     case 'daily':
       return { from: today, to: today }
     case 'weekly': {
-      const day = d.getDay()
+      const dow = d.getDay()
       const monday = new Date(d)
-      monday.setDate(d.getDate() - ((day + 6) % 7))
+      monday.setDate(d.getDate() - ((dow + 6) % 7))
       const sunday = new Date(monday)
       sunday.setDate(monday.getDate() + 6)
-      return {
-        from: monday.toISOString().split('T')[0],
-        to: sunday.toISOString().split('T')[0],
-      }
+      return { from: toDateStr(monday), to: toDateStr(sunday) }
     }
     case 'monthly': {
       const start = new Date(d.getFullYear(), d.getMonth(), 1)
       const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
-      return {
-        from: start.toISOString().split('T')[0],
-        to: end.toISOString().split('T')[0],
-      }
+      return { from: toDateStr(start), to: toDateStr(end) }
     }
     case 'custom':
       return { from: customFrom || today, to: customTo || today }
