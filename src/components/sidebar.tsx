@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   TrendingUp,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -25,6 +26,7 @@ const navigation = [
   { name: 'Invoice', href: '/invoices', icon: FileText, color: 'text-sky-500' },
   { name: 'Receipts', href: '/receipts', icon: Receipt, color: 'text-rose-500' },
   { name: 'Fixed Costs', href: '/fixed-costs', icon: Wallet, color: 'text-violet-500' },
+  { name: 'Tax Export', href: '/tax', icon: FileSpreadsheet, color: 'text-emerald-600' },
 ]
 
 export function Sidebar() {
