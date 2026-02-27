@@ -16,6 +16,7 @@ import {
   X,
   TrendingUp,
   FileSpreadsheet,
+  Megaphone,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -27,6 +28,7 @@ const navigation = [
   { name: 'Receipts', href: '/receipts', icon: Receipt, color: 'text-rose-500' },
   { name: 'Fixed Costs', href: '/fixed-costs', icon: Wallet, color: 'text-violet-500' },
   { name: 'Tax Export', href: '/tax', icon: FileSpreadsheet, color: 'text-emerald-600' },
+  { name: 'Ad Costs', href: '/ad-costs', icon: Megaphone, color: 'text-blue-500' },
 ]
 
 export function Sidebar() {
