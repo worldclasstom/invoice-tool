@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     { data: receipts },
     { data: fixedCosts },
     { data: ledger },
+    { data: adCosts },
   ] = await Promise.all([
     supabase
       .from('daily_sales')
@@ -42,6 +43,12 @@ export async function GET(request: NextRequest) {
       .gte('entry_date', from)
       .lte('entry_date', to)
       .order('entry_date', { ascending: true }),
+    supabase
+      .from('ad_costs')
+      .select('platform, start_date, end_date, amount, period_type')
+      .lte('start_date', to)
+      .gte('end_date', from)
+      .order('start_date', { ascending: true }),
   ])
 
   // Filter fixed costs to months within range
@@ -311,6 +318,69 @@ export async function GET(request: NextRequest) {
   const totalIngredients = (receipts ?? []).filter((r) => r.category === 'ingredients').reduce((s, r) => s + (Number(r.total) || 0), 0)
   const daysCount = (sales ?? []).length || 1
 
+  // ──────────── Ad Spend vs Income ────────────
+  // Spread each ad_cost entry evenly across the days it covers
+  const adSpendByDate: Record<string, { facebook: number; tiktok: number; instagram: number }> = {}
+  for (const ad of adCosts ?? []) {
+    const adStart = new Date(Math.max(new Date(ad.start_date + 'T00:00:00').getTime(), new Date(from + 'T00:00:00').getTime()))
+    const adEnd = new Date(Math.min(new Date(ad.end_date + 'T00:00:00').getTime(), new Date(to + 'T00:00:00').getTime()))
+    const totalDays = Math.max(1, Math.round((adEnd.getTime() - adStart.getTime()) / 86400000) + 1)
+    const dailyAmount = (Number(ad.amount) || 0) / totalDays
+    const platform = ad.platform as 'facebook' | 'tiktok' | 'instagram'
+    const c = new Date(adStart)
+    while (c <= adEnd) {
+      const key = c.toISOString().split('T')[0]
+      if (!adSpendByDate[key]) adSpendByDate[key] = { facebook: 0, tiktok: 0, instagram: 0 }
+      adSpendByDate[key][platform] += dailyAmount
+      c.setDate(c.getDate() + 1)
+    }
+  }
+
+  // Daily: Ad Spend vs Income (for monthly view)
+  const adSpendVsIncomeDaily = allDates.map((d) => {
+    const ad = adSpendByDate[d] || { facebook: 0, tiktok: 0, instagram: 0 }
+    return {
+      date: d,
+      income: salesByDate[d] || 0,
+      facebook: Math.round(ad.facebook),
+      tiktok: Math.round(ad.tiktok),
+      instagram: Math.round(ad.instagram),
+      totalAds: Math.round(ad.facebook + ad.tiktok + ad.instagram),
+    }
+  })
+
+  // Monthly: Ad Spend vs Income (for quarterly/yearly view)
+  const adSpendVsIncomeMonthly = months.map((m) => {
+    let income = 0
+    let facebook = 0, tiktok = 0, instagram = 0
+    for (const s of sales ?? []) {
+      if (s.report_date.startsWith(m)) income += Number(s.total_amount) || 0
+    }
+    for (const d of allDates.filter((dd) => dd.startsWith(m))) {
+      const ad = adSpendByDate[d] || { facebook: 0, tiktok: 0, instagram: 0 }
+      facebook += ad.facebook
+      tiktok += ad.tiktok
+      instagram += ad.instagram
+    }
+    const monthLabel = new Date(m + '-15T12:00:00Z').toLocaleDateString('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      month: 'short',
+      year: '2-digit',
+    })
+    return {
+      month: m,
+      monthLabel,
+      income: Math.round(income),
+      facebook: Math.round(facebook),
+      tiktok: Math.round(tiktok),
+      instagram: Math.round(instagram),
+      totalAds: Math.round(facebook + tiktok + instagram),
+    }
+  })
+
+  // Total ad spend for summary
+  const totalAdSpend = (adCosts ?? []).reduce((s, a) => s + (Number(a.amount) || 0), 0)
+
   return NextResponse.json({
     view,
     summary: {
@@ -324,6 +394,7 @@ export async function GET(request: NextRequest) {
       daysReported: (sales ?? []).length,
       totalTables,
       totalTogo,
+      totalAdSpend,
     },
     // Monthly charts
     salesVsExpenses,
@@ -342,5 +413,8 @@ export async function GET(request: NextRequest) {
     serviceBreakdown,
     fixedCostsDetail,
     categoryTotals,
+    // Ad spend charts
+    adSpendVsIncomeDaily,
+    adSpendVsIncomeMonthly,
   })
 }
