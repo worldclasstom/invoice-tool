@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
   const from = searchParams.get('from')
   const to = searchParams.get('to')
-  const view = searchParams.get('view') || 'monthly' // monthly | quarterly
+  const view = searchParams.get('view') || 'monthly' // monthly | quarterly | yearly
 
   if (!from || !to) {
     return NextResponse.json({ error: 'Missing from/to params' }, { status: 400 })

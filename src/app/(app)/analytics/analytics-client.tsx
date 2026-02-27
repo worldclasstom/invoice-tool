@@ -58,7 +58,7 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-type ViewMode = 'monthly' | 'quarterly'
+type ViewMode = 'monthly' | 'quarterly' | 'yearly'
 
 function getDateRange(mode: ViewMode, ref: string): { from: string; to: string } {
   const d = new Date(ref + 'T12:00:00')
@@ -74,6 +74,11 @@ function getDateRange(mode: ViewMode, ref: string): { from: string; to: string }
       const end = new Date(d.getFullYear(), qMonth + 3, 0)
       return { from: toDateStr(start), to: toDateStr(end) }
     }
+    case 'yearly': {
+      const start = new Date(d.getFullYear(), 0, 1)
+      const end = new Date(d.getFullYear(), 11, 31)
+      return { from: toDateStr(start), to: toDateStr(end) }
+    }
   }
 }
 
@@ -86,13 +91,19 @@ function getDateLabel(mode: ViewMode, from: string, to: string): string {
       const toL = new Date(to + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', month: 'short', year: 'numeric' })
       return `${fromL} - ${toL}`
     }
+    case 'yearly': {
+      const year = new Date(from + 'T12:00:00Z').getFullYear()
+      // Thai Buddhist year
+      return `${year + 543}`
+    }
   }
 }
 
 function navigateRange(mode: ViewMode, from: string, direction: number): string {
   const d = new Date(from + 'T12:00:00')
   if (mode === 'monthly') d.setMonth(d.getMonth() + direction)
-  else d.setMonth(d.getMonth() + direction * 3)
+  else if (mode === 'quarterly') d.setMonth(d.getMonth() + direction * 3)
+  else d.setFullYear(d.getFullYear() + direction)
   return toDateStr(d)
 }
 
@@ -247,7 +258,7 @@ export function AnalyticsClient() {
         {/* Controls */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-1 rounded-xl bg-card p-1 shadow-sm border border-border">
-            {(['monthly', 'quarterly'] as ViewMode[]).map((m) => (
+            {(['monthly', 'quarterly', 'yearly'] as ViewMode[]).map((m) => (
               <button
                 key={m}
                 onClick={() => handleModeChange(m)}
@@ -812,6 +823,290 @@ export function AnalyticsClient() {
                               <WeatherBadge icon={<Sun className="h-3 w-3 text-amber-500" />} label="Sunny" count={m.sunnyDays} />
                               <WeatherBadge icon={<CloudRain className="h-3 w-3 text-sky-500" />} label="Rainy" count={m.rainyDays} />
                               <WeatherBadge icon={<Cloud className="h-3 w-3 text-muted-foreground" />} label="Cloudy" count={m.cloudyDays} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : <EmptyChart />}
+                </ChartCard>
+              </>
+            )}
+
+            {/* ══════════ YEARLY VIEW ══════════ */}
+            {viewMode === 'yearly' && (
+              <>
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Yearly Overview</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+
+                {/* Yearly: Payment Methods by Month - Stacked Bar */}
+                <ChartCard title="Payment Methods by Month" subtitle="Monthly revenue split by payment type across the year">
+                  {monthlySales.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={monthlySales}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis dataKey="monthLabel" tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
+                        <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={55} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                        <Bar dataKey="sales" name="Total Sales" fill={COLORS.sales} radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : <EmptyChart />}
+                </ChartCard>
+
+                {/* Yearly: Revenue, Expenses & Fixed Costs */}
+                <ChartCard title="Monthly Revenue, Expenses & Fixed Costs" subtitle="Full year comparison of revenue streams and cost centers">
+                  {monthlySales.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={360}>
+                      <BarChart data={monthlySales}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis dataKey="monthLabel" tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
+                        <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={55} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                        <Bar dataKey="sales" name="Sales" fill={COLORS.sales} radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="expenses" name="Receipt Expenses" fill={COLORS.expenses} radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="fixedCosts" name="Fixed Costs" fill={COLORS.fixedCosts} radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : <EmptyChart />}
+                </ChartCard>
+
+                {/* Yearly: Expense Categories by Month - Stacked */}
+                <ChartCard title="Expense Categories by Month" subtitle="How each expense category trends across the year">
+                  {expenseCategoryDaily.length > 0 && expenseCategories.length > 0 ? (() => {
+                    // Aggregate daily category data into monthly buckets
+                    const monthlyCategories: Record<string, Record<string, number>> = {}
+                    for (const day of expenseCategoryDaily) {
+                      const d = day.date as string
+                      const monthKey = d.substring(0, 7)
+                      if (!monthlyCategories[monthKey]) monthlyCategories[monthKey] = {}
+                      for (const cat of expenseCategories) {
+                        monthlyCategories[monthKey][cat] = (monthlyCategories[monthKey][cat] || 0) + (Number(day[cat]) || 0)
+                      }
+                    }
+                    const monthlyCategoryData = Object.entries(monthlyCategories).sort(([a], [b]) => a.localeCompare(b)).map(([m, cats]) => {
+                      const label = new Date(m + '-15T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', month: 'short', year: '2-digit' })
+                      return { monthLabel: label, ...cats }
+                    })
+                    return (
+                      <ResponsiveContainer width="100%" height={360}>
+                        <BarChart data={monthlyCategoryData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                          <XAxis dataKey="monthLabel" tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
+                          <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={55} />
+                          <Tooltip content={<ChartTooltip />} />
+                          <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs capitalize text-muted-foreground">{v}</span>} />
+                          {expenseCategories.map((cat: string, i: number) => (
+                            <Bar key={cat} dataKey={cat} name={cat.charAt(0).toUpperCase() + cat.slice(1)} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} radius={[2, 2, 0, 0]} stackId="expenses" />
+                          ))}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )
+                  })() : <EmptyChart />}
+                </ChartCard>
+
+                {/* Yearly: Top Vendors */}
+                <div className="mb-6 grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2">
+                        <ShoppingBag className="h-4 w-4 text-orange-600" />
+                        <h3 className="text-sm font-bold text-foreground">Top Vendors (Yearly)</h3>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Highest spending vendors for the year</p>
+                    </div>
+                    {topVendors.length > 0 ? (
+                      <div className="flex flex-col gap-3">
+                        {topVendors.map((v: { vendor: string; total: number; category: string }, i: number) => {
+                          const maxVal = topVendors[0]?.total || 1
+                          const barColor = getCategoryColor(v.category)
+                          return (
+                            <div key={v.vendor} className="flex items-center gap-3">
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white" style={{ backgroundColor: barColor }}>
+                                {i + 1}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className="truncate text-sm font-medium text-foreground">{v.vendor}</span>
+                                    <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold capitalize" style={{ backgroundColor: barColor + '20', color: barColor }}>
+                                      {v.category}
+                                    </span>
+                                  </div>
+                                  <span className="shrink-0 ml-2 text-xs font-bold text-foreground">{formatBaht(v.total)}</span>
+                                </div>
+                                <div className="h-1.5 w-full rounded-full bg-secondary">
+                                  <div className="h-full rounded-full transition-all" style={{ width: `${(v.total / maxVal) * 100}%`, backgroundColor: barColor }} />
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : <EmptyChart />}
+                  </div>
+
+                  {/* Yearly: Busiest Times */}
+                  <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-slate-500" />
+                        <h3 className="text-sm font-bold text-foreground">Busiest Times (Yearly)</h3>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Peak periods across the entire year</p>
+                    </div>
+                    {busiestTimes.length > 0 ? (
+                      <div className="flex flex-col gap-3">
+                        {busiestTimes.map((t: { time: string; count: number }, i: number) => {
+                          const maxCount = busiestTimes[0]?.count || 1
+                          const barColor = CATEGORY_COLORS[i % CATEGORY_COLORS.length]
+                          return (
+                            <div key={t.time} className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: barColor + '18' }}>
+                                <Clock className="h-4 w-4" style={{ color: barColor }} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-sm font-medium text-foreground">{t.time}</span>
+                                  <span className="text-xs font-bold text-muted-foreground">{t.count}x</span>
+                                </div>
+                                <div className="h-1.5 w-full rounded-full bg-secondary">
+                                  <div className="h-full rounded-full transition-all" style={{ width: `${(t.count / maxCount) * 100}%`, backgroundColor: barColor }} />
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : <EmptyChart />}
+                  </div>
+                </div>
+
+                {/* Yearly: Fixed Costs Overview */}
+                <ChartCard title="Fixed Costs Overview" subtitle="All fixed costs for the year by category and payment status">
+                  {fixedCostsDetail.length > 0 ? (() => {
+                    // Group fixed costs by category for a summary bar
+                    const catMap: Record<string, number> = {}
+                    for (const f of fixedCostsDetail) {
+                      const cat = (f as { category: string }).category || 'other'
+                      catMap[cat] = (catMap[cat] || 0) + (f as { amount: number }).amount
+                    }
+                    const catData = Object.entries(catMap)
+                      .map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value, color: getCategoryColor(name) }))
+                      .sort((a, b) => b.value - a.value)
+
+                    return (
+                      <div className="flex flex-col gap-6">
+                        <ResponsiveContainer width="100%" height={280}>
+                          <BarChart data={catData} layout="vertical" barSize={20}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
+                            <XAxis type="number" tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
+                            <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} stroke={AXIS_STROKE} width={100} />
+                            <Tooltip content={<ChartTooltip />} />
+                            <Bar dataKey="value" name="Amount" radius={[0, 4, 4, 0]}>
+                              {catData.map((entry, i) => (
+                                <Cell key={i} fill={entry.color} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                        <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto">
+                          {fixedCostsDetail.map((f: { name: string; category: string; amount: number; isPaid: boolean; month: number; year: number }, i: number) => {
+                            const catColor = getCategoryColor(f.category)
+                            return (
+                              <div key={`${f.name}-${f.month}-${f.year}-${i}`} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: catColor + '0A' }}>
+                                {f.isPaid ? (
+                                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 shrink-0 text-red-400" />
+                                )}
+                                <div className="flex h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: catColor }} />
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-medium text-foreground">{f.name}</p>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    <span className="capitalize font-medium" style={{ color: catColor }}>{f.category}</span>
+                                    {' \u00B7 '}{f.month}/{f.year}
+                                  </p>
+                                </div>
+                                <span className="shrink-0 text-sm font-bold text-foreground">{formatBaht(f.amount)}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })() : <EmptyChart />}
+                </ChartCard>
+
+                {/* Yearly: Electricity vs Weather */}
+                <ChartCard title="Electricity Costs vs Weather Patterns" subtitle="Monthly electricity bill compared with weather distribution across the year">
+                  {electricityVsWeather.length > 0 ? (
+                    <div className="flex flex-col gap-5">
+                      <ResponsiveContainer width="100%" height={320}>
+                        <ComposedChart data={electricityVsWeather}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                          <XAxis dataKey="monthLabel" tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
+                          <YAxis yAxisId="cost" tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={55} />
+                          <YAxis yAxisId="days" orientation="right" tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={35} label={{ value: 'Days', angle: 90, position: 'insideRight', style: { fontSize: 11, fill: AXIS_STROKE } }} />
+                          <Tooltip
+                            content={({ active, payload, label }) => {
+                              if (!active || !payload?.length) return null
+                              const d = payload[0]?.payload
+                              return (
+                                <div className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-xl shadow-black/5">
+                                  <p className="mb-2 text-sm font-bold text-foreground">{label}</p>
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <Zap className="h-3 w-3 text-amber-500" />
+                                      <span className="text-muted-foreground">Electricity:</span>
+                                      <span className="font-semibold text-foreground">{formatBaht(d?.electricity ?? 0)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <Sun className="h-3 w-3 text-amber-400" />
+                                      <span className="text-muted-foreground">Sunny:</span>
+                                      <span className="font-semibold text-foreground">{d?.sunnyDays ?? 0}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <CloudRain className="h-3 w-3 text-sky-400" />
+                                      <span className="text-muted-foreground">Rainy:</span>
+                                      <span className="font-semibold text-foreground">{d?.rainyDays ?? 0}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <Cloud className="h-3 w-3 text-muted-foreground" />
+                                      <span className="text-muted-foreground">Cloudy:</span>
+                                      <span className="font-semibold text-foreground">{d?.cloudyDays ?? 0}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            }}
+                          />
+                          <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                          <Bar yAxisId="cost" dataKey="electricity" name="Electricity" fill={COLORS.electricity} radius={[4, 4, 0, 0]} barSize={28} />
+                          <Line yAxisId="days" type="monotone" dataKey="sunnyDays" name="Sunny Days" stroke={COLORS.sunny} strokeWidth={2} dot={{ r: 3, fill: COLORS.sunny }} />
+                          <Line yAxisId="days" type="monotone" dataKey="rainyDays" name="Rainy Days" stroke={COLORS.rainy} strokeWidth={2} dot={{ r: 3, fill: COLORS.rainy }} />
+                          <Line yAxisId="days" type="monotone" dataKey="cloudyDays" name="Cloudy Days" stroke={COLORS.cloudy} strokeWidth={2} dot={{ r: 3, fill: COLORS.cloudy }} />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                        {electricityVsWeather.map((m: { monthLabel: string; electricity: number; sunnyDays: number; rainyDays: number; cloudyDays: number; totalDays: number }) => (
+                          <div key={m.monthLabel} className="rounded-xl border border-border bg-secondary/30 p-3">
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className="text-xs font-bold text-foreground">{m.monthLabel}</span>
+                              <span className="flex items-center gap-1 text-[11px] font-bold text-amber-600">
+                                <Zap className="h-3 w-3" />
+                                {formatBaht(m.electricity)}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              <WeatherBadge icon={<Sun className="h-3 w-3 text-amber-500" />} label="S" count={m.sunnyDays} />
+                              <WeatherBadge icon={<CloudRain className="h-3 w-3 text-sky-500" />} label="R" count={m.rainyDays} />
+                              <WeatherBadge icon={<Cloud className="h-3 w-3 text-muted-foreground" />} label="C" count={m.cloudyDays} />
                             </div>
                           </div>
                         ))}
