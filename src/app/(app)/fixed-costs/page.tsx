@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { formatBaht } from "@/lib/utils";
 import { Plus, Check, Upload, Camera, Trash2, RotateCcw, CalendarDays } from "lucide-react";
 import useSWR, { mutate } from "swr";
@@ -64,6 +64,9 @@ export default function FixedCostsPage() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -81,6 +84,9 @@ export default function FixedCostsPage() {
       console.error("Upload failed:", err);
     }
     setUploading(false);
+    // Reset inputs so same file can be re-selected
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const resetForm = () => {
@@ -315,21 +321,35 @@ export default function FixedCostsPage() {
                   </button>
                 </div>
               ) : (
-                <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-violet-300 bg-violet-50/50 px-6 py-6 transition-all hover:border-violet-400 hover:bg-violet-50">
+                <div className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-violet-300 bg-violet-50/50 px-6 py-6 transition-all">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100">
+                    <button
+                      type="button"
+                      onClick={() => cameraInputRef.current?.click()}
+                      disabled={uploading}
+                      className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 transition-colors hover:bg-violet-200 active:bg-violet-300 disabled:opacity-50"
+                      aria-label="Take photo"
+                    >
                       <Camera className="h-4 w-4 text-violet-500" />
-                    </div>
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100">
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 transition-colors hover:bg-violet-200 active:bg-violet-300 disabled:opacity-50"
+                      aria-label="Upload from gallery"
+                    >
                       <Upload className="h-4 w-4 text-violet-500" />
-                    </div>
+                    </button>
                   </div>
                   <span className="text-xs font-medium text-muted-foreground">
                     {uploading
                       ? "Uploading..."
                       : "Tap to upload receipt image"}
                   </span>
+                  {/* Camera capture input (opens camera on mobile) */}
                   <input
+                    ref={cameraInputRef}
                     type="file"
                     accept="image/*"
                     capture="environment"
@@ -337,7 +357,16 @@ export default function FixedCostsPage() {
                     className="sr-only"
                     disabled={uploading}
                   />
-                </label>
+                  {/* File picker input (opens gallery/files) */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="sr-only"
+                    disabled={uploading}
+                  />
+                </div>
               )}
             </div>
 
