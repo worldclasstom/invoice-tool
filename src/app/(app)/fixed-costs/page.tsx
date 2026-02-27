@@ -48,7 +48,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 const CATEGORY_SUGGESTIONS: Record<string, string[]> = {
   utilities: ["Water", "Electricity"],
   credit_card: ["UMB"],
-  employees: ["First Half", "Second Half"],
+  employees: ["First Half Salary", "Second Half Salary"],
 };
 
 // Bills to track in reminder section
@@ -58,8 +58,8 @@ const REMINDER_BILLS = [
   { name: "UMB Credit Card", category: "credit_card" },
   { name: "Rent", category: "rent" },
   { name: "Insurance", category: "insurance" },
-  { name: "First Half", category: "employees" },
-  { name: "Second Half", category: "employees" },
+  { name: "First Half Salary", category: "employees" },
+  { name: "Second Half Salary", category: "employees" },
 ];
 
 const PAYMENT_METHODS = ["Cash", "KBank", "SCB", "Bangkok Bank", "Krungsri"];
@@ -94,14 +94,7 @@ export default function FixedCostsPage() {
   );
   const costs: FixedCost[] = data?.costs ?? [];
 
-  // Also fetch previous month to check overdue
-  const prevMonth = month === 1 ? 12 : month - 1;
-  const prevYear = month === 1 ? year - 1 : year;
-  const { data: prevData } = useSWR(
-    `/api/fixed-costs?month=${prevMonth}&year=${prevYear}`,
-    fetcher
-  );
-  const prevCosts: FixedCost[] = prevData?.costs ?? [];
+
 
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
@@ -256,34 +249,41 @@ export default function FixedCostsPage() {
     year: "numeric",
   });
 
-  // Reminder logic: check if each bill has been paid this month or is overdue from last month
+  // Reminder logic: date-based overdue detection
+  // - "First Half Salary": due by the 15th
+  // - "Second Half Salary": due by the last day
+  // - All other bills: due 2 days before end of month
+  const lastDayOfMonth = new Date(year, month, 0).getDate(); // e.g. 28/30/31
+  const today = now.getDate();
+
   const reminderItems = REMINDER_BILLS.map((bill) => {
-    // Check current month
+    // Check current month for matching paid entry
     const currentMatch = costs.find(
       (c) =>
         c.name.toLowerCase().includes(bill.name.toLowerCase()) ||
         (bill.name === "UMB Credit Card" && c.name.toLowerCase().includes("umb"))
     );
     const isPaidThisMonth = currentMatch?.is_paid ?? false;
-    const existsThisMonth = !!currentMatch;
 
-    // Check previous month
-    const prevMatch = prevCosts.find(
-      (c) =>
-        c.name.toLowerCase().includes(bill.name.toLowerCase()) ||
-        (bill.name === "UMB Credit Card" && c.name.toLowerCase().includes("umb"))
-    );
-    const wasPaidLastMonth = prevMatch?.is_paid ?? false;
-    const existedLastMonth = !!prevMatch;
+    // Determine the due date for this specific bill
+    let dueDate: number;
+    if (bill.name === "First Half Salary") {
+      dueDate = 15;
+    } else if (bill.name === "Second Half Salary") {
+      dueDate = lastDayOfMonth;
+    } else {
+      // 2 days before end of month for all other bills
+      dueDate = lastDayOfMonth - 2;
+    }
 
-    // Overdue: existed last month but wasn't paid, OR doesn't exist this month yet
-    const isOverdue = (existedLastMonth && !wasPaidLastMonth) || (!existsThisMonth && now.getDate() > 5);
+    // Overdue: past the due date and still not paid this month
+    const isOverdue = !isPaidThisMonth && today >= dueDate;
 
     return {
       ...bill,
       isPaidThisMonth,
-      existsThisMonth,
       isOverdue,
+      dueDate,
     };
   });
 
@@ -355,11 +355,12 @@ export default function FixedCostsPage() {
                   >
                     {item.name}
                   </p>
-                  {isRed && (
-                    <p className="text-[9px] font-medium text-red-500">Overdue</p>
-                  )}
-                  {!item.isPaidThisMonth && !isRed && (
-                    <p className="text-[9px] text-muted-foreground">Pending</p>
+                  {item.isPaidThisMonth ? (
+                    <p className="text-[9px] font-medium text-emerald-600">Paid</p>
+                  ) : isRed ? (
+                    <p className="text-[9px] font-bold text-red-500">Overdue — due by {item.dueDate}th</p>
+                  ) : (
+                    <p className="text-[9px] text-muted-foreground">Due by {item.dueDate}th</p>
                   )}
                 </div>
               </div>
@@ -455,7 +456,7 @@ export default function FixedCostsPage() {
                     : category === "credit_card"
                     ? "e.g. UMB"
                     : category === "employees"
-                    ? "e.g. First Half, Second Half"
+                    ? "e.g. First Half Salary, Second Half Salary"
                     : "Enter name"
                 }
               />
