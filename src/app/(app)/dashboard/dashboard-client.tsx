@@ -146,7 +146,7 @@ export function DashboardClient() {
 
   const { data, isLoading } = useSWR(from && to ? `/api/dashboard?from=${from}&to=${to}` : null, fetcher)
 
-  const ACTIVITY_PAGE_SIZE = 6
+  const ACTIVITY_PAGE_SIZE = 5
   const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>([])
   const [activityTotal, setActivityTotal] = useState(0)
   const [activityHasMore, setActivityHasMore] = useState(false)
