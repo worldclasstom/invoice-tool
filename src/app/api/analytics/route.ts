@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
   })
 
   // 4) All expense categories separately (stacked/multi-line)
-  const sortedCategories = [...allCategories].sort()
+  const sortedCategories = Array.from(allCategories).sort()
   const expenseCategoryDaily = allDates.map((d) => {
     const row: Record<string, unknown> = { date: d }
     for (const cat of sortedCategories) {
