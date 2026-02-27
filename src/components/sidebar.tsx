@@ -24,12 +24,15 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, color: 'text-foreground' },
   { name: 'Analytics', href: '/analytics', icon: TrendingUp, color: 'text-pink-500' },
   { name: 'Sales Report', href: '/sales', icon: BarChart3, color: 'text-amber-500' },
-  { name: 'Invoice', href: '/invoices', icon: FileText, color: 'text-sky-500' },
   { name: 'Receipts', href: '/receipts', icon: Receipt, color: 'text-rose-500' },
   { name: 'Fixed Costs', href: '/fixed-costs', icon: Wallet, color: 'text-violet-500' },
-  { name: 'Tax Export', href: '/tax', icon: FileSpreadsheet, color: 'text-emerald-600' },
   { name: 'Ad Costs', href: '/ad-costs', icon: Megaphone, color: 'text-blue-500' },
+  { name: 'Invoice', href: '/invoices', icon: FileText, color: 'text-sky-500' },
+  { name: 'Tax Export', href: '/tax', icon: FileSpreadsheet, color: 'text-emerald-600' },
 ]
+
+// Primary items shown in the mobile bottom bar
+const mobileBottomNav = navigation.slice(0, 6)
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -62,9 +65,35 @@ export function Sidebar() {
       <div className="mx-4 mb-4 h-px bg-border" />
 
       {/* Navigation */}
-      <nav className="flex-1 px-3">
+      <nav className="flex-1 px-3 overflow-y-auto">
         <ul className="flex flex-col gap-1">
-          {navigation.map((item) => {
+          {navigation.slice(0, 6).map((item) => {
+            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+            return (
+              <li key={item.name}>
+                <Link
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
+                      : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
+                  )}
+                >
+                  <item.icon className={cn('h-[18px] w-[18px] shrink-0', isActive ? 'text-primary-foreground' : item.color)} />
+                  {item.name}
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+
+        {/* Documents & Export */}
+        <div className="mx-1 my-3 h-px bg-border" />
+        <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Documents</p>
+        <ul className="flex flex-col gap-1">
+          {navigation.slice(6).map((item) => {
             const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
             return (
               <li key={item.name}>
@@ -103,33 +132,39 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile bottom navigation */}
+      {/* Mobile bottom navigation - 6 primary + More */}
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card/95 backdrop-blur-md lg:hidden">
-        <nav className="flex items-center justify-around px-1 py-1.5">
-          {navigation.map((item) => {
+        <nav className="flex items-center justify-around px-0.5 py-1">
+          {mobileBottomNav.map((item) => {
             const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  'flex flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 text-[10px] font-medium transition-all',
+                  'flex flex-col items-center gap-0.5 rounded-lg px-1.5 py-1 text-[9px] font-medium transition-all min-w-0',
                   isActive
                     ? 'text-primary'
                     : 'text-muted-foreground'
                 )}
               >
-                <item.icon className={cn('h-5 w-5', isActive ? 'text-primary' : item.color)} />
-                <span>{item.name.split(' ')[0]}</span>
+                <item.icon className={cn('h-[18px] w-[18px]', isActive ? 'text-primary' : item.color)} />
+                <span className="truncate max-w-[48px]">{item.name === 'Sales Report' ? 'Sales' : item.name === 'Fixed Costs' ? 'Fixed' : item.name === 'Ad Costs' ? 'Ads' : item.name}</span>
               </Link>
             )
           })}
           <button
             onClick={() => setMobileOpen(true)}
-            className="flex flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 text-[10px] font-medium text-muted-foreground"
+            className={cn(
+              'flex flex-col items-center gap-0.5 rounded-lg px-1.5 py-1 text-[9px] font-medium transition-all min-w-0',
+              // Highlight "More" if one of the non-bottom-bar pages is active
+              (pathname?.startsWith('/invoices') || pathname?.startsWith('/tax'))
+                ? 'text-primary'
+                : 'text-muted-foreground'
+            )}
           >
-            <Menu className="h-5 w-5" />
-            <span>Menu</span>
+            <Menu className="h-[18px] w-[18px]" />
+            <span>More</span>
           </button>
         </nav>
       </div>
