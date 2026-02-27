@@ -19,8 +19,8 @@ import {
 import { useState } from 'react'
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, color: 'text-emerald-600' },
-  { name: 'Analytics', href: '/analytics', icon: TrendingUp, color: 'text-teal-500' },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, color: 'text-foreground' },
+  { name: 'Analytics', href: '/analytics', icon: TrendingUp, color: 'text-pink-500' },
   { name: 'Sales Report', href: '/sales', icon: BarChart3, color: 'text-amber-500' },
   { name: 'Invoice', href: '/invoices', icon: FileText, color: 'text-sky-500' },
   { name: 'Receipts', href: '/receipts', icon: Receipt, color: 'text-rose-500' },
