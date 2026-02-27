@@ -90,6 +90,7 @@ const COLORS = {
   facebook: '#1877F2',
   tiktok: '#010101',
   instagram: '#E4405F',
+  others: '#6B7280',
 }
 
 const CATEGORY_COLORS = [
@@ -732,6 +733,11 @@ export function AnalyticsClient() {
                                     <span className="text-muted-foreground">Instagram:</span>
                                     <span className="font-bold text-foreground">{formatBaht(d?.instagram ?? 0)}</span>
                                   </div>
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.others }} />
+                                    <span className="text-muted-foreground">Others:</span>
+                                    <span className="font-bold text-foreground">{formatBaht(d?.others ?? 0)}</span>
+                                  </div>
                                   <div className="mt-1 border-t border-border/40 pt-1 flex items-center gap-2 text-xs">
                                     <Megaphone className="h-3 w-3 text-muted-foreground" />
                                     <span className="text-muted-foreground">Total Ads:</span>
@@ -746,7 +752,8 @@ export function AnalyticsClient() {
                         <Bar dataKey="income" name="Income" fill={COLORS.sales} radius={[4, 4, 0, 0]} />
                         <Bar dataKey="facebook" name="Facebook" fill={COLORS.facebook} stackId="ads" radius={[0, 0, 0, 0]} />
                         <Bar dataKey="tiktok" name="TikTok" fill={COLORS.tiktok} stackId="ads" radius={[0, 0, 0, 0]} />
-                        <Bar dataKey="instagram" name="Instagram" fill={COLORS.instagram} stackId="ads" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="instagram" name="Instagram" fill={COLORS.instagram} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="others" name="Others" fill={COLORS.others} stackId="ads" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
@@ -877,6 +884,7 @@ export function AnalyticsClient() {
                                 <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.facebook }} /><span className="text-muted-foreground">Facebook:</span><span className="font-bold text-foreground">{formatBaht(d?.facebook ?? 0)}</span></div>
                                 <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.tiktok }} /><span className="text-muted-foreground">TikTok:</span><span className="font-bold text-foreground">{formatBaht(d?.tiktok ?? 0)}</span></div>
                                 <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.instagram }} /><span className="text-muted-foreground">Instagram:</span><span className="font-bold text-foreground">{formatBaht(d?.instagram ?? 0)}</span></div>
+                                <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.others }} /><span className="text-muted-foreground">Others:</span><span className="font-bold text-foreground">{formatBaht(d?.others ?? 0)}</span></div>
                                 <div className="mt-1 border-t border-border/40 pt-1 flex items-center gap-2 text-xs"><Megaphone className="h-3 w-3 text-muted-foreground" /><span className="text-muted-foreground">Total Ads:</span><span className="font-bold text-foreground">{formatBaht(d?.totalAds ?? 0)}</span></div>
                               </div>
                             </div>
@@ -886,7 +894,8 @@ export function AnalyticsClient() {
                         <Bar dataKey="income" name="Income" fill={COLORS.sales} radius={[4, 4, 0, 0]} />
                         <Bar dataKey="facebook" name="Facebook" fill={COLORS.facebook} stackId="ads" radius={[0, 0, 0, 0]} />
                         <Bar dataKey="tiktok" name="TikTok" fill={COLORS.tiktok} stackId="ads" radius={[0, 0, 0, 0]} />
-                        <Bar dataKey="instagram" name="Instagram" fill={COLORS.instagram} stackId="ads" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="instagram" name="Instagram" fill={COLORS.instagram} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="others" name="Others" fill={COLORS.others} stackId="ads" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
@@ -1229,6 +1238,7 @@ export function AnalyticsClient() {
                                 <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.facebook }} /><span className="text-muted-foreground">Facebook:</span><span className="font-bold text-foreground">{formatBaht(d?.facebook ?? 0)}</span></div>
                                 <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.tiktok }} /><span className="text-muted-foreground">TikTok:</span><span className="font-bold text-foreground">{formatBaht(d?.tiktok ?? 0)}</span></div>
                                 <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.instagram }} /><span className="text-muted-foreground">Instagram:</span><span className="font-bold text-foreground">{formatBaht(d?.instagram ?? 0)}</span></div>
+                                <div className="flex items-center gap-2 text-xs"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.others }} /><span className="text-muted-foreground">Others:</span><span className="font-bold text-foreground">{formatBaht(d?.others ?? 0)}</span></div>
                                 <div className="mt-1 border-t border-border/40 pt-1 flex items-center gap-2 text-xs"><Megaphone className="h-3 w-3 text-muted-foreground" /><span className="text-muted-foreground">Total Ads:</span><span className="font-bold text-foreground">{formatBaht(d?.totalAds ?? 0)}</span></div>
                               </div>
                             </div>
@@ -1238,7 +1248,8 @@ export function AnalyticsClient() {
                         <Bar dataKey="income" name="Income" fill={COLORS.sales} radius={[4, 4, 0, 0]} />
                         <Bar dataKey="facebook" name="Facebook" fill={COLORS.facebook} stackId="ads" radius={[0, 0, 0, 0]} />
                         <Bar dataKey="tiktok" name="TikTok" fill={COLORS.tiktok} stackId="ads" radius={[0, 0, 0, 0]} />
-                        <Bar dataKey="instagram" name="Instagram" fill={COLORS.instagram} stackId="ads" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="instagram" name="Instagram" fill={COLORS.instagram} stackId="ads" radius={[0, 0, 0, 0]} />
+                        <Bar dataKey="others" name="Others" fill={COLORS.others} stackId="ads" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (

@@ -320,17 +320,17 @@ export async function GET(request: NextRequest) {
 
   // ──────────── Ad Spend vs Income ────────────
   // Spread each ad_cost entry evenly across the days it covers
-  const adSpendByDate: Record<string, { facebook: number; tiktok: number; instagram: number }> = {}
+  const adSpendByDate: Record<string, { facebook: number; tiktok: number; instagram: number; others: number }> = {}
   for (const ad of adCosts ?? []) {
     const adStart = new Date(Math.max(new Date(ad.start_date + 'T00:00:00').getTime(), new Date(from + 'T00:00:00').getTime()))
     const adEnd = new Date(Math.min(new Date(ad.end_date + 'T00:00:00').getTime(), new Date(to + 'T00:00:00').getTime()))
     const totalDays = Math.max(1, Math.round((adEnd.getTime() - adStart.getTime()) / 86400000) + 1)
     const dailyAmount = (Number(ad.amount) || 0) / totalDays
-    const platform = ad.platform as 'facebook' | 'tiktok' | 'instagram'
+    const platform = ad.platform as 'facebook' | 'tiktok' | 'instagram' | 'others'
     const c = new Date(adStart)
     while (c <= adEnd) {
       const key = c.toISOString().split('T')[0]
-      if (!adSpendByDate[key]) adSpendByDate[key] = { facebook: 0, tiktok: 0, instagram: 0 }
+      if (!adSpendByDate[key]) adSpendByDate[key] = { facebook: 0, tiktok: 0, instagram: 0, others: 0 }
       adSpendByDate[key][platform] += dailyAmount
       c.setDate(c.getDate() + 1)
     }
@@ -338,29 +338,31 @@ export async function GET(request: NextRequest) {
 
   // Daily: Ad Spend vs Income (for monthly view)
   const adSpendVsIncomeDaily = allDates.map((d) => {
-    const ad = adSpendByDate[d] || { facebook: 0, tiktok: 0, instagram: 0 }
+    const ad = adSpendByDate[d] || { facebook: 0, tiktok: 0, instagram: 0, others: 0 }
     return {
       date: d,
       income: salesByDate[d] || 0,
       facebook: Math.round(ad.facebook),
       tiktok: Math.round(ad.tiktok),
       instagram: Math.round(ad.instagram),
-      totalAds: Math.round(ad.facebook + ad.tiktok + ad.instagram),
+      others: Math.round(ad.others),
+      totalAds: Math.round(ad.facebook + ad.tiktok + ad.instagram + ad.others),
     }
   })
 
   // Monthly: Ad Spend vs Income (for quarterly/yearly view)
   const adSpendVsIncomeMonthly = months.map((m) => {
     let income = 0
-    let facebook = 0, tiktok = 0, instagram = 0
+    let facebook = 0, tiktok = 0, instagram = 0, others = 0
     for (const s of sales ?? []) {
       if (s.report_date.startsWith(m)) income += Number(s.total_amount) || 0
     }
     for (const d of allDates.filter((dd) => dd.startsWith(m))) {
-      const ad = adSpendByDate[d] || { facebook: 0, tiktok: 0, instagram: 0 }
+      const ad = adSpendByDate[d] || { facebook: 0, tiktok: 0, instagram: 0, others: 0 }
       facebook += ad.facebook
       tiktok += ad.tiktok
       instagram += ad.instagram
+      others += ad.others
     }
     const monthLabel = new Date(m + '-15T12:00:00Z').toLocaleDateString('th-TH', {
       timeZone: 'Asia/Bangkok',
@@ -374,7 +376,8 @@ export async function GET(request: NextRequest) {
       facebook: Math.round(facebook),
       tiktok: Math.round(tiktok),
       instagram: Math.round(instagram),
-      totalAds: Math.round(facebook + tiktok + instagram),
+      others: Math.round(others),
+      totalAds: Math.round(facebook + tiktok + instagram + others),
     }
   })
 
