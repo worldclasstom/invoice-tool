@@ -249,13 +249,14 @@ export async function GET(request: NextRequest) {
   ].filter((p) => p.value > 0)
 
   // ──────────── Top Vendors ────────────
-  const vendorMap: Record<string, number> = {}
+  const vendorInfo: Record<string, { total: number; category: string }> = {}
   for (const r of receipts ?? []) {
     const v = r.vendor || 'Unknown'
-    vendorMap[v] = (vendorMap[v] || 0) + (Number(r.total) || 0)
+    if (!vendorInfo[v]) vendorInfo[v] = { total: 0, category: r.category || 'other' }
+    vendorInfo[v].total += Number(r.total) || 0
   }
-  const topVendors = Object.entries(vendorMap)
-    .map(([vendor, total]) => ({ vendor, total }))
+  const topVendors = Object.entries(vendorInfo)
+    .map(([vendor, info]) => ({ vendor, total: info.total, category: info.category }))
     .sort((a, b) => b.total - a.total)
     .slice(0, 8)
 

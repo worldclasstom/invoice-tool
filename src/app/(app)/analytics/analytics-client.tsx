@@ -106,33 +106,58 @@ function formatShortBaht(v: number): string {
   return String(v)
 }
 
-// Professional color palette built on the app's warm-neutral + green theme
+// Professional color palette
 const COLORS = {
-  sales: 'hsl(152, 45%, 42%)',       // primary green - revenue
-  expenses: 'hsl(354, 52%, 56%)',     // soft coral - expenses
-  ingredients: 'hsl(24, 65%, 52%)',   // warm terracotta - ingredients
-  fixedCosts: 'hsl(220, 42%, 56%)',   // slate blue - fixed costs
-  electricity: 'hsl(38, 72%, 52%)',   // warm amber - electricity
-  sunny: 'hsl(42, 68%, 52%)',         // golden - sunny
-  rainy: 'hsl(210, 48%, 54%)',        // steel blue - rainy
-  cloudy: 'hsl(200, 12%, 64%)',       // warm grey - cloudy
+  sales: 'hsl(152, 45%, 42%)',
+  expenses: 'hsl(354, 52%, 56%)',
+  ingredients: 'hsl(24, 65%, 52%)',
+  fixedCosts: 'hsl(220, 42%, 56%)',
+  electricity: 'hsl(38, 72%, 52%)',
+  sunny: 'hsl(42, 68%, 52%)',
+  rainy: 'hsl(210, 48%, 54%)',
+  cloudy: 'hsl(200, 12%, 64%)',
 }
 
 const CATEGORY_COLORS = [
-  'hsl(24, 65%, 52%)',    // terracotta
-  'hsl(152, 45%, 42%)',   // forest green
-  'hsl(38, 72%, 52%)',    // amber
-  'hsl(174, 42%, 44%)',   // teal
-  'hsl(220, 42%, 56%)',   // slate blue
-  'hsl(354, 42%, 58%)',   // dusty rose
-  'hsl(270, 30%, 56%)',   // muted lavender
-  'hsl(82, 38%, 46%)',    // olive
+  'hsl(24, 65%, 52%)',
+  'hsl(152, 45%, 42%)',
+  'hsl(38, 72%, 52%)',
+  'hsl(174, 42%, 44%)',
+  'hsl(220, 42%, 56%)',
+  'hsl(354, 42%, 58%)',
+  'hsl(270, 30%, 56%)',
+  'hsl(82, 38%, 46%)',
 ]
 
 const PAYMENT_COLORS = ['hsl(152, 45%, 42%)', 'hsl(220, 42%, 56%)', 'hsl(38, 72%, 52%)']
 
 const GRID_STROKE = 'hsl(40, 12%, 90%)'
 const AXIS_STROKE = 'hsl(160, 8%, 52%)'
+
+// Category-specific color map for fixed costs & vendors
+const FIXED_CATEGORY_COLORS: Record<string, string> = {
+  utilities: 'hsl(38, 72%, 52%)',
+  rent: 'hsl(220, 42%, 56%)',
+  salary: 'hsl(152, 45%, 42%)',
+  insurance: 'hsl(270, 30%, 56%)',
+  subscription: 'hsl(174, 42%, 44%)',
+  maintenance: 'hsl(354, 42%, 58%)',
+  ingredients: 'hsl(24, 65%, 52%)',
+  packaging: 'hsl(82, 38%, 46%)',
+  cleaning: 'hsl(200, 32%, 52%)',
+  equipment: 'hsl(320, 32%, 52%)',
+  other: 'hsl(200, 12%, 58%)',
+}
+
+function getCategoryColor(category: string): string {
+  return FIXED_CATEGORY_COLORS[category?.toLowerCase()] ?? CATEGORY_COLORS[Math.abs(hashStr(category)) % CATEGORY_COLORS.length]
+}
+
+function hashStr(s: string): number {
+  let h = 0
+  for (let i = 0; i < (s?.length ?? 0); i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0
+  return h
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ChartTooltip({ active, payload, label }: any) {
@@ -304,54 +329,300 @@ export function AnalyticsClient() {
               />
             </div>
 
+            {/* ══════════ GENERAL INSIGHTS (shown first, in both views) ══════════ */}
+
+            {/* Row: Payment Methods + Service Breakdown + Expense Categories */}
+            <div className="mb-6 grid gap-4 lg:grid-cols-3">
+              {/* Payment Methods Donut */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-emerald-700" />
+                    <h3 className="text-sm font-bold text-foreground">Payment Methods</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Revenue split by payment type</p>
+                </div>
+                {paymentMethods.length > 0 ? (
+                  <div className="flex flex-col items-center gap-4">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie data={paymentMethods} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
+                          {paymentMethods.map((_: { name: string; value: number }, i: number) => (
+                            <Cell key={i} fill={PAYMENT_COLORS[i % PAYMENT_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null
+                            const d = payload[0]
+                            return (
+                              <div className="rounded-xl border border-border/60 bg-card px-3 py-2 shadow-xl shadow-black/5">
+                                <p className="text-xs font-semibold text-foreground">{d.name}: {formatBaht(Number(d.value))}</p>
+                              </div>
+                            )
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {paymentMethods.map((p: { name: string; value: number }, i: number) => (
+                        <div key={p.name} className="flex items-center gap-1.5 text-xs">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PAYMENT_COLORS[i % PAYMENT_COLORS.length] }} />
+                          <span className="text-muted-foreground">{p.name}</span>
+                          <span className="font-semibold text-foreground">{formatBaht(p.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : <EmptyChart />}
+              </div>
+
+              {/* Service Breakdown Donut */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-slate-600" />
+                    <h3 className="text-sm font-bold text-foreground">Service Breakdown</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Dine-in tables vs to-go orders</p>
+                </div>
+                {serviceBreakdown.length > 0 ? (
+                  <div className="flex flex-col items-center gap-4">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie data={serviceBreakdown} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
+                          <Cell fill={COLORS.sales} />
+                          <Cell fill={CATEGORY_COLORS[3]} />
+                        </Pie>
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null
+                            const d = payload[0]
+                            return (
+                              <div className="rounded-xl border border-border/60 bg-card px-3 py-2 shadow-xl shadow-black/5">
+                                <p className="text-xs font-semibold text-foreground">{d.name}: {d.value}</p>
+                              </div>
+                            )
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {serviceBreakdown.map((s: { name: string; value: number }, i: number) => (
+                        <div key={s.name} className="flex items-center gap-1.5 text-xs">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: i === 0 ? COLORS.sales : CATEGORY_COLORS[3] }} />
+                          <span className="text-muted-foreground">{s.name}</span>
+                          <span className="font-semibold text-foreground">{s.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : <EmptyChart />}
+              </div>
+
+              {/* Expense Category Totals Donut */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="h-4 w-4 text-orange-600" />
+                    <h3 className="text-sm font-bold text-foreground">Expense Categories</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Total spending by category</p>
+                </div>
+                {categoryTotals.length > 0 ? (
+                  <div className="flex flex-col items-center gap-4">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie data={categoryTotals} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={2} dataKey="value">
+                          {categoryTotals.map((_: { name: string; value: number }, i: number) => (
+                            <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null
+                            const d = payload[0]
+                            return (
+                              <div className="rounded-xl border border-border/60 bg-card px-3 py-2 shadow-xl shadow-black/5">
+                                <p className="text-xs font-semibold text-foreground">{d.name}: {formatBaht(Number(d.value))}</p>
+                              </div>
+                            )
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {categoryTotals.map((c: { name: string; value: number }, i: number) => (
+                        <div key={c.name} className="flex items-center gap-1.5 text-xs">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }} />
+                          <span className="text-muted-foreground">{c.name}</span>
+                          <span className="font-semibold text-foreground">{formatBaht(c.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : <EmptyChart />}
+              </div>
+            </div>
+
+            {/* Row: Top Vendors + Busiest Times + Fixed Costs */}
+            <div className="mb-8 grid gap-4 lg:grid-cols-3">
+              {/* Top Vendors - colored by category */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag className="h-4 w-4 text-orange-600" />
+                    <h3 className="text-sm font-bold text-foreground">Top Vendors</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Highest spending vendors by category</p>
+                </div>
+                {topVendors.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {topVendors.map((v: { vendor: string; total: number; category: string }, i: number) => {
+                      const maxVal = topVendors[0]?.total || 1
+                      const barColor = getCategoryColor(v.category)
+                      return (
+                        <div key={v.vendor} className="flex items-center gap-3">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold text-white" style={{ backgroundColor: barColor }}>
+                            {i + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="truncate text-sm font-medium text-foreground">{v.vendor}</span>
+                                <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold capitalize" style={{ backgroundColor: barColor + '20', color: barColor }}>
+                                  {v.category}
+                                </span>
+                              </div>
+                              <span className="shrink-0 ml-2 text-xs font-bold text-foreground">{formatBaht(v.total)}</span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-secondary">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${(v.total / maxVal) * 100}%`, backgroundColor: barColor }} />
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : <EmptyChart />}
+              </div>
+
+              {/* Busiest Times - colored by index */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-slate-500" />
+                    <h3 className="text-sm font-bold text-foreground">Busiest Times</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Most frequently reported peak periods</p>
+                </div>
+                {busiestTimes.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {busiestTimes.map((t: { time: string; count: number }, i: number) => {
+                      const maxCount = busiestTimes[0]?.count || 1
+                      const barColor = CATEGORY_COLORS[i % CATEGORY_COLORS.length]
+                      return (
+                        <div key={t.time} className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: barColor + '18' }}>
+                            <Clock className="h-4 w-4" style={{ color: barColor }} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium text-foreground">{t.time}</span>
+                              <span className="text-xs font-bold text-muted-foreground">{t.count}x</span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-secondary">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${(t.count / maxCount) * 100}%`, backgroundColor: barColor }} />
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : <EmptyChart />}
+              </div>
+
+              {/* Fixed Costs Status - colored by category */}
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-bold text-foreground">Fixed Costs</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Payment status for recurring expenses</p>
+                </div>
+                {fixedCostsDetail.length > 0 ? (
+                  <div className="flex flex-col gap-2.5 max-h-[340px] overflow-y-auto">
+                    {fixedCostsDetail.map((f: { name: string; category: string; amount: number; isPaid: boolean; month: number; year: number }, i: number) => {
+                      const catColor = getCategoryColor(f.category)
+                      return (
+                        <div key={`${f.name}-${f.month}-${f.year}-${i}`} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: catColor + '0A' }}>
+                          {f.isPaid ? (
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                          ) : (
+                            <XCircle className="h-4 w-4 shrink-0 text-red-400" />
+                          )}
+                          <div className="flex h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: catColor }} />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-foreground">{f.name}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              <span className="capitalize font-medium" style={{ color: catColor }}>{f.category}</span>
+                              {' \u00B7 '}{f.month}/{f.year}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-sm font-bold text-foreground">{formatBaht(f.amount)}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : <EmptyChart />}
+              </div>
+            </div>
+
             {/* ══════════ MONTHLY VIEW ══════════ */}
             {viewMode === 'monthly' && (
               <>
-                {/* 1) Daily Sales vs All Expenses */}
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Monthly Trends</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+
+                {/* 1) Daily Sales vs All Expenses - ComposedChart (Bar + Line) */}
                 <ChartCard title="Daily Sales vs All Expenses" subtitle="Compare daily revenue against receipt-based expenses">
                   {salesVsExpenses.some((d: { sales: number; expenses: number }) => d.sales > 0 || d.expenses > 0) ? (
                     <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={salesVsExpenses}>
+                      <ComposedChart data={salesVsExpenses}>
                         <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
                         <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
                         <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={50} />
                         <Tooltip content={<ChartTooltip />} />
                         <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
-                        <Line type="monotone" dataKey="sales" name="Sales" stroke={COLORS.sales} strokeWidth={2.5} dot={false} activeDot={{ r: 5 }} />
-                        <Line type="monotone" dataKey="expenses" name="Expenses" stroke={COLORS.expenses} strokeWidth={2} dot={false} strokeDasharray="6 3" activeDot={{ r: 5 }} />
-                      </LineChart>
+                        <Bar dataKey="sales" name="Sales" fill={COLORS.sales} radius={[3, 3, 0, 0]} opacity={0.8} />
+                        <Line type="monotone" dataKey="expenses" name="Expenses" stroke={COLORS.expenses} strokeWidth={2.5} dot={false} strokeDasharray="8 4" />
+                      </ComposedChart>
                     </ResponsiveContainer>
                   ) : <EmptyChart />}
                 </ChartCard>
 
-                {/* 2) Daily Sales vs Ingredient Costs */}
+                {/* 2) Daily Sales vs Ingredient Costs - ComposedChart (Bar + Line) */}
                 <ChartCard title="Daily Sales vs Ingredient Costs" subtitle="Track ingredient spending relative to daily revenue">
                   {salesVsIngredients.some((d: { sales: number; ingredients: number }) => d.sales > 0 || d.ingredients > 0) ? (
                     <ResponsiveContainer width="100%" height={300}>
-                      <AreaChart data={salesVsIngredients}>
-                        <defs>
-                          <linearGradient id="gradSales" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={COLORS.sales} stopOpacity={0.15} />
-                            <stop offset="95%" stopColor={COLORS.sales} stopOpacity={0} />
-                          </linearGradient>
-                          <linearGradient id="gradIngredients" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={COLORS.ingredients} stopOpacity={0.15} />
-                            <stop offset="95%" stopColor={COLORS.ingredients} stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
+                      <ComposedChart data={salesVsIngredients}>
                         <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
                         <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
                         <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={50} />
                         <Tooltip content={<ChartTooltip />} />
                         <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
-                        <Area type="monotone" dataKey="sales" name="Sales" stroke={COLORS.sales} strokeWidth={2.5} fill="url(#gradSales)" activeDot={{ r: 5 }} />
-                        <Area type="monotone" dataKey="ingredients" name="Ingredients" stroke={COLORS.ingredients} strokeWidth={2} fill="url(#gradIngredients)" activeDot={{ r: 5 }} />
-                      </AreaChart>
+                        <Bar dataKey="sales" name="Sales" fill={COLORS.sales} radius={[3, 3, 0, 0]} opacity={0.8} />
+                        <Line type="monotone" dataKey="ingredients" name="Ingredients" stroke={COLORS.ingredients} strokeWidth={2.5} dot={false} strokeDasharray="8 4" />
+                      </ComposedChart>
                     </ResponsiveContainer>
                   ) : <EmptyChart />}
                 </ChartCard>
 
-                {/* 3) Sales vs Fixed Costs */}
+                {/* 3) Sales vs Fixed Costs - ComposedChart (Bar + Line) */}
                 <ChartCard title="Daily Sales vs Fixed Costs" subtitle="Fixed costs spread evenly across the month vs daily sales">
                   {salesVsFixed.some((d: { sales: number; fixedCosts: number }) => d.sales > 0 || d.fixedCosts > 0) ? (
                     <ResponsiveContainer width="100%" height={300}>
@@ -377,19 +648,9 @@ export function AnalyticsClient() {
                         <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
                         <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={50} />
                         <Tooltip content={<ChartTooltip />} />
-                        <Legend
-                          wrapperStyle={{ fontSize: 12 }}
-                          formatter={(v: string) => <span className="text-xs capitalize text-muted-foreground">{v}</span>}
-                        />
+                        <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs capitalize text-muted-foreground">{v}</span>} />
                         {expenseCategories.map((cat: string, i: number) => (
-                          <Bar
-                            key={cat}
-                            dataKey={cat}
-                            name={cat.charAt(0).toUpperCase() + cat.slice(1)}
-                            fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]}
-                            radius={[2, 2, 0, 0]}
-                            stackId="expenses"
-                          />
+                          <Bar key={cat} dataKey={cat} name={cat.charAt(0).toUpperCase() + cat.slice(1)} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} radius={[2, 2, 0, 0]} stackId="expenses" />
                         ))}
                       </BarChart>
                     </ResponsiveContainer>
@@ -411,7 +672,7 @@ export function AnalyticsClient() {
                                 if (!active || !payload?.length) return null
                                 const d = payload[0].payload
                                 return (
-                                  <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-lg">
+                                  <div className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-xl shadow-black/5">
                                     <p className="mb-1 text-sm font-bold text-foreground">{label}</p>
                                     <p className="text-xs text-muted-foreground">Avg Sales: <span className="font-semibold text-foreground">{formatBaht(d.avgSales)}</span></p>
                                     <p className="text-xs text-muted-foreground">Days: <span className="font-semibold text-foreground">{d.days}</span></p>
@@ -424,7 +685,7 @@ export function AnalyticsClient() {
                               {weatherVsSales.map((entry: { weather: string }, i: number) => {
                                 const w = entry.weather.toLowerCase()
                                 const color = w === 'sunny' ? COLORS.sunny : w === 'rainy' ? COLORS.rainy : w === 'cloudy' ? COLORS.cloudy : CATEGORY_COLORS[i % CATEGORY_COLORS.length]
-                                return <rect key={i} fill={color} />
+                                return <Cell key={i} fill={color} />
                               })}
                             </Bar>
                           </BarChart>
@@ -462,6 +723,12 @@ export function AnalyticsClient() {
             {/* ══════════ QUARTERLY VIEW ══════════ */}
             {viewMode === 'quarterly' && (
               <>
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Quarterly Trends</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+
                 {/* Quarterly Sales Overview */}
                 <ChartCard title="Quarterly Sales Overview" subtitle="Monthly revenue, expenses, and fixed costs">
                   {monthlySales.length > 0 ? (
@@ -497,7 +764,7 @@ export function AnalyticsClient() {
                                 if (!active || !payload?.length) return null
                                 const d = payload[0]?.payload
                                 return (
-                                  <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-lg">
+                                  <div className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-xl shadow-black/5">
                                     <p className="mb-2 text-sm font-bold text-foreground">{label}</p>
                                     <div className="flex flex-col gap-1">
                                       <div className="flex items-center gap-2 text-xs">
@@ -556,269 +823,6 @@ export function AnalyticsClient() {
                 </ChartCard>
               </>
             )}
-
-            {/* ══════════ GENERAL INSIGHTS (shown in both views) ══════════ */}
-            <div className="mb-4 mt-8 flex items-center gap-3">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">General Insights</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-
-            {/* Row: Payment Methods + Service Breakdown + Expense Categories */}
-            <div className="mb-6 grid gap-4 lg:grid-cols-3">
-              {/* Payment Methods Donut */}
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <div className="mb-4">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-emerald-700" />
-                    <h3 className="text-sm font-bold text-foreground">Payment Methods</h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Revenue split by payment type</p>
-                </div>
-                {paymentMethods.length > 0 ? (
-                  <div className="flex flex-col items-center gap-4">
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie
-                          data={paymentMethods}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={85}
-                          paddingAngle={3}
-                          dataKey="value"
-                        >
-                          {paymentMethods.map((_: { name: string; value: number }, i: number) => (
-                            <Cell key={i} fill={PAYMENT_COLORS[i % PAYMENT_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (!active || !payload?.length) return null
-                            const d = payload[0]
-                            return (
-                              <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
-                                <p className="text-xs font-semibold text-foreground">{d.name}: {formatBaht(Number(d.value))}</p>
-                              </div>
-                            )
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="flex flex-wrap justify-center gap-3">
-                      {paymentMethods.map((p: { name: string; value: number }, i: number) => (
-                        <div key={p.name} className="flex items-center gap-1.5 text-xs">
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PAYMENT_COLORS[i % PAYMENT_COLORS.length] }} />
-                          <span className="text-muted-foreground">{p.name}</span>
-                          <span className="font-semibold text-foreground">{formatBaht(p.value)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : <EmptyChart />}
-              </div>
-
-              {/* Service Breakdown Donut */}
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <div className="mb-4">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-slate-600" />
-                    <h3 className="text-sm font-bold text-foreground">Service Breakdown</h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Dine-in tables vs to-go orders</p>
-                </div>
-                {serviceBreakdown.length > 0 ? (
-                  <div className="flex flex-col items-center gap-4">
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie
-                          data={serviceBreakdown}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={85}
-                          paddingAngle={3}
-                          dataKey="value"
-                        >
-                          <Cell fill={COLORS.sales} />
-                          <Cell fill={CATEGORY_COLORS[3]} />
-                        </Pie>
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (!active || !payload?.length) return null
-                            const d = payload[0]
-                            return (
-                              <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
-                                <p className="text-xs font-semibold text-foreground">{d.name}: {d.value}</p>
-                              </div>
-                            )
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="flex flex-wrap justify-center gap-3">
-                      {serviceBreakdown.map((s: { name: string; value: number }, i: number) => (
-                        <div key={s.name} className="flex items-center gap-1.5 text-xs">
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: i === 0 ? COLORS.sales : CATEGORY_COLORS[3] }} />
-                          <span className="text-muted-foreground">{s.name}</span>
-                          <span className="font-semibold text-foreground">{s.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : <EmptyChart />}
-              </div>
-
-              {/* Expense Category Totals Donut */}
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <div className="mb-4">
-                  <div className="flex items-center gap-2">
-                    <Receipt className="h-4 w-4 text-orange-600" />
-                    <h3 className="text-sm font-bold text-foreground">Expense Categories</h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Total spending by category</p>
-                </div>
-                {categoryTotals.length > 0 ? (
-                  <div className="flex flex-col items-center gap-4">
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie
-                          data={categoryTotals}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={85}
-                          paddingAngle={2}
-                          dataKey="value"
-                        >
-                          {categoryTotals.map((_: { name: string; value: number }, i: number) => (
-                            <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (!active || !payload?.length) return null
-                            const d = payload[0]
-                            return (
-                              <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
-                                <p className="text-xs font-semibold text-foreground">{d.name}: {formatBaht(Number(d.value))}</p>
-                              </div>
-                            )
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="flex flex-wrap justify-center gap-3">
-                      {categoryTotals.map((c: { name: string; value: number }, i: number) => (
-                        <div key={c.name} className="flex items-center gap-1.5 text-xs">
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }} />
-                          <span className="text-muted-foreground">{c.name}</span>
-                          <span className="font-semibold text-foreground">{formatBaht(c.value)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : <EmptyChart />}
-              </div>
-            </div>
-
-            {/* Row: Top Vendors + Busiest Times + Fixed Costs */}
-            <div className="mb-6 grid gap-4 lg:grid-cols-3">
-              {/* Top Vendors */}
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <div className="mb-4">
-                  <div className="flex items-center gap-2">
-                    <ShoppingBag className="h-4 w-4 text-orange-600" />
-                    <h3 className="text-sm font-bold text-foreground">Top Vendors</h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Highest spending vendors</p>
-                </div>
-                {topVendors.length > 0 ? (
-                  <div className="flex flex-col gap-3">
-                    {topVendors.map((v: { vendor: string; total: number }, i: number) => {
-                      const maxVal = topVendors[0]?.total || 1
-                      return (
-                        <div key={v.vendor} className="flex items-center gap-3">
-                          <span className="w-5 shrink-0 text-right text-xs font-bold text-muted-foreground">{i + 1}</span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="truncate text-sm font-medium text-foreground">{v.vendor}</span>
-                              <span className="shrink-0 text-xs font-bold text-foreground">{formatBaht(v.total)}</span>
-                            </div>
-                            <div className="h-1.5 w-full rounded-full bg-secondary">
-                              <div className="h-full rounded-full transition-all" style={{ width: `${(v.total / maxVal) * 100}%`, backgroundColor: COLORS.ingredients }} />
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : <EmptyChart />}
-              </div>
-
-              {/* Busiest Times */}
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <div className="mb-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-slate-500" />
-                    <h3 className="text-sm font-bold text-foreground">Busiest Times</h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Most frequently reported peak periods</p>
-                </div>
-                {busiestTimes.length > 0 ? (
-                  <div className="flex flex-col gap-3">
-                    {busiestTimes.map((t: { time: string; count: number }) => {
-                      const maxCount = busiestTimes[0]?.count || 1
-                      return (
-                        <div key={t.time} className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                            <Clock className="h-4 w-4" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm font-medium text-foreground">{t.time}</span>
-                              <span className="text-xs font-bold text-muted-foreground">{t.count}x</span>
-                            </div>
-                            <div className="h-1.5 w-full rounded-full bg-secondary">
-                              <div className="h-full rounded-full transition-all" style={{ width: `${(t.count / maxCount) * 100}%`, backgroundColor: COLORS.fixedCosts }} />
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : <EmptyChart />}
-              </div>
-
-              {/* Fixed Costs Status */}
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <div className="mb-4">
-                  <div className="flex items-center gap-2">
-                    <Wallet className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-bold text-foreground">Fixed Costs</h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Payment status for recurring expenses</p>
-                </div>
-                {fixedCostsDetail.length > 0 ? (
-                  <div className="flex flex-col gap-2.5 max-h-[340px] overflow-y-auto">
-                    {fixedCostsDetail.map((f: { name: string; category: string; amount: number; isPaid: boolean; month: number; year: number }, i: number) => (
-                      <div key={`${f.name}-${f.month}-${f.year}-${i}`} className="flex items-center gap-3 rounded-xl bg-secondary/40 px-3 py-2.5">
-                        {f.isPaid ? (
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-                        ) : (
-                          <XCircle className="h-4 w-4 shrink-0 text-red-400" />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">{f.name}</p>
-                          <p className="text-[11px] text-muted-foreground capitalize">{f.category} &middot; {f.month}/{f.year}</p>
-                        </div>
-                        <span className="shrink-0 text-sm font-bold text-foreground">{formatBaht(f.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : <EmptyChart />}
-              </div>
-            </div>
           </>
         )}
       </div>
