@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import useSWR from 'swr'
 import { formatBaht, formatThaiDate } from '@/lib/utils'
 import {
@@ -56,22 +56,32 @@ function getDateRange(mode: ViewMode, customFrom: string, customTo: string): { f
 }
 
 function getDateLabel(mode: ViewMode, from: string, to: string): string {
-  const opts: Intl.DateTimeFormatOptions = {
+  const full: Intl.DateTimeFormatOptions = {
     timeZone: 'Asia/Bangkok',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   }
+  const short: Intl.DateTimeFormatOptions = {
+    timeZone: 'Asia/Bangkok',
+    day: 'numeric',
+    month: 'short',
+  }
+  const monthYear: Intl.DateTimeFormatOptions = {
+    timeZone: 'Asia/Bangkok',
+    month: 'long',
+    year: 'numeric',
+  }
   switch (mode) {
     case 'daily':
-      return new Date(from + 'T12:00:00').toLocaleDateString('th-TH', opts)
+      return new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', full)
     case 'weekly':
-      return `${new Date(from + 'T12:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })} - ${new Date(to + 'T12:00:00').toLocaleDateString('th-TH', opts)}`
+      return `${new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', short)} - ${new Date(to + 'T12:00:00Z').toLocaleDateString('th-TH', full)}`
     case 'monthly':
-      return new Date(from + 'T12:00:00').toLocaleDateString('th-TH', { month: 'long', year: 'numeric', timeZone: 'Asia/Bangkok' })
+      return new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', monthYear)
     case 'custom':
-      if (from === to) return new Date(from + 'T12:00:00').toLocaleDateString('th-TH', opts)
-      return `${new Date(from + 'T12:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })} - ${new Date(to + 'T12:00:00').toLocaleDateString('th-TH', opts)}`
+      if (from === to) return new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', full)
+      return `${new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', short)} - ${new Date(to + 'T12:00:00Z').toLocaleDateString('th-TH', full)}`
   }
 }
 
@@ -112,14 +122,28 @@ interface LedgerEntry {
 }
 
 export function DashboardClient() {
+  const [mounted, setMounted] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>('daily')
-  const [customFrom, setCustomFrom] = useState(getThaiToday())
-  const [customTo, setCustomTo] = useState(getThaiToday())
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
 
-  const { from, to } = useMemo(() => getDateRange(viewMode, customFrom, customTo), [viewMode, customFrom, customTo])
-  const dateLabel = useMemo(() => getDateLabel(viewMode, from, to), [viewMode, from, to])
+  useEffect(() => {
+    const today = getThaiToday()
+    setCustomFrom(today)
+    setCustomTo(today)
+    setMounted(true)
+  }, [])
 
-  const { data, isLoading } = useSWR(`/api/dashboard?from=${from}&to=${to}`, fetcher)
+  const { from, to } = useMemo(() => {
+    if (!mounted) return { from: '', to: '' }
+    return getDateRange(viewMode, customFrom, customTo)
+  }, [mounted, viewMode, customFrom, customTo])
+  const dateLabel = useMemo(() => {
+    if (!from || !to) return ''
+    return getDateLabel(viewMode, from, to)
+  }, [viewMode, from, to])
+
+  const { data, isLoading } = useSWR(from && to ? `/api/dashboard?from=${from}&to=${to}` : null, fetcher)
   const { data: activityData } = useSWR('/api/activity-log?limit=30', fetcher)
 
   interface ActivityLogEntry {
