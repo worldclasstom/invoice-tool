@@ -106,44 +106,45 @@ function formatShortBaht(v: number): string {
   return String(v)
 }
 
+// Professional color palette built on the app's warm-neutral + green theme
 const COLORS = {
-  sales: 'hsl(152, 55%, 38%)',
-  expenses: 'hsl(0, 78%, 58%)',
-  ingredients: 'hsl(16, 85%, 58%)',
-  fixedCosts: 'hsl(280, 50%, 56%)',
-  electricity: 'hsl(42, 92%, 56%)',
-  sunny: 'hsl(42, 92%, 56%)',
-  rainy: 'hsl(210, 60%, 52%)',
-  cloudy: 'hsl(160, 10%, 66%)',
+  sales: 'hsl(152, 45%, 42%)',       // primary green - revenue
+  expenses: 'hsl(354, 52%, 56%)',     // soft coral - expenses
+  ingredients: 'hsl(24, 65%, 52%)',   // warm terracotta - ingredients
+  fixedCosts: 'hsl(220, 42%, 56%)',   // slate blue - fixed costs
+  electricity: 'hsl(38, 72%, 52%)',   // warm amber - electricity
+  sunny: 'hsl(42, 68%, 52%)',         // golden - sunny
+  rainy: 'hsl(210, 48%, 54%)',        // steel blue - rainy
+  cloudy: 'hsl(200, 12%, 64%)',       // warm grey - cloudy
 }
 
 const CATEGORY_COLORS = [
-  'hsl(16, 85%, 58%)',
-  'hsl(152, 55%, 38%)',
-  'hsl(42, 92%, 56%)',
-  'hsl(174, 60%, 46%)',
-  'hsl(210, 60%, 52%)',
-  'hsl(280, 50%, 56%)',
-  'hsl(340, 65%, 55%)',
-  'hsl(90, 50%, 45%)',
+  'hsl(24, 65%, 52%)',    // terracotta
+  'hsl(152, 45%, 42%)',   // forest green
+  'hsl(38, 72%, 52%)',    // amber
+  'hsl(174, 42%, 44%)',   // teal
+  'hsl(220, 42%, 56%)',   // slate blue
+  'hsl(354, 42%, 58%)',   // dusty rose
+  'hsl(270, 30%, 56%)',   // muted lavender
+  'hsl(82, 38%, 46%)',    // olive
 ]
 
-const PAYMENT_COLORS = ['hsl(152, 55%, 38%)', 'hsl(210, 60%, 52%)', 'hsl(42, 92%, 56%)']
+const PAYMENT_COLORS = ['hsl(152, 45%, 42%)', 'hsl(220, 42%, 56%)', 'hsl(38, 72%, 52%)']
 
-const GRID_STROKE = 'hsl(48, 20%, 88%)'
-const AXIS_STROKE = 'hsl(160, 10%, 46%)'
+const GRID_STROKE = 'hsl(40, 12%, 90%)'
+const AXIS_STROKE = 'hsl(160, 8%, 52%)'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
-      <p className="mb-1 text-xs font-semibold text-foreground">{label}</p>
+    <div className="rounded-xl border border-border/60 bg-card px-4 py-2.5 shadow-xl shadow-black/5">
+      <p className="mb-1.5 text-xs font-bold text-foreground">{label}</p>
       {payload.map((p: { name: string; value: number; color: string }, i: number) => (
-        <div key={i} className="flex items-center gap-2 text-xs">
-          <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: p.color }} />
+        <div key={i} className="flex items-center gap-2 py-0.5 text-xs">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: p.color }} />
           <span className="text-muted-foreground">{p.name}:</span>
-          <span className="font-semibold text-foreground">{formatBaht(p.value)}</span>
+          <span className="font-bold text-foreground">{formatBaht(p.value)}</span>
         </div>
       ))}
     </div>
@@ -265,39 +266,39 @@ export function AnalyticsClient() {
             <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               <KPICard
                 icon={<DollarSign className="h-4 w-4" />}
-                iconBg="bg-emerald-100 text-emerald-600"
+                iconBg="bg-emerald-50 text-emerald-700"
                 label="Total Revenue"
                 value={formatBaht(summary?.totalRevenue ?? 0)}
                 trend={(summary?.totalRevenue ?? 0) > (summary?.totalExpenses ?? 0) ? 'up' : 'down'}
               />
               <KPICard
                 icon={<Wallet className="h-4 w-4" />}
-                iconBg="bg-rose-100 text-rose-600"
+                iconBg="bg-red-50 text-red-600"
                 label="Total Expenses"
                 value={formatBaht(summary?.totalExpenses ?? 0)}
               />
               <KPICard
                 icon={<TrendingUp className="h-4 w-4" />}
-                iconBg={(summary?.netProfit ?? 0) >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}
+                iconBg={(summary?.netProfit ?? 0) >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}
                 label="Net Profit"
                 value={formatBaht(summary?.netProfit ?? 0)}
                 trend={(summary?.netProfit ?? 0) >= 0 ? 'up' : 'down'}
               />
               <KPICard
                 icon={<Leaf className="h-4 w-4" />}
-                iconBg="bg-amber-100 text-amber-600"
+                iconBg="bg-orange-50 text-orange-600"
                 label="Ingredients"
                 value={formatBaht(summary?.totalIngredients ?? 0)}
               />
               <KPICard
                 icon={<Users className="h-4 w-4" />}
-                iconBg="bg-sky-100 text-sky-600"
+                iconBg="bg-slate-100 text-slate-600"
                 label="Tables Served"
                 value={String(summary?.totalTables ?? 0)}
               />
               <KPICard
                 icon={<ShoppingBag className="h-4 w-4" />}
-                iconBg="bg-violet-100 text-violet-600"
+                iconBg="bg-teal-50 text-teal-600"
                 label="To-Go Orders"
                 value={String(summary?.totalTogo ?? 0)}
               />
@@ -569,7 +570,7 @@ export function AnalyticsClient() {
               <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                 <div className="mb-4">
                   <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-primary" />
+                    <CreditCard className="h-4 w-4 text-emerald-700" />
                     <h3 className="text-sm font-bold text-foreground">Payment Methods</h3>
                   </div>
                   <p className="text-xs text-muted-foreground">Revenue split by payment type</p>
@@ -621,7 +622,7 @@ export function AnalyticsClient() {
               <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                 <div className="mb-4">
                   <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-sky-500" />
+                    <Users className="h-4 w-4 text-slate-600" />
                     <h3 className="text-sm font-bold text-foreground">Service Breakdown</h3>
                   </div>
                   <p className="text-xs text-muted-foreground">Dine-in tables vs to-go orders</p>
@@ -672,7 +673,7 @@ export function AnalyticsClient() {
               <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                 <div className="mb-4">
                   <div className="flex items-center gap-2">
-                    <Receipt className="h-4 w-4 text-amber-500" />
+                    <Receipt className="h-4 w-4 text-orange-600" />
                     <h3 className="text-sm font-bold text-foreground">Expense Categories</h3>
                   </div>
                   <p className="text-xs text-muted-foreground">Total spending by category</p>
@@ -727,7 +728,7 @@ export function AnalyticsClient() {
               <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                 <div className="mb-4">
                   <div className="flex items-center gap-2">
-                    <ShoppingBag className="h-4 w-4 text-rose-500" />
+                    <ShoppingBag className="h-4 w-4 text-orange-600" />
                     <h3 className="text-sm font-bold text-foreground">Top Vendors</h3>
                   </div>
                   <p className="text-xs text-muted-foreground">Highest spending vendors</p>
@@ -745,7 +746,7 @@ export function AnalyticsClient() {
                               <span className="shrink-0 text-xs font-bold text-foreground">{formatBaht(v.total)}</span>
                             </div>
                             <div className="h-1.5 w-full rounded-full bg-secondary">
-                              <div className="h-full rounded-full bg-rose-400 transition-all" style={{ width: `${(v.total / maxVal) * 100}%` }} />
+                              <div className="h-full rounded-full transition-all" style={{ width: `${(v.total / maxVal) * 100}%`, backgroundColor: COLORS.ingredients }} />
                             </div>
                           </div>
                         </div>
@@ -759,7 +760,7 @@ export function AnalyticsClient() {
               <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                 <div className="mb-4">
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-violet-500" />
+                    <Clock className="h-4 w-4 text-slate-500" />
                     <h3 className="text-sm font-bold text-foreground">Busiest Times</h3>
                   </div>
                   <p className="text-xs text-muted-foreground">Most frequently reported peak periods</p>
@@ -770,7 +771,7 @@ export function AnalyticsClient() {
                       const maxCount = busiestTimes[0]?.count || 1
                       return (
                         <div key={t.time} className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
                             <Clock className="h-4 w-4" />
                           </div>
                           <div className="min-w-0 flex-1">
@@ -779,7 +780,7 @@ export function AnalyticsClient() {
                               <span className="text-xs font-bold text-muted-foreground">{t.count}x</span>
                             </div>
                             <div className="h-1.5 w-full rounded-full bg-secondary">
-                              <div className="h-full rounded-full bg-violet-400 transition-all" style={{ width: `${(t.count / maxCount) * 100}%` }} />
+                              <div className="h-full rounded-full transition-all" style={{ width: `${(t.count / maxCount) * 100}%`, backgroundColor: COLORS.fixedCosts }} />
                             </div>
                           </div>
                         </div>
@@ -803,9 +804,9 @@ export function AnalyticsClient() {
                     {fixedCostsDetail.map((f: { name: string; category: string; amount: number; isPaid: boolean; month: number; year: number }, i: number) => (
                       <div key={`${f.name}-${f.month}-${f.year}-${i}`} className="flex items-center gap-3 rounded-xl bg-secondary/40 px-3 py-2.5">
                         {f.isPaid ? (
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
                         ) : (
-                          <XCircle className="h-4 w-4 shrink-0 text-rose-400" />
+                          <XCircle className="h-4 w-4 shrink-0 text-red-400" />
                         )}
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-foreground">{f.name}</p>
@@ -844,8 +845,8 @@ function KPICard({ icon, iconBg, label, value, trend }: { icon: React.ReactNode;
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${iconBg}`}>{icon}</div>
-        {trend === 'up' && <TrendingUp className="h-4 w-4 text-emerald-500" />}
-        {trend === 'down' && <TrendingDown className="h-4 w-4 text-rose-500" />}
+        {trend === 'up' && <TrendingUp className="h-4 w-4 text-emerald-600" />}
+        {trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
       </div>
       <div>
         <p className="text-lg font-bold text-foreground leading-tight">{value}</p>
