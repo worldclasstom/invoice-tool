@@ -69,13 +69,49 @@ export async function GET(request: NextRequest) {
     expensesByCategory[cat] = (expensesByCategory[cat] || 0) + (Number(f.amount) || 0)
   }
 
+  // Build monthly aggregation
+  const monthlyData: Record<string, { income: number; cash: number; promptpay: number; creditCard: number; receiptExpenses: number; fixedCosts: number; days: number }> = {}
+
+  // Helper to init a month key
+  const initMonth = (key: string) => {
+    if (!monthlyData[key]) {
+      monthlyData[key] = { income: 0, cash: 0, promptpay: 0, creditCard: 0, receiptExpenses: 0, fixedCosts: 0, days: 0 }
+    }
+  }
+
+  // Aggregate sales by month
+  for (const s of sales ?? []) {
+    const key = String(s.report_date).substring(0, 7) // "YYYY-MM"
+    initMonth(key)
+    monthlyData[key].income += Number(s.total_amount) || 0
+    monthlyData[key].cash += Number(s.cash_amount) || 0
+    monthlyData[key].promptpay += Number(s.promptpay_amount) || 0
+    monthlyData[key].creditCard += Number(s.credit_card_amount) || 0
+    monthlyData[key].days += 1
+  }
+
+  // Aggregate receipt expenses by month
+  for (const r of receipts ?? []) {
+    const key = String(r.receipt_date).substring(0, 7)
+    initMonth(key)
+    monthlyData[key].receiptExpenses += Number(r.total) || 0
+  }
+
+  // Aggregate fixed costs by month
+  for (const f of filteredFixed) {
+    const key = `${f.period_year}-${String(f.period_month).padStart(2, '0')}`
+    initMonth(key)
+    monthlyData[key].fixedCosts += Number(f.amount) || 0
+  }
+
+  const sortedMonths = Object.keys(monthlyData).sort()
+
   if (format === 'csv') {
-    // Build CSV with multiple sections
     const lines: string[] = []
 
-    // Section 1: Summary
-    lines.push('=== TAX EXPORT SUMMARY ===')
-    lines.push(`Period,${from} to ${to}`)
+    // Section 1: Fiscal Summary
+    lines.push('=== FISCAL YEAR SUMMARY ===')
+    lines.push(`Period,"${from} to ${to}"`)
     lines.push(`Days Reported,${daysReported}`)
     lines.push(`Total Revenue,"${totalRevenue.toFixed(2)}"`)
     lines.push(`Total Cash,"${totalCash.toFixed(2)}"`)
@@ -87,36 +123,14 @@ export async function GET(request: NextRequest) {
     lines.push(`Net Profit/Loss,"${netProfit.toFixed(2)}"`)
     lines.push('')
 
-    // Section 2: Expense breakdown
-    lines.push('=== EXPENSE BREAKDOWN BY CATEGORY ===')
-    lines.push('Category,Amount')
-    for (const [cat, amt] of Object.entries(expensesByCategory).sort((a, b) => b[1] - a[1])) {
-      lines.push(`${cat},"${amt.toFixed(2)}"`)
-    }
-    lines.push('')
-
-    // Section 3: Daily Sales
-    lines.push('=== DAILY SALES ===')
-    lines.push('Date,Cash,PromptPay,Credit Card,Total,Tables,To-Go')
-    for (const s of sales ?? []) {
-      lines.push(`${s.report_date},"${Number(s.cash_amount).toFixed(2)}","${Number(s.promptpay_amount).toFixed(2)}","${Number(s.credit_card_amount).toFixed(2)}","${Number(s.total_amount).toFixed(2)}",${s.tables_served},${s.togo_orders}`)
-    }
-    lines.push('')
-
-    // Section 4: Receipts
-    lines.push('=== RECEIPTS & EXPENSES ===')
-    lines.push('Date,Vendor,Category,Description,Amount')
-    for (const r of receipts ?? []) {
-      const desc = (r.description || '').replace(/"/g, '""')
-      lines.push(`${r.receipt_date},"${r.vendor}","${r.category || ''}","${desc}","${Number(r.total).toFixed(2)}"`)
-    }
-    lines.push('')
-
-    // Section 5: Fixed Costs
-    lines.push('=== FIXED COSTS ===')
-    lines.push('Name,Category,Amount,Paid,Month,Year')
-    for (const f of filteredFixed) {
-      lines.push(`"${f.name}","${f.category}","${Number(f.amount).toFixed(2)}",${f.is_paid ? 'Yes' : 'No'},${f.period_month},${f.period_year}`)
+    // Section 2: Monthly Breakdown
+    lines.push('=== MONTHLY BREAKDOWN ===')
+    lines.push('Month,Income,Receipt Expenses,Fixed Costs,Total Expenses,Net Profit/Loss,Days')
+    for (const m of sortedMonths) {
+      const d = monthlyData[m]
+      const monthExpenses = d.receiptExpenses + d.fixedCosts
+      const monthNet = d.income - monthExpenses
+      lines.push(`${m},"${d.income.toFixed(2)}","${d.receiptExpenses.toFixed(2)}","${d.fixedCosts.toFixed(2)}","${monthExpenses.toFixed(2)}","${monthNet.toFixed(2)}",${d.days}`)
     }
 
     const csv = lines.join('\n')
@@ -128,6 +142,24 @@ export async function GET(request: NextRequest) {
       },
     })
   }
+
+  // Build monthly rows for JSON preview
+  const monthlyRows = sortedMonths.map((m) => {
+    const d = monthlyData[m]
+    const monthExpenses = d.receiptExpenses + d.fixedCosts
+    return {
+      month: m,
+      income: d.income,
+      cash: d.cash,
+      promptpay: d.promptpay,
+      creditCard: d.creditCard,
+      receiptExpenses: d.receiptExpenses,
+      fixedCosts: d.fixedCosts,
+      totalExpenses: monthExpenses,
+      netProfit: d.income - monthExpenses,
+      days: d.days,
+    }
+  })
 
   // JSON response (for preview/summary)
   return NextResponse.json({
@@ -144,11 +176,9 @@ export async function GET(request: NextRequest) {
       netProfit,
     },
     expensesByCategory,
+    monthlyRows,
     salesCount: (sales ?? []).length,
     receiptsCount: (receipts ?? []).length,
     fixedCostsCount: filteredFixed.length,
-    sales: sales ?? [],
-    receipts: receipts ?? [],
-    fixedCosts: filteredFixed,
   })
 }

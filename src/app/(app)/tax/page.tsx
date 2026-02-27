@@ -16,7 +16,6 @@ import {
   DollarSign,
   Loader2,
   Info,
-  FileText,
   AlertTriangle,
   ChevronDown,
   Lightbulb,
@@ -253,24 +252,55 @@ export default function TaxPage() {
             </div>
           )}
 
-          {/* Data Summary */}
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-            <h3 className="mb-3 text-sm font-bold text-foreground">Export Contents</h3>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="rounded-xl bg-secondary/50 p-3">
-                <p className="text-lg font-bold text-foreground">{data.salesCount}</p>
-                <p className="text-[11px] font-medium text-muted-foreground">Sales Records</p>
-              </div>
-              <div className="rounded-xl bg-secondary/50 p-3">
-                <p className="text-lg font-bold text-foreground">{data.receiptsCount}</p>
-                <p className="text-[11px] font-medium text-muted-foreground">Receipts</p>
-              </div>
-              <div className="rounded-xl bg-secondary/50 p-3">
-                <p className="text-lg font-bold text-foreground">{data.fixedCostsCount}</p>
-                <p className="text-[11px] font-medium text-muted-foreground">Fixed Costs</p>
+          {/* Monthly Breakdown Table */}
+          {data?.monthlyRows && data.monthlyRows.length > 0 && (
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <h3 className="mb-4 text-sm font-bold text-foreground">Monthly Breakdown</h3>
+              <div className="overflow-x-auto -mx-2">
+                <table className="w-full min-w-[560px] text-xs">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="px-2 py-2.5 text-left font-bold text-muted-foreground uppercase tracking-wide">Month</th>
+                      <th className="px-2 py-2.5 text-right font-bold text-muted-foreground uppercase tracking-wide">Income</th>
+                      <th className="px-2 py-2.5 text-right font-bold text-muted-foreground uppercase tracking-wide">Expenses</th>
+                      <th className="px-2 py-2.5 text-right font-bold text-muted-foreground uppercase tracking-wide">Fixed Costs</th>
+                      <th className="px-2 py-2.5 text-right font-bold text-muted-foreground uppercase tracking-wide">Net</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.monthlyRows.map((row: { month: string; income: number; receiptExpenses: number; fixedCosts: number; totalExpenses: number; netProfit: number; days: number }) => {
+                      const monthLabel = new Date(row.month + '-15T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', month: 'short', year: '2-digit' })
+                      return (
+                        <tr key={row.month} className="border-b border-border/50 last:border-0">
+                          <td className="px-2 py-2.5 font-semibold text-foreground">
+                            {monthLabel}
+                            <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">({row.days}d)</span>
+                          </td>
+                          <td className="px-2 py-2.5 text-right font-semibold text-emerald-700">{formatBaht(row.income)}</td>
+                          <td className="px-2 py-2.5 text-right font-semibold text-red-600">{formatBaht(row.receiptExpenses)}</td>
+                          <td className="px-2 py-2.5 text-right font-semibold text-orange-600">{formatBaht(row.fixedCosts)}</td>
+                          <td className={`px-2 py-2.5 text-right font-bold ${row.netProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                            {formatBaht(row.netProfit)}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-border">
+                      <td className="px-2 py-2.5 font-bold text-foreground">Total</td>
+                      <td className="px-2 py-2.5 text-right font-bold text-emerald-700">{formatBaht(summary.totalRevenue)}</td>
+                      <td className="px-2 py-2.5 text-right font-bold text-red-600">{formatBaht(summary.totalReceiptExpenses)}</td>
+                      <td className="px-2 py-2.5 text-right font-bold text-orange-600">{formatBaht(summary.totalFixedCosts)}</td>
+                      <td className={`px-2 py-2.5 text-right font-bold ${summary.netProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                        {formatBaht(summary.netProfit)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             </div>
-          </div>
+          )}
         </div>
       ) : null}
 
@@ -278,41 +308,19 @@ export default function TaxPage() {
       <div className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
         <h2 className="mb-1 text-sm font-bold text-foreground">Export Data</h2>
         <p className="mb-4 text-xs text-muted-foreground">Download your data in CSV format for spreadsheet applications and tax filing software</p>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            disabled={downloading || isLoading || !summary}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {downloading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            {downloading ? 'Generating...' : 'Download CSV'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (!data) return
-              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url
-              a.download = `tax-export-${dateFrom}-to-${dateTo}.json`
-              document.body.appendChild(a)
-              a.click()
-              document.body.removeChild(a)
-              URL.revokeObjectURL(url)
-            }}
-            disabled={isLoading || !summary}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-background px-5 py-3.5 text-sm font-bold text-foreground shadow-sm transition-all hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <FileText className="h-4 w-4" />
-            Download JSON
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleExportCSV}
+          disabled={downloading || isLoading || !summary}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {downloading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+          {downloading ? 'Generating...' : 'Download CSV'}
+        </button>
       </div>
 
       {/* Tips & Information Section */}
