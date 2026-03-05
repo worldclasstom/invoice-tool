@@ -246,6 +246,7 @@ export default function FixedCostsPage() {
       setShowForm(false);
       mutate(`/api/fixed-costs?month=${month}&year=${year}`);
       if (sm !== month || sy !== year) mutate(`/api/fixed-costs?month=${sm}&year=${sy}`);
+      mutate("/api/fixed-cost-reminders");
     } catch (err) {
       alert("Failed to save fixed cost.");
       console.error(err);
@@ -284,6 +285,7 @@ export default function FixedCostsPage() {
       });
       if (!res.ok) throw new Error("Failed to update");
       mutate(`/api/fixed-costs?month=${month}&year=${year}`);
+      mutate("/api/fixed-cost-reminders");
     } catch (err) {
       console.error(err);
     }
@@ -295,6 +297,7 @@ export default function FixedCostsPage() {
       const res = await fetch(`/api/fixed-costs?id=${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
       mutate(`/api/fixed-costs?month=${month}&year=${year}`);
+      mutate("/api/fixed-cost-reminders");
     } catch (err) {
       alert("Failed to delete fixed cost.");
       console.error(err);
@@ -436,142 +439,79 @@ export default function FixedCostsPage() {
             <p className="text-[10px] text-muted-foreground">Click &quot;Seed Reminders&quot; to generate reminders from Feb 2026 to now</p>
           </div>
         ) : (
-          <>
-            {/* Desktop table */}
-            <div className="hidden md:block">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    <th className="px-5 py-2.5">Cost</th>
-                    <th className="px-5 py-2.5">Period</th>
-                    <th className="px-5 py-2.5">Due Date</th>
-                    <th className="px-5 py-2.5 text-right">Amount</th>
-                    <th className="px-5 py-2.5 text-center">Status</th>
-                    <th className="px-5 py-2.5 w-20"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reminderItems.map((item) => (
-                    <tr
+          <div className="p-4">
+            {/* Group by period */}
+            {Object.entries(
+              reminderItems.reduce<Record<string, typeof reminderItems>>((groups, item) => {
+                const key = `${item.period_year}-${item.period_month}`;
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(item);
+                return groups;
+              }, {})
+            ).map(([key, items]) => (
+              <div key={key} className="mb-4 last:mb-0">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {items[0].periodLabel}
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                  {items.map((item) => (
+                    <button
                       key={item.id}
-                      className={`group border-b border-border/50 last:border-0 transition-colors ${
+                      onClick={() => markReminderPaid(item.id)}
+                      className={`group relative flex flex-col rounded-xl border px-3 py-2.5 text-left transition-all hover:shadow-sm ${
                         item.isOverdue
-                          ? "bg-red-50/70"
+                          ? "border-red-300 bg-red-50/80 hover:border-red-400"
                           : item.isAlmostDue
-                          ? "bg-amber-50/50"
-                          : ""
+                          ? "border-amber-300 bg-amber-50/60 hover:border-amber-400"
+                          : "border-border bg-background hover:border-emerald-300 hover:bg-emerald-50/30"
                       }`}
                     >
-                      <td className="px-5 py-3">
-                        <p className={`text-xs font-semibold ${item.isOverdue ? "text-red-600" : "text-foreground"}`}>
+                      <div className="flex items-start justify-between gap-1">
+                        <p className={`text-xs font-semibold leading-tight ${
+                          item.isOverdue ? "text-red-600" : "text-foreground"
+                        }`}>
                           {item.label}
                         </p>
-                      </td>
-                      <td className="px-5 py-3">
-                        <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-[1.5px] transition-all ${
                           item.isOverdue
-                            ? "bg-red-100 text-red-700"
+                            ? "border-red-400 group-hover:border-emerald-500 group-hover:bg-emerald-500"
                             : item.isAlmostDue
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-secondary text-muted-foreground"
+                            ? "border-amber-400 group-hover:border-emerald-500 group-hover:bg-emerald-500"
+                            : "border-muted-foreground/30 group-hover:border-emerald-500 group-hover:bg-emerald-500"
                         }`}>
-                          {item.periodLabel}
+                          <Check className="h-2.5 w-2.5 text-transparent group-hover:text-white" strokeWidth={3} />
+                        </div>
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <span className="text-[9px] text-muted-foreground">
+                          Due {item.dueDay}th
                         </span>
-                      </td>
-                      <td className="px-5 py-3 text-xs text-muted-foreground">
-                        {item.dueDay}th
-                      </td>
-                      <td className="px-5 py-3 text-right text-xs font-semibold text-foreground">
-                        {Number(item.amount) > 0 ? formatBaht(Number(item.amount)) : "--"}
-                      </td>
-                      <td className="px-5 py-3 text-center">
+                        <span className="text-[9px] text-muted-foreground/50">|</span>
                         {item.isOverdue ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600">
+                          <span className="rounded px-1 py-0.5 text-[9px] font-bold bg-red-100 text-red-600">
                             Overdue
                           </span>
                         ) : item.isAlmostDue ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-600">
+                          <span className="rounded px-1 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-600">
                             Due Soon
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                          <span className="rounded px-1 py-0.5 text-[9px] font-semibold bg-secondary text-muted-foreground">
                             Upcoming
                           </span>
                         )}
-                      </td>
-                      <td className="px-5 py-3">
-                        <button
-                          onClick={() => markReminderPaid(item.id)}
-                          className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold text-muted-foreground opacity-0 transition-all hover:bg-emerald-100 hover:text-emerald-700 group-hover:opacity-100"
-                        >
-                          <Check className="h-3 w-3" />
-                          Paid
-                        </button>
-                      </td>
-                    </tr>
+                      </div>
+                      {Number(item.amount) > 0 && (
+                        <p className="mt-1 text-[10px] font-semibold text-foreground">
+                          {formatBaht(Number(item.amount))}
+                        </p>
+                      )}
+                    </button>
                   ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile cards */}
-            <div className="flex flex-col divide-y divide-border/50 md:hidden">
-              {reminderItems.map((item) => (
-                <div
-                  key={item.id}
-                  className={`flex items-center gap-3 px-4 py-3.5 ${
-                    item.isOverdue
-                      ? "bg-red-50/70"
-                      : item.isAlmostDue
-                      ? "bg-amber-50/50"
-                      : ""
-                  }`}
-                >
-                  <button
-                    onClick={() => markReminderPaid(item.id)}
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
-                      item.isOverdue
-                        ? "border-red-400 bg-transparent hover:border-emerald-400 hover:bg-emerald-100"
-                        : item.isAlmostDue
-                        ? "border-amber-400 bg-transparent hover:border-emerald-400 hover:bg-emerald-100"
-                        : "border-muted-foreground/30 bg-transparent hover:border-emerald-400 hover:bg-emerald-100"
-                    }`}
-                    aria-label={`Mark ${item.label} as paid`}
-                  >
-                    <Check className="h-4 w-4 text-transparent hover:text-emerald-600" strokeWidth={3} />
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-xs font-semibold ${item.isOverdue ? "text-red-600" : "text-foreground"}`}>
-                      {item.label}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${
-                        item.isOverdue
-                          ? "bg-red-100 text-red-600"
-                          : item.isAlmostDue
-                          ? "bg-amber-100 text-amber-600"
-                          : "bg-secondary text-muted-foreground"
-                      }`}>
-                        {item.periodLabel}
-                      </span>
-                      <span className="text-[9px] text-muted-foreground">
-                        Due {item.dueDay}th
-                      </span>
-                      {item.isOverdue && (
-                        <span className="text-[9px] font-bold text-red-500">Overdue</span>
-                      )}
-                      {item.isAlmostDue && !item.isOverdue && (
-                        <span className="text-[9px] font-bold text-amber-500">Due Soon</span>
-                      )}
-                    </div>
-                  </div>
-                  <p className="shrink-0 text-xs font-semibold text-foreground">
-                    {Number(item.amount) > 0 ? formatBaht(Number(item.amount)) : "--"}
-                  </p>
                 </div>
-              ))}
-            </div>
-          </>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
