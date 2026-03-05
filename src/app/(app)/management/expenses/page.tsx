@@ -453,8 +453,8 @@ export default function CashFlowManagementPage() {
                 </>
               )}
 
-              {/* ═══════════════ ADJUST FUNDS (both views) ═══════════════ */}
-              <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+              {/* ═══════════════ ADJUST FUNDS (wallet only) ═══════════════ */}
+              {isWalletTab && (<div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
                 <div className="px-5 pt-5 pb-3">
                   <h3 className="text-sm font-bold text-foreground">Adjust Funds</h3>
                   <p className="text-xs text-muted-foreground">Add or deduct money with a date and reason</p>
@@ -563,7 +563,7 @@ export default function CashFlowManagementPage() {
                 </div>
               </div>
 
-              {/* ═══════════════ ACTIVITIES ═══════════════ */}
+              {/* ═══════════════ ACTIVITIES (wallet only) ═══════════════ */}
               <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
                 <div className="p-5 pb-3">
                   <div className="flex items-center justify-between">
@@ -650,6 +650,7 @@ export default function CashFlowManagementPage() {
                   </div>
                 )}
               </div>
+              )}
             </div>
           )}
         </div>
