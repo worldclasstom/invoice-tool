@@ -244,8 +244,7 @@ export default function FixedCostsPage() {
       const sy = periodMode === "this_month" ? year : formYear;
       resetForm();
       setShowForm(false);
-      mutate(`/api/fixed-costs?month=${month}&year=${year}`);
-      if (sm !== month || sy !== year) mutate(`/api/fixed-costs?month=${sm}&year=${sy}`);
+      mutate((key: string) => typeof key === "string" && key.startsWith("/api/fixed-costs"), undefined, { revalidate: true });
       mutate("/api/fixed-cost-reminders");
     } catch (err) {
       alert("Failed to save fixed cost.");
@@ -284,7 +283,8 @@ export default function FixedCostsPage() {
         body: JSON.stringify({ id, isPaid }),
       });
       if (!res.ok) throw new Error("Failed to update");
-      mutate(`/api/fixed-costs?month=${month}&year=${year}`);
+      // Revalidate all fixed-costs SWR keys (any month, all, etc.)
+      mutate((key: string) => typeof key === "string" && key.startsWith("/api/fixed-costs"), undefined, { revalidate: true });
       mutate("/api/fixed-cost-reminders");
     } catch (err) {
       console.error(err);
@@ -296,7 +296,7 @@ export default function FixedCostsPage() {
     try {
       const res = await fetch(`/api/fixed-costs?id=${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
-      mutate(`/api/fixed-costs?month=${month}&year=${year}`);
+      mutate((key: string) => typeof key === "string" && key.startsWith("/api/fixed-costs"), undefined, { revalidate: true });
       mutate("/api/fixed-cost-reminders");
     } catch (err) {
       alert("Failed to delete fixed cost.");
@@ -890,30 +890,16 @@ export default function FixedCostsPage() {
         </div>
       )}
 
-      {/* ── Activities (All Costs) ── */}
-      {isLoading ? (
-        <div className="flex h-40 items-center justify-center">
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
-      ) : costs.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-card shadow-sm">
-          <div className="flex h-40 flex-col items-center justify-center gap-2 px-4 text-center">
-            <p className="text-sm text-muted-foreground">
-              No fixed costs for this month yet.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <CostSection
-          title="Activities"
-          subtitle={`${new Date(year, month - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })} payments`}
-          icon={<RotateCcw className="h-3.5 w-3.5 text-violet-500" />}
-          costs={costs}
-          togglePaid={togglePaid}
-          deleteCost={deleteCost}
-          editCost={editCost}
-        />
-      )}
+      {/* ── Activities (All Costs with own period filter) ── */}
+      <CostSection
+        title="Activities"
+        icon={<RotateCcw className="h-3.5 w-3.5 text-violet-500" />}
+        bkkMonth={bkkMonth}
+        bkkYear={bkkYear}
+        togglePaid={togglePaid}
+        deleteCost={deleteCost}
+        editCost={editCost}
+      />
 
       {/* ── Pie Chart ── */}
       {pieData.length > 0 && (
@@ -952,39 +938,66 @@ export default function FixedCostsPage() {
   );
 }
 
-/* ── Cost Section Component ── */
+/* ── Cost Section Component with own period filter ── */
 function CostSection({
   title,
-  subtitle,
   icon,
-  costs,
+  bkkMonth,
+  bkkYear,
   togglePaid,
   deleteCost,
   editCost,
 }: {
   title: string;
-  subtitle: string;
   icon: React.ReactNode;
-  costs: FixedCost[];
+  bkkMonth: number;
+  bkkYear: number;
   togglePaid: (id: string, isPaid: boolean) => void;
   deleteCost: (id: string, name: string) => void;
   editCost: (cost: FixedCost) => void;
 }) {
+  type PeriodTab = "this_month" | "last_month" | "all" | "custom";
+  const [tab, setTab] = useState<PeriodTab>("this_month");
+  const [customMonth, setCustomMonth] = useState(bkkMonth);
+  const [customYear, setCustomYear] = useState(bkkYear);
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
+
+  const lastMonth = bkkMonth === 1 ? 12 : bkkMonth - 1;
+  const lastYear = bkkMonth === 1 ? bkkYear - 1 : bkkYear;
+
+  const activeMonth = tab === "this_month" ? bkkMonth : tab === "last_month" ? lastMonth : customMonth;
+  const activeYear = tab === "this_month" ? bkkYear : tab === "last_month" ? lastYear : customYear;
+
+  const swrKey = tab === "all"
+    ? "/api/fixed-costs?all=true"
+    : `/api/fixed-costs?month=${activeMonth}&year=${activeYear}`;
+
+  const { data: sectionData, isLoading: sectionLoading } = useSWR(swrKey, fetcher);
+  const costs: FixedCost[] = sectionData?.costs ?? [];
+
   const sectionPaid = costs.filter((c) => c.is_paid).length;
-  const allPaid = sectionPaid === costs.length;
+  const allPaid = costs.length > 0 && sectionPaid === costs.length;
+
+  const periodLabel = tab === "all"
+    ? "All payments"
+    : new Date(activeYear, activeMonth - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }) + " payments";
+
+  const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
+  const yearOptions = Array.from({ length: 5 }, (_, i) => bkkYear - 2 + i);
 
   return (
     <div className="mb-4 rounded-2xl border border-border bg-card shadow-sm">
+      {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
         <div className="flex items-center gap-2.5">
           {icon}
           <div>
             <h2 className="text-sm font-bold text-foreground">{title}</h2>
-            <p className="text-[11px] text-muted-foreground">{subtitle}</p>
+            <p className="text-[11px] text-muted-foreground">{periodLabel}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {allPaid ? (
+          {costs.length === 0 ? null : allPaid ? (
             <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700">
               <Check className="h-3 w-3" /> All Paid
             </span>
@@ -996,40 +1009,133 @@ function CostSection({
         </div>
       </div>
 
-      {/* Mobile cards */}
-      <div className="flex flex-col divide-y divide-border/50 md:hidden">
-        {costs.map((cost) => (
-          <CostCardMobile key={cost.id} cost={cost} togglePaid={togglePaid} deleteCost={deleteCost} editCost={editCost} />
-        ))}
+      {/* Period filter tabs */}
+      <div className="flex items-center gap-2 border-b border-border px-5 py-2.5">
+        <button
+          onClick={() => { setTab("this_month"); setShowCustomPicker(false); }}
+          className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+            tab === "this_month"
+              ? "bg-violet-100 text-violet-700"
+              : "text-muted-foreground hover:bg-secondary"
+          }`}
+        >
+          This Month
+        </button>
+        <button
+          onClick={() => { setTab("last_month"); setShowCustomPicker(false); }}
+          className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+            tab === "last_month"
+              ? "bg-violet-100 text-violet-700"
+              : "text-muted-foreground hover:bg-secondary"
+          }`}
+        >
+          Last Month
+        </button>
+        <button
+          onClick={() => { setTab("all"); setShowCustomPicker(false); }}
+          className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+            tab === "all"
+              ? "bg-violet-100 text-violet-700"
+              : "text-muted-foreground hover:bg-secondary"
+          }`}
+        >
+          All
+        </button>
+        <div className="relative">
+          <button
+            onClick={() => { setTab("custom"); setShowCustomPicker(!showCustomPicker); }}
+            className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+              tab === "custom"
+                ? "bg-violet-100 text-violet-700"
+                : "text-muted-foreground hover:bg-secondary"
+            }`}
+          >
+            <CalendarDays className="h-3 w-3" />
+            {tab === "custom"
+              ? new Date(customYear, customMonth - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })
+              : "Custom"}
+            <ChevronDown className="h-3 w-3" />
+          </button>
+          {showCustomPicker && (
+            <div className="absolute left-0 top-full z-20 mt-1 flex gap-2 rounded-xl border border-border bg-card p-3 shadow-lg">
+              <select
+                value={customMonth}
+                onChange={(e) => setCustomMonth(Number(e.target.value))}
+                className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+              >
+                {monthOptions.map((m) => (
+                  <option key={m} value={m}>
+                    {new Date(2026, m - 1).toLocaleDateString("en-US", { month: "short" })}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={customYear}
+                onChange={(e) => setCustomYear(Number(e.target.value))}
+                className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setShowCustomPicker(false)}
+                className="rounded-lg bg-violet-500 px-3 py-1.5 text-[10px] font-bold text-white"
+              >
+                Go
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Desktop table */}
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <th className="px-5 py-3 w-16">Status</th>
-              <th className="px-5 py-3">Name</th>
-              <th className="px-5 py-3">Date</th>
-              <th className="px-5 py-3">Category</th>
-              <th className="px-5 py-3">Payment</th>
-              <th className="px-5 py-3 text-right">Amount</th>
-              <th className="px-5 py-3 w-16"></th>
-            </tr>
-          </thead>
-          <tbody>
+      {/* Content */}
+      {sectionLoading ? (
+        <div className="flex h-24 items-center justify-center">
+          <p className="text-xs text-muted-foreground">Loading...</p>
+        </div>
+      ) : costs.length === 0 ? (
+        <div className="flex h-24 flex-col items-center justify-center gap-1 px-4">
+          <p className="text-xs text-muted-foreground">{tab === "all" ? "No activities yet" : `No activities for ${periodLabel}`}</p>
+        </div>
+      ) : (
+        <>
+          {/* Mobile cards */}
+          <div className="flex flex-col divide-y divide-border/50 md:hidden">
             {costs.map((cost) => (
-              <CostRowDesktop
-                key={cost.id}
-                cost={cost}
-                togglePaid={togglePaid}
-                deleteCost={deleteCost}
-                editCost={editCost}
-              />
+              <CostCardMobile key={cost.id} cost={cost} togglePaid={togglePaid} deleteCost={deleteCost} editCost={editCost} />
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <th className="px-5 py-3 w-16">Status</th>
+                  <th className="px-5 py-3">Name</th>
+                  <th className="px-5 py-3">Date</th>
+                  <th className="px-5 py-3">Category</th>
+                  <th className="px-5 py-3">Payment</th>
+                  <th className="px-5 py-3 text-right">Amount</th>
+                  <th className="px-5 py-3 w-16"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {costs.map((cost) => (
+                  <CostRowDesktop
+                    key={cost.id}
+                    cost={cost}
+                    togglePaid={togglePaid}
+                    deleteCost={deleteCost}
+                    editCost={editCost}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

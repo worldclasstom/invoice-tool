@@ -152,8 +152,21 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
 
-    // Fetch all unpaid fixed costs from Feb 2026 onwards
-    if (searchParams.get('unpaid') === 'true') {
+  // Fetch ALL fixed costs (no period filter)
+  if (searchParams.get('all') === 'true') {
+    const { data: allCosts, error } = await supabase
+      .from('fixed_costs')
+      .select('*')
+      .order('period_year', { ascending: false })
+      .order('period_month', { ascending: false })
+      .order('name')
+
+    if (error) throw error
+    return NextResponse.json({ costs: allCosts })
+  }
+
+  // Fetch all unpaid fixed costs from Feb 2026 onwards
+  if (searchParams.get('unpaid') === 'true') {
       const { data: unpaidCosts, error } = await supabase
         .from('fixed_costs')
         .select('*')
