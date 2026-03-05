@@ -8,6 +8,7 @@ import {
   Upload,
   Camera,
   Trash2,
+  Edit3,
   RotateCcw,
   CalendarDays,
   AlertTriangle,

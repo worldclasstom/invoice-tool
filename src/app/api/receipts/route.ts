@@ -87,6 +87,66 @@ export async function GET(request: Request) {
   }
 }
 
+export async function PUT(request: Request) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const body = await request.json()
+    const { id, receiptDate, vendor, total, category, notes, imageUrl, isManual } = body
+
+    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+    const { data: receipt, error } = await supabase
+      .from('receipts')
+      .update({
+        receipt_date: receiptDate,
+        vendor,
+        total: Number(total),
+        category: category || 'ingredients',
+        notes: notes || null,
+        image_url: imageUrl || null,
+        is_manual: isManual ?? false,
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    // Update associated ledger entries
+    await supabase
+      .from('ledger_entries')
+      .update({
+        entry_date: receiptDate,
+        description: `Receipt - ${vendor}`,
+        category: category || 'ingredients',
+        amount: Number(total),
+      })
+      .eq('reference_type', 'receipt')
+      .eq('reference_id', id)
+
+    await logActivity({
+      supabase,
+      userId: user.id,
+      userEmail: user.email || '',
+      action: 'updated',
+      entityType: 'receipt',
+      entityId: id,
+      details: { vendor, total: Number(total), category: category || 'ingredients' },
+    })
+
+    return NextResponse.json({ success: true, receipt })
+  } catch (error: unknown) {
+    console.error('Error updating receipt:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to update receipt' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function DELETE(request: Request) {
   try {
     const supabase = await createClient()

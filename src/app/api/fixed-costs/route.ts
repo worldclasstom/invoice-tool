@@ -151,6 +151,69 @@ export async function PATCH(request: Request) {
   }
 }
 
+export async function PUT(request: Request) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const body = await request.json()
+    const { id, name, category, amount, paymentMethod, dueDay, notes, isRecurring, receiptImageUrl } = body
+
+    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+    const updateData: Record<string, unknown> = {
+      name,
+      category,
+      amount: Number(amount),
+      payment_method: paymentMethod || 'Cash',
+      due_day: dueDay || null,
+      is_recurring: isRecurring !== undefined ? isRecurring : true,
+      notes: notes || null,
+      receipt_image_url: receiptImageUrl || null,
+    }
+
+    const { data: cost, error } = await supabase
+      .from('fixed_costs')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    // Update associated ledger entries if they exist
+    await supabase
+      .from('ledger_entries')
+      .update({
+        description: `Fixed cost - ${name}`,
+        category,
+        amount: Number(amount),
+        payment_method: paymentMethod || 'Cash',
+      })
+      .eq('reference_type', 'fixed_cost')
+      .eq('reference_id', id)
+
+    await logActivity({
+      supabase,
+      userId: user.id,
+      userEmail: user.email || '',
+      action: 'updated',
+      entityType: 'fixed_cost',
+      entityId: id,
+      details: { name, amount: Number(amount), category },
+    })
+
+    return NextResponse.json({ success: true, cost })
+  } catch (error: unknown) {
+    console.error('Error updating fixed cost:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to update fixed cost' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function DELETE(request: Request) {
   try {
     const supabase = await createClient()
