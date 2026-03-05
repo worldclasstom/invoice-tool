@@ -249,6 +249,58 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const body = await request.json()
+    const { id, method, type, amount, note, adjustment_date } = body
+
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+
+    const updates: Record<string, unknown> = {}
+    if (method && ['cash', 'promptpay', 'credit_card'].includes(method)) updates.method = method
+    if (type && ['add', 'subtract'].includes(type)) updates.type = type
+    if (amount !== undefined && Number(amount) > 0) updates.amount = Number(amount)
+    if (note !== undefined) updates.note = note
+    if (adjustment_date) updates.adjustment_date = adjustment_date
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+    }
+
+    const { data: adjustment, error } = await supabase
+      .from('wallet_adjustments')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    await logActivity({
+      supabase,
+      userId: user.id,
+      userEmail: user.email || '',
+      action: 'edited',
+      entityType: 'wallet_adjustment',
+      entityId: id,
+      details: updates,
+    })
+
+    return NextResponse.json({ success: true, adjustment })
+  } catch (error: unknown) {
+    console.error('Error updating wallet adjustment:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to update adjustment' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient()
