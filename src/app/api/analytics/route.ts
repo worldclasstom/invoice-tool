@@ -394,6 +394,10 @@ export async function GET(request: NextRequest) {
   // Total ad spend for summary
   const totalAdSpend = (adCosts ?? []).reduce((s, a) => s + (Number(a.amount) || 0), 0)
 
+  // Service counts
+  const totalTables = (sales ?? []).reduce((s, r) => s + (r.tables_served || 0), 0)
+  const totalTogo = (sales ?? []).reduce((s, r) => s + (r.togo_orders || 0), 0)
+
   return NextResponse.json({
     view,
     summary: {
@@ -406,6 +410,8 @@ export async function GET(request: NextRequest) {
       avgDailySales: Math.round(totalRevenue / daysCount),
       daysReported: (sales ?? []).length,
       totalAdSpend,
+      totalTables,
+      totalTogo,
     },
     // Monthly charts
     salesVsExpenses,
