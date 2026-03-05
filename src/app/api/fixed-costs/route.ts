@@ -3,6 +3,59 @@ import { logActivity } from '@/lib/activity-log'
 import { getThaiToday, getThaiISOString } from '@/lib/utils'
 import { NextResponse } from 'next/server'
 
+/**
+ * Maps a fixed cost (category + name) to a reminder cost_type.
+ * Returns null if no matching reminder type exists.
+ */
+function mapToReminderCostType(category: string, name: string): string | null {
+  const n = (name || '').toLowerCase().trim()
+  if (category === 'utilities') {
+    if (n.includes('water')) return 'WATER'
+    if (n.includes('electric')) return 'ELECTRICITY'
+  }
+  if (category === 'credit_card') {
+    if (n.includes('uob') || n.includes('umb')) return 'CREDIT_CARD_UOB'
+  }
+  if (category === 'internet') return 'INTERNET'
+  if (category === 'employees') {
+    if (n.includes('first') || n.includes('1st')) return 'EMPLOYEE_FIRST_HALF'
+    if (n.includes('second') || n.includes('2nd')) return 'EMPLOYEE_SECOND_HALF'
+  }
+  return null
+}
+
+/**
+ * Sync a fixed cost payment to the matching fixed_cost_reminders row.
+ * Marks the reminder paid and sets its amount.
+ */
+async function syncReminderPaid(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  costType: string,
+  periodMonth: number,
+  periodYear: number,
+  amount: number,
+  isPaid: boolean
+) {
+  const updateData: Record<string, unknown> = {
+    paid: isPaid,
+    amount,
+    updated_at: new Date().toISOString(),
+  }
+  if (isPaid) {
+    updateData.payment_date = getThaiToday()
+  } else {
+    updateData.payment_date = null
+  }
+  await supabase
+    .from('fixed_cost_reminders')
+    .update(updateData)
+    .eq('user_id', userId)
+    .eq('cost_type', costType)
+    .eq('period_month', periodMonth)
+    .eq('period_year', periodYear)
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
@@ -42,6 +95,12 @@ export async function POST(request: Request) {
       entityId: cost.id,
       details: { name, amount: Number(amount), category },
     })
+
+    // Sync to reminder: update the amount on the matching reminder row
+    const reminderType = mapToReminderCostType(category, name)
+    if (reminderType) {
+      await syncReminderPaid(supabase, user.id, reminderType, periodMonth, periodYear, Number(amount), false)
+    }
 
     return NextResponse.json({ success: true, cost })
   } catch (error: unknown) {
@@ -156,6 +215,16 @@ export async function PATCH(request: Request) {
       entityId: cost.id,
       details: { name: cost.name, amount: Number(cost.amount) },
     })
+
+    // Sync to reminder table
+    const reminderType = mapToReminderCostType(cost.category, cost.name)
+    if (reminderType) {
+      await syncReminderPaid(
+        supabase, user.id, reminderType,
+        cost.period_month, cost.period_year,
+        Number(cost.amount), isPaid
+      )
+    }
 
     return NextResponse.json({ success: true, cost })
   } catch (error: unknown) {
