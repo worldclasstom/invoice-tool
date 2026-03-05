@@ -244,6 +244,7 @@ export function DashboardClient() {
   const receipts: ReceiptRow[] = data?.receipts ?? []
   const fixedCosts: FixedCost[] = data?.fixedCosts ?? []
   const ledgerEntries: LedgerEntry[] = data?.ledgerEntries ?? []
+  const [ledgerVisible, setLedgerVisible] = useState(5)
 
   const totalCash = sales.reduce((s, r) => s + Number(r.cash_amount), 0)
   const totalPromptPay = sales.reduce((s, r) => s + Number(r.promptpay_amount), 0)
@@ -587,9 +588,16 @@ export function DashboardClient() {
 
           {/* Ledger / Journal */}
           <div className="rounded-2xl border border-border bg-card shadow-sm">
-            <div className="border-b border-border px-5 py-4">
-              <h2 className="text-sm font-bold text-foreground">Ledger / Journal</h2>
-              <p className="text-xs text-muted-foreground">{dateLabel}</p>
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <div>
+                <h2 className="text-sm font-bold text-foreground">Ledger / Journal</h2>
+                <p className="text-xs text-muted-foreground">{dateLabel}</p>
+              </div>
+              {ledgerEntries.length > 0 && (
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                  {Math.min(ledgerVisible, ledgerEntries.length)} of {ledgerEntries.length}
+                </span>
+              )}
             </div>
 
             {ledgerEntries.length > 0 ? (
@@ -607,7 +615,7 @@ export function DashboardClient() {
                       </tr>
                     </thead>
                     <tbody>
-                      {ledgerEntries.map((entry) => (
+                      {ledgerEntries.slice(0, ledgerVisible).map((entry) => (
                         <tr key={entry.id} className="border-b border-border/50 last:border-0 transition-colors hover:bg-secondary/50">
                           <td className="whitespace-nowrap px-5 py-3 text-foreground">{formatThaiDate(entry.entry_date)}</td>
                           <td className="px-5 py-3 text-foreground">{entry.description}</td>
@@ -633,7 +641,7 @@ export function DashboardClient() {
 
                 {/* Mobile cards */}
                 <div className="flex flex-col divide-y divide-border/50 md:hidden">
-                  {ledgerEntries.map((entry) => (
+                  {ledgerEntries.slice(0, ledgerVisible).map((entry) => (
                     <div key={entry.id} className="flex items-center justify-between px-4 py-3">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-foreground">{entry.description}</p>
@@ -655,6 +663,28 @@ export function DashboardClient() {
                     </div>
                   ))}
                 </div>
+
+                {/* Load More / Show Less buttons */}
+                {ledgerEntries.length > 5 && (
+                  <div className="flex items-center justify-center gap-3 border-t border-border px-5 py-3">
+                    {ledgerVisible < ledgerEntries.length && (
+                      <button
+                        onClick={() => setLedgerVisible((v) => Math.min(v + 5, ledgerEntries.length))}
+                        className="rounded-lg bg-secondary px-4 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
+                      >
+                        Load 5 more
+                      </button>
+                    )}
+                    {ledgerVisible > 5 && (
+                      <button
+                        onClick={() => setLedgerVisible(5)}
+                        className="rounded-lg px-4 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary"
+                      >
+                        Show less
+                      </button>
+                    )}
+                  </div>
+                )}
               </>
             ) : (
               <div className="flex h-40 flex-col items-center justify-center gap-2 px-4 text-center">
