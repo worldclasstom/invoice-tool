@@ -8,6 +8,7 @@ import {
   Upload,
   Camera,
   Trash2,
+  Edit3,
   RotateCcw,
   CalendarDays,
   AlertTriangle,
@@ -28,6 +29,7 @@ const CATEGORIES = [
   "utilities",
   "employees",
   "credit_card",
+  "internet",
   "advertising",
   "rent",
   "insurance",
@@ -38,6 +40,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   utilities: "Utilities",
   employees: "Employees",
   credit_card: "Credit Card",
+  internet: "Internet",
   advertising: "Advertising",
   rent: "Rent",
   insurance: "Insurance",
@@ -49,16 +52,12 @@ const CATEGORY_SUGGESTIONS: Record<string, string[]> = {
   utilities: ["Water", "Electricity"],
   credit_card: ["UMB"],
   employees: ["First Half Salary", "Second Half Salary"],
+  internet: ["Internet"],
 };
 
-// Bills to track in reminder section
-const REMINDER_BILLS = [
-  { name: "Electricity", category: "utilities" },
-  { name: "Water", category: "utilities" },
-  { name: "UMB Credit Card", category: "credit_card" },
-  { name: "First Half Salary", category: "employees" },
-  { name: "Second Half Salary", category: "employees" },
-];
+
+
+
 
 const PAYMENT_METHODS = ["Cash", "KBank", "SCB", "Bangkok Bank", "Krungsri"];
 const PIE_COLORS = ["#8b5cf6", "#06b6d4", "#f59e0b", "#22c55e", "#f43f5e", "#3b82f6", "#ec4899", "#14b8a6"];
@@ -81,6 +80,26 @@ interface FixedCost {
   receipt_image_url: string | null;
 }
 
+interface Reminder {
+  id: string;
+  cost_type: string;
+  period_month: number;
+  period_year: number;
+  due_date: string;
+  amount: number;
+  paid: boolean;
+  payment_date: string | null;
+}
+
+const COST_TYPE_LABELS: Record<string, string> = {
+  WATER: "Water",
+  ELECTRICITY: "Electricity",
+  CREDIT_CARD_UOB: "Credit Card UOB",
+  INTERNET: "Internet",
+  EMPLOYEE_FIRST_HALF: "Employee (1st Half)",
+  EMPLOYEE_SECOND_HALF: "Employee (2nd Half)",
+};
+
 export default function FixedCostsPage() {
   // Use Bangkok timezone to determine current month/year
   const bkkParts = new Intl.DateTimeFormat('en-CA', {
@@ -93,8 +112,21 @@ export default function FixedCostsPage() {
   const bkkYear = bkkGet('year');
   const bkkMonth = bkkGet('month');
   const bkkDay = bkkGet('day');
-  const [month] = useState(bkkMonth);
-  const [year] = useState(bkkYear);
+  // Global period filter (controls summary boxes + activities)
+  type PeriodTab = "this_month" | "last_month" | "custom";
+  const [periodTab, setPeriodTab] = useState<PeriodTab>("this_month");
+  const [customMonth, setCustomMonth] = useState(bkkMonth);
+  const [customYear, setCustomYear] = useState(bkkYear);
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
+
+  const lastMonth = bkkMonth === 1 ? 12 : bkkMonth - 1;
+  const lastYear = bkkMonth === 1 ? bkkYear - 1 : bkkYear;
+
+  const month = periodTab === "this_month" ? bkkMonth : periodTab === "last_month" ? lastMonth : customMonth;
+  const year = periodTab === "this_month" ? bkkYear : periodTab === "last_month" ? lastYear : customYear;
+
+  const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
+  const yearOptions = Array.from({ length: 5 }, (_, i) => bkkYear - 2 + i);
 
   const { data, isLoading } = useSWR(
     `/api/fixed-costs?month=${month}&year=${year}`,
@@ -102,9 +134,14 @@ export default function FixedCostsPage() {
   );
   const costs: FixedCost[] = data?.costs ?? [];
 
+  // Fetch unpaid reminders from the dedicated fixed_cost_reminders table
+  const { data: reminderData } = useSWR('/api/fixed-cost-reminders', fetcher);
+  const reminders: Reminder[] = reminderData?.reminders ?? [];
+
 
 
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [category, setCategory] = useState("utilities");
   const [amount, setAmount] = useState("");
@@ -115,6 +152,11 @@ export default function FixedCostsPage() {
   const [receiptImageUrl, setReceiptImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Form period selection
+  const [periodMode, setPeriodMode] = useState<"this_month" | "custom">("this_month");
+  const [formMonth, setFormMonth] = useState(bkkMonth);
+  const [formYear, setFormYear] = useState(bkkYear);
 
   // Suggestion popup
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -171,6 +213,7 @@ export default function FixedCostsPage() {
   };
 
   const resetForm = () => {
+    setEditingId(null);
     setName("");
     setCategory("utilities");
     setAmount("");
@@ -181,37 +224,66 @@ export default function FixedCostsPage() {
     setReceiptImageUrl(null);
     setShowSuggestions(false);
     setSuggestions([]);
+    setPeriodMode("this_month");
+    setFormMonth(bkkMonth);
+    setFormYear(bkkYear);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
+      const selectedMonth = periodMode === "this_month" ? month : formMonth;
+      const selectedYear = periodMode === "this_month" ? year : formYear;
+      const payload = {
+        name,
+        category,
+        amount: Number(amount),
+        paymentMethod,
+        dueDay: dueDay ? Number(dueDay) : null,
+        periodMonth: selectedMonth,
+        periodYear: selectedYear,
+        notes: notes || null,
+        isRecurring,
+        receiptImageUrl: receiptImageUrl || null,
+      };
       const res = await fetch("/api/fixed-costs", {
-        method: "POST",
+        method: editingId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          category,
-          amount: Number(amount),
-          paymentMethod,
-          dueDay: dueDay ? Number(dueDay) : null,
-          periodMonth: month,
-          periodYear: year,
-          notes: notes || null,
-          isRecurring,
-          receiptImageUrl: receiptImageUrl || null,
-        }),
+        body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
       });
       if (!res.ok) throw new Error("Failed to save");
       resetForm();
       setShowForm(false);
-      mutate(`/api/fixed-costs?month=${month}&year=${year}`);
+      mutate((key: string) => typeof key === "string" && key.startsWith("/api/fixed-costs"), undefined, { revalidate: true });
+      mutate("/api/fixed-cost-reminders");
     } catch (err) {
       alert("Failed to save fixed cost.");
       console.error(err);
     }
     setSaving(false);
+  };
+
+  const editCost = (cost: FixedCost) => {
+    setEditingId(cost.id);
+    setName(cost.name);
+    setCategory(cost.category);
+    setAmount(String(cost.amount));
+    setPaymentMethod(cost.payment_method);
+    setDueDay(cost.due_day ? String(cost.due_day) : "");
+    setNotes(cost.notes || "");
+    setIsRecurring(cost.is_recurring);
+    setReceiptImageUrl(cost.receipt_image_url);
+    // Set period
+    if (cost.period_month === bkkMonth && cost.period_year === bkkYear) {
+      setPeriodMode("this_month");
+    } else {
+      setPeriodMode("custom");
+      setFormMonth(cost.period_month);
+      setFormYear(cost.period_year);
+    }
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const togglePaid = async (id: string, isPaid: boolean) => {
@@ -222,16 +294,46 @@ export default function FixedCostsPage() {
         body: JSON.stringify({ id, isPaid }),
       });
       if (!res.ok) throw new Error("Failed to update");
-      mutate(`/api/fixed-costs?month=${month}&year=${year}`);
+      // Revalidate all fixed-costs SWR keys (any month, all, etc.)
+      mutate((key: string) => typeof key === "string" && key.startsWith("/api/fixed-costs"), undefined, { revalidate: true });
+      mutate("/api/fixed-cost-reminders");
     } catch (err) {
       console.error(err);
     }
   };
 
-  // Computed
-  const recurringCosts = costs.filter((c) => c.is_recurring);
-  const oneTimeCosts = costs.filter((c) => !c.is_recurring);
+  const deleteCost = async (id: string, costName: string) => {
+    if (!confirm(`Delete "${costName}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/fixed-costs?id=${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      mutate((key: string) => typeof key === "string" && key.startsWith("/api/fixed-costs"), undefined, { revalidate: true });
+      mutate("/api/fixed-cost-reminders");
+    } catch (err) {
+      alert("Failed to delete fixed cost.");
+      console.error(err);
+    }
+  };
 
+  // Seed reminders for ALL months from Feb 2026 through current month
+  const [seeding, setSeeding] = useState(false);
+  const seedAllReminders = async () => {
+    setSeeding(true);
+    try {
+      const res = await fetch("/api/fixed-cost-reminders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seedAll: true }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      mutate("/api/fixed-cost-reminders");
+    } catch (err) {
+      console.error(err);
+    }
+    setSeeding(false);
+  };
+
+  // Computed
   const categoryTotals: Record<string, number> = {};
   costs.forEach((c) => {
     const label = CATEGORY_LABELS[c.category] || c.category;
@@ -251,46 +353,38 @@ export default function FixedCostsPage() {
   const totalAll = totalPaid + totalUnpaid;
   const paidCount = costs.filter((c) => c.is_paid).length;
 
-  const thaiMonth = new Date(year, month - 1).toLocaleDateString("th-TH", {
+  const periodLabel = new Date(year, month - 1).toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
   });
 
-  // Reminder logic: date-based overdue detection
-  // - "First Half Salary": due by the 15th
-  // - "Second Half Salary": due by the last day
-  // - All other bills: due 2 days before end of month
-  const lastDayOfMonth = new Date(year, month, 0).getDate(); // e.g. 28/30/31
+  // Compute reminder items from the dedicated table
   const today = bkkDay;
+  const reminderItems = reminders.map((r) => {
+    const dueObj = new Date(r.due_date + "T00:00:00");
+    const dueDay = dueObj.getDate();
+    // Is in the past period?
+    const isPastPeriod =
+      r.period_year < bkkYear ||
+      (r.period_year === bkkYear && r.period_month < bkkMonth);
+    // Is current period and within 5 days of due or past due?
+    const isCurrentMonth = r.period_year === bkkYear && r.period_month === bkkMonth;
+    const daysUntilDue = dueDay - today;
+    const isAlmostDue = isCurrentMonth && daysUntilDue >= 0 && daysUntilDue <= 5;
+    const isOverdue = isPastPeriod || (isCurrentMonth && today > dueDay);
 
-  const reminderItems = REMINDER_BILLS.map((bill) => {
-    // Check current month for matching paid entry
-    const currentMatch = costs.find(
-      (c) =>
-        c.name.toLowerCase().includes(bill.name.toLowerCase()) ||
-        (bill.name === "UMB Credit Card" && c.name.toLowerCase().includes("umb"))
-    );
-    const isPaidThisMonth = currentMatch?.is_paid ?? false;
-
-    // Determine the due date for this specific bill
-    let dueDate: number;
-    if (bill.name === "First Half Salary") {
-      dueDate = 15;
-    } else if (bill.name === "Second Half Salary") {
-      dueDate = lastDayOfMonth;
-    } else {
-      // 2 days before end of month for all other bills
-      dueDate = lastDayOfMonth - 2;
-    }
-
-    // Overdue: past the due date and still not paid this month
-    const isOverdue = !isPaidThisMonth && today >= dueDate;
+    const periodLabel = new Date(r.period_year, r.period_month - 1).toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    });
 
     return {
-      ...bill,
-      isPaidThisMonth,
+      ...r,
+      dueDay,
+      isAlmostDue,
       isOverdue,
-      dueDate,
+      periodLabel,
+      label: COST_TYPE_LABELS[r.cost_type] || r.cost_type,
     };
   });
 
@@ -300,7 +394,7 @@ export default function FixedCostsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">Fixed Costs</h1>
-          <p className="text-xs text-muted-foreground">{thaiMonth}</p>
+          <p className="text-xs text-muted-foreground">{periodLabel}</p>
         </div>
         <button
           onClick={() => {
@@ -314,74 +408,96 @@ export default function FixedCostsPage() {
         </button>
       </div>
 
-      {/* ── Fixed Cost Reminder ── */}
-      <div className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-500" />
-          <h2 className="text-sm font-bold text-foreground">Fixed Cost Reminder</h2>
-          <span className="ml-auto text-[10px] text-muted-foreground">
-            {reminderItems.filter((r) => r.isPaidThisMonth).length}/{reminderItems.length} paid
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {reminderItems.map((item) => {
-            const isRed = item.isOverdue && !item.isPaidThisMonth;
-            return (
-              <div
-                key={item.name}
-                className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-all ${
-                  item.isPaidThisMonth
-                    ? "border-emerald-200 bg-emerald-50/60"
-                    : isRed
-                    ? "border-red-300 bg-red-50/80"
-                    : "border-border bg-background"
-                }`}
+      {/* ── Period Filter Tabs ── */}
+      <div className="mb-4 flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 shadow-sm">
+        <button
+          onClick={() => { setPeriodTab("this_month"); setShowCustomPicker(false); }}
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+            periodTab === "this_month"
+              ? "bg-violet-100 text-violet-700"
+              : "text-muted-foreground hover:bg-secondary"
+          }`}
+        >
+          This Month
+        </button>
+        <button
+          onClick={() => { setPeriodTab("last_month"); setShowCustomPicker(false); }}
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+            periodTab === "last_month"
+              ? "bg-violet-100 text-violet-700"
+              : "text-muted-foreground hover:bg-secondary"
+          }`}
+        >
+          Last Month
+        </button>
+        <div className="relative">
+          <button
+            onClick={() => { setPeriodTab("custom"); setShowCustomPicker(!showCustomPicker); }}
+            className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+              periodTab === "custom"
+                ? "bg-violet-100 text-violet-700"
+                : "text-muted-foreground hover:bg-secondary"
+            }`}
+          >
+            <CalendarDays className="h-3 w-3" />
+            {periodTab === "custom"
+              ? new Date(customYear, customMonth - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })
+              : "Custom"}
+            <ChevronDown className="h-3 w-3" />
+          </button>
+          {showCustomPicker && (
+            <div className="absolute left-0 top-full z-20 mt-1 flex gap-2 rounded-xl border border-border bg-card p-3 shadow-lg">
+              <select
+                value={customMonth}
+                onChange={(e) => setCustomMonth(Number(e.target.value))}
+                className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
               >
-                <div
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
-                    item.isPaidThisMonth
-                      ? "border-emerald-500 bg-emerald-500"
-                      : isRed
-                      ? "border-red-400 bg-transparent"
-                      : "border-muted-foreground/30 bg-transparent"
-                  }`}
-                >
-                  {item.isPaidThisMonth && (
-                    <Check className="h-3 w-3 text-white" strokeWidth={3} />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p
-                    className={`truncate text-xs font-semibold ${
-                      item.isPaidThisMonth
-                        ? "text-emerald-700 line-through"
-                        : isRed
-                        ? "text-red-600"
-                        : "text-foreground"
-                    }`}
-                  >
-                    {item.name}
-                  </p>
-                  {item.isPaidThisMonth ? (
-                    <p className="text-[9px] font-medium text-emerald-600">Paid</p>
-                  ) : isRed ? (
-                    <p className="text-[9px] font-bold text-red-500">Overdue — due by {item.dueDate}th</p>
-                  ) : (
-                    <p className="text-[9px] text-muted-foreground">Due by {item.dueDate}th</p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                {monthOptions.map((m) => (
+                  <option key={m} value={m}>
+                    {new Date(2026, m - 1).toLocaleDateString("en-US", { month: "short" })}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={customYear}
+                onChange={(e) => setCustomYear(Number(e.target.value))}
+                className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setShowCustomPicker(false)}
+                className="rounded-lg bg-violet-500 px-3 py-1.5 text-[10px] font-bold text-white"
+              >
+                Go
+              </button>
+            </div>
+          )}
         </div>
+        <span className="ml-auto text-[10px] text-muted-foreground">
+          {periodLabel}
+        </span>
       </div>
 
       {/* ── Add Cost Form ── */}
       {showForm && (
         <div className="mb-6 rounded-2xl border-2 border-violet-200 bg-card p-5 shadow-sm">
-          <h2 className="mb-4 text-sm font-bold text-foreground">
-            Add Fixed Cost
-          </h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-foreground">
+              {editingId ? "Edit Fixed Cost" : "Add Fixed Cost"}
+            </h2>
+            {editingId && (
+              <button
+                type="button"
+                onClick={() => { resetForm(); setShowForm(false); }}
+                className="rounded-lg px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors"
+              >
+                Cancel Edit
+              </button>
+            )}
+          </div>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* Recurring toggle */}
             <div>
@@ -414,6 +530,72 @@ export default function FixedCostsPage() {
                   This Month Only
                 </button>
               </div>
+            </div>
+
+            {/* Period */}
+            <div>
+              <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Period
+              </label>
+              <div className="flex gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => { setPeriodMode("this_month"); setFormMonth(bkkMonth); setFormYear(bkkYear); }}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 px-4 py-2.5 text-xs font-semibold transition-all ${
+                    periodMode === "this_month"
+                      ? "border-violet-500 bg-violet-50 text-violet-700"
+                      : "border-border bg-background text-muted-foreground hover:border-violet-300"
+                  }`}
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  This Month ({new Date(bkkYear, bkkMonth - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPeriodMode("custom")}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 px-4 py-2.5 text-xs font-semibold transition-all ${
+                    periodMode === "custom"
+                      ? "border-violet-500 bg-violet-50 text-violet-700"
+                      : "border-border bg-background text-muted-foreground hover:border-violet-300"
+                  }`}
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  Custom
+                </button>
+              </div>
+              {periodMode === "custom" && (
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <select
+                      value={formMonth}
+                      onChange={(e) => setFormMonth(Number(e.target.value))}
+                      className="w-full appearance-none rounded-xl border border-input bg-background px-3.5 py-2.5 pr-8 text-sm text-foreground focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    >
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <option key={i + 1} value={i + 1}>
+                          {new Date(2026, i).toLocaleDateString("en-US", { month: "long" })}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  </div>
+                  <div className="w-28 relative">
+                    <select
+                      value={formYear}
+                      onChange={(e) => setFormYear(Number(e.target.value))}
+                      className="w-full appearance-none rounded-xl border border-input bg-background px-3.5 py-2.5 pr-8 text-sm text-foreground focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    >
+                      {[2025, 2026, 2027].map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  </div>
+                </div>
+              )}
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                Submitted: {new Date().toLocaleDateString("en-US", { timeZone: "Asia/Bangkok", month: "short", day: "numeric", year: "numeric" })}
+              </p>
             </div>
 
             {/* Category */}
@@ -633,7 +815,7 @@ export default function FixedCostsPage() {
                 ) : (
                   <>
                     <Check className="h-3.5 w-3.5" />
-                    Save
+                    {editingId ? "Update" : "Save"}
                   </>
                 )}
               </button>
@@ -676,14 +858,14 @@ export default function FixedCostsPage() {
             {paidCount} of {costs.length}
           </p>
         </div>
-        <div className="rounded-2xl bg-amber-500 p-4 shadow-lg shadow-amber-500/20">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-50/80">
+        <div className="rounded-2xl bg-red-500 p-4 shadow-lg shadow-red-500/20">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-red-50/80">
             Unpaid
           </p>
           <p className="text-lg font-bold text-white">
             {formatBaht(totalUnpaid)}
           </p>
-          <p className="text-[11px] text-amber-50/70 mt-0.5">
+          <p className="text-[11px] text-red-50/70 mt-0.5">
             {costs.length - paidCount} remaining
           </p>
         </div>
@@ -706,41 +888,102 @@ export default function FixedCostsPage() {
         </div>
       )}
 
-      {/* ── Cost Lists ── */}
-      {isLoading ? (
-        <div className="flex h-40 items-center justify-center">
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
-      ) : costs.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-card shadow-sm">
-          <div className="flex h-40 flex-col items-center justify-center gap-2 px-4 text-center">
-            <p className="text-sm text-muted-foreground">
-              No fixed costs for this month yet.
-            </p>
+      {/* ── Activities ── */}
+      <CostSection
+        title="Activities"
+        icon={<RotateCcw className="h-3.5 w-3.5 text-violet-500" />}
+        periodLabel={periodLabel}
+        costs={costs}
+        isLoading={isLoading}
+        togglePaid={togglePaid}
+        deleteCost={deleteCost}
+        editCost={editCost}
+      />
+
+      {/* ── Fixed Cost Reminder ── */}
+      <div className="mb-4 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+          <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <div>
+            <h2 className="text-sm font-bold text-foreground">Fixed Cost Reminder</h2>
+            <p className="text-[9px] text-muted-foreground">Auto-clears when you pay in Activities</p>
           </div>
+          <span className="ml-auto text-[10px] text-muted-foreground">
+            {reminderItems.length} unpaid
+          </span>
+          <button
+            onClick={seedAllReminders}
+            disabled={seeding}
+            className="rounded-lg bg-secondary px-3 py-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground disabled:opacity-50"
+          >
+            {seeding ? "Seeding..." : "+ Seed Reminders"}
+          </button>
         </div>
-      ) : (
-        <>
-          {recurringCosts.length > 0 && (
-            <CostSection
-              title="Recurring Costs"
-              subtitle="Every month"
-              icon={<RotateCcw className="h-3.5 w-3.5 text-violet-500" />}
-              costs={recurringCosts}
-              togglePaid={togglePaid}
-            />
-          )}
-          {oneTimeCosts.length > 0 && (
-            <CostSection
-              title="This Month Only"
-              subtitle="One-time for this period"
-              icon={<CalendarDays className="h-3.5 w-3.5 text-amber-500" />}
-              costs={oneTimeCosts}
-              togglePaid={togglePaid}
-            />
-          )}
-        </>
-      )}
+
+        {reminderItems.length === 0 ? (
+          <div className="flex h-24 flex-col items-center justify-center gap-2 px-4">
+            <Check className="h-6 w-6 text-emerald-500" />
+            <p className="text-xs font-medium text-emerald-600">All fixed costs are paid</p>
+            <p className="text-[10px] text-muted-foreground">No outstanding reminders</p>
+          </div>
+        ) : (
+          <div className="p-4">
+            {Object.entries(
+              reminderItems.reduce<Record<string, typeof reminderItems>>((groups, item) => {
+                const key = `${item.period_year}-${item.period_month}`;
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(item);
+                return groups;
+              }, {})
+            ).map(([key, items]) => (
+              <div key={key} className="mb-4 last:mb-0">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {items[0].periodLabel}
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                  {items.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`flex flex-col rounded-xl border px-3 py-2.5 ${
+                        item.isOverdue
+                          ? "border-red-300 bg-red-50/80"
+                          : item.isAlmostDue
+                          ? "border-amber-300 bg-amber-50/60"
+                          : "border-border bg-background"
+                      }`}
+                    >
+                      <p className={`text-xs font-semibold leading-tight ${
+                        item.isOverdue ? "text-red-600" : "text-foreground"
+                      }`}>
+                        {item.label}
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <span className="text-[9px] text-muted-foreground">
+                          Due {item.dueDay}th
+                        </span>
+                        <span className="text-[9px] text-muted-foreground/50">|</span>
+                        {item.isOverdue ? (
+                          <span className="rounded px-1 py-0.5 text-[9px] font-bold bg-red-100 text-red-600">
+                            Overdue
+                          </span>
+                        ) : item.isAlmostDue ? (
+                          <span className="rounded px-1 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-600">
+                            Due Soon
+                          </span>
+                        ) : (
+                          <span className="rounded px-1 py-0.5 text-[9px] font-semibold bg-secondary text-muted-foreground">
+                            Upcoming
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ── Pie Chart ── */}
       {pieData.length > 0 && (
@@ -748,7 +991,7 @@ export default function FixedCostsPage() {
           <h2 className="mb-1 text-sm font-bold text-foreground">
             Fixed Cost Breakdown
           </h2>
-          <p className="mb-3 text-xs text-muted-foreground">By category this month</p>
+          <p className="mb-3 text-xs text-muted-foreground">By category for {periodLabel}</p>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie
@@ -779,74 +1022,100 @@ export default function FixedCostsPage() {
   );
 }
 
-/* ── Cost Section Component ── */
+/* ── Cost Section Component (receives costs from parent) ── */
 function CostSection({
   title,
-  subtitle,
   icon,
+  periodLabel,
   costs,
+  isLoading: sectionLoading,
   togglePaid,
+  deleteCost,
+  editCost,
 }: {
   title: string;
-  subtitle: string;
   icon: React.ReactNode;
+  periodLabel: string;
   costs: FixedCost[];
+  isLoading: boolean;
   togglePaid: (id: string, isPaid: boolean) => void;
+  deleteCost: (id: string, name: string) => void;
+  editCost: (cost: FixedCost) => void;
 }) {
   const sectionPaid = costs.filter((c) => c.is_paid).length;
-  const allPaid = sectionPaid === costs.length;
+  const allPaid = costs.length > 0 && sectionPaid === costs.length;
 
   return (
     <div className="mb-4 rounded-2xl border border-border bg-card shadow-sm">
+      {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
         <div className="flex items-center gap-2.5">
           {icon}
           <div>
             <h2 className="text-sm font-bold text-foreground">{title}</h2>
-            <p className="text-[11px] text-muted-foreground">{subtitle}</p>
+            <p className="text-[11px] text-muted-foreground">{periodLabel} payments</p>
           </div>
         </div>
-        {allPaid ? (
-          <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700">
-            <Check className="h-3 w-3" /> All Paid
-          </span>
-        ) : (
-          <span className="text-[11px] text-muted-foreground">
-            {sectionPaid}/{costs.length} paid
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {costs.length === 0 ? null : allPaid ? (
+            <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700">
+              <Check className="h-3 w-3" /> All Paid
+            </span>
+          ) : (
+            <span className="text-[11px] text-muted-foreground">
+              {sectionPaid}/{costs.length} paid
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Mobile cards */}
-      <div className="flex flex-col divide-y divide-border/50 md:hidden">
-        {costs.map((cost) => (
-          <CostCardMobile key={cost.id} cost={cost} togglePaid={togglePaid} />
-        ))}
-      </div>
-
-      {/* Desktop table */}
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <th className="px-5 py-3 w-16">Status</th>
-              <th className="px-5 py-3">Name</th>
-              <th className="px-5 py-3">Category</th>
-              <th className="px-5 py-3">Payment</th>
-              <th className="px-5 py-3 text-right">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
+      {/* Content */}
+      {sectionLoading ? (
+        <div className="flex h-24 items-center justify-center">
+          <p className="text-xs text-muted-foreground">Loading...</p>
+        </div>
+      ) : costs.length === 0 ? (
+        <div className="flex h-24 flex-col items-center justify-center gap-1 px-4">
+          <p className="text-xs text-muted-foreground">No activities for {periodLabel}</p>
+        </div>
+      ) : (
+        <>
+          {/* Mobile cards */}
+          <div className="flex flex-col divide-y divide-border/50 md:hidden">
             {costs.map((cost) => (
-              <CostRowDesktop
-                key={cost.id}
-                cost={cost}
-                togglePaid={togglePaid}
-              />
+              <CostCardMobile key={cost.id} cost={cost} togglePaid={togglePaid} deleteCost={deleteCost} editCost={editCost} />
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <th className="px-5 py-3 w-16">Status</th>
+                  <th className="px-5 py-3">Name</th>
+                  <th className="px-5 py-3">Date</th>
+                  <th className="px-5 py-3">Category</th>
+                  <th className="px-5 py-3">Payment</th>
+                  <th className="px-5 py-3 text-right">Amount</th>
+                  <th className="px-5 py-3 w-16"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {costs.map((cost) => (
+                  <CostRowDesktop
+                    key={cost.id}
+                    cost={cost}
+                    togglePaid={togglePaid}
+                    deleteCost={deleteCost}
+                    editCost={editCost}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -855,13 +1124,17 @@ function CostSection({
 function CostRowDesktop({
   cost,
   togglePaid,
+  deleteCost,
+  editCost,
 }: {
   cost: FixedCost;
   togglePaid: (id: string, isPaid: boolean) => void;
+  deleteCost: (id: string, name: string) => void;
+  editCost: (cost: FixedCost) => void;
 }) {
   return (
     <tr
-      className={`border-b border-border/50 transition-all duration-300 last:border-0 ${
+      className={`group border-b border-border/50 transition-all duration-300 last:border-0 ${
         cost.is_paid ? "bg-emerald-50/60" : ""
       }`}
     >
@@ -900,6 +1173,20 @@ function CostRowDesktop({
           )}
         </span>
       </td>
+      <td className="px-5 py-3">
+        <span className={`block text-xs ${cost.is_paid ? "text-muted-foreground/70" : "text-foreground"}`}>
+          {new Date(cost.period_year, cost.period_month - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+        </span>
+        {cost.is_paid && cost.paid_date ? (
+          <span className="block text-[10px] font-medium text-emerald-600 mt-0.5">
+            Paid {new Date(cost.paid_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          </span>
+        ) : (
+          <span className="block text-[10px] text-muted-foreground/60 mt-0.5">
+            {cost.is_recurring ? "Recurring" : "One-time"}
+          </span>
+        )}
+      </td>
       <td
         className={`px-5 py-3 capitalize ${
           cost.is_paid ? "text-muted-foreground/70" : "text-muted-foreground"
@@ -919,6 +1206,24 @@ function CostRowDesktop({
       >
         -{formatBaht(Number(cost.amount))}
       </td>
+      <td className="px-5 py-3">
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+          <button
+            onClick={() => editCost(cost)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-secondary hover:text-foreground"
+            aria-label={`Edit ${cost.name}`}
+          >
+            <Edit3 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => deleteCost(cost.id, cost.name)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive"
+            aria-label={`Delete ${cost.name}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </td>
     </tr>
   );
 }
@@ -927,9 +1232,13 @@ function CostRowDesktop({
 function CostCardMobile({
   cost,
   togglePaid,
+  deleteCost,
+  editCost,
 }: {
   cost: FixedCost;
   togglePaid: (id: string, isPaid: boolean) => void;
+  deleteCost: (id: string, name: string) => void;
+  editCost: (cost: FixedCost) => void;
 }) {
   return (
     <div
@@ -971,12 +1280,35 @@ function CostCardMobile({
         </p>
         <p className="text-xs text-muted-foreground">
           {CATEGORY_LABELS[cost.category] || cost.category} &middot;{" "}
-          {cost.payment_method}
+          {cost.payment_method} &middot;{" "}
+          {new Date(cost.period_year, cost.period_month - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+          {cost.is_recurring ? "" : " (One-time)"}
         </p>
+        {cost.is_paid && cost.paid_date && (
+          <p className="text-[10px] text-emerald-600">
+            Paid {new Date(cost.paid_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          </p>
+        )}
       </div>
       <p className="shrink-0 text-sm font-semibold text-red-600">
         -{formatBaht(Number(cost.amount))}
       </p>
+      <div className="flex shrink-0 gap-1">
+        <button
+          onClick={() => editCost(cost)}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-secondary hover:text-foreground"
+          aria-label={`Edit ${cost.name}`}
+        >
+          <Edit3 className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={() => deleteCost(cost.id, cost.name)}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive"
+          aria-label={`Delete ${cost.name}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }

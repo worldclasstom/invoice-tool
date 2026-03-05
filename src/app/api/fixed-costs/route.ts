@@ -3,6 +3,90 @@ import { logActivity } from '@/lib/activity-log'
 import { getThaiToday, getThaiISOString } from '@/lib/utils'
 import { NextResponse } from 'next/server'
 
+/**
+ * Maps a fixed cost (category + name) to a reminder cost_type.
+ * Returns null if no matching reminder type exists.
+ */
+function mapToReminderCostType(category: string, name: string): string | null {
+  const n = (name || '').toLowerCase().trim()
+  if (category === 'utilities') {
+    if (n.includes('water')) return 'WATER'
+    if (n.includes('electric')) return 'ELECTRICITY'
+  }
+  if (category === 'credit_card') {
+    if (n.includes('uob') || n.includes('umb')) return 'CREDIT_CARD_UOB'
+  }
+  if (category === 'internet') return 'INTERNET'
+  if (category === 'employees') {
+    if (n.includes('first') || n.includes('1st')) return 'EMPLOYEE_FIRST_HALF'
+    if (n.includes('second') || n.includes('2nd')) return 'EMPLOYEE_SECOND_HALF'
+  }
+  return null
+}
+
+/**
+ * Ensure a reminder row exists for the given cost type + period.
+ * Uses upsert with ignoreDuplicates so it's safe to call multiple times.
+ */
+async function ensureReminderExists(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  costType: string,
+  periodMonth: number,
+  periodYear: number
+) {
+  const lastDay = new Date(periodYear, periodMonth, 0).getDate()
+  const dueDate = costType === 'EMPLOYEE_FIRST_HALF'
+    ? `${periodYear}-${String(periodMonth).padStart(2, '0')}-16`
+    : `${periodYear}-${String(periodMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+
+  await supabase
+    .from('fixed_cost_reminders')
+    .upsert({
+      cost_type: costType,
+      period_month: periodMonth,
+      period_year: periodYear,
+      due_date: dueDate,
+      amount: 0,
+      paid: false,
+      user_id: userId,
+    }, { onConflict: 'cost_type,period_month,period_year,user_id', ignoreDuplicates: true })
+}
+
+/**
+ * Sync a fixed cost payment to the matching fixed_cost_reminders row.
+ * Marks the reminder paid and sets its amount.
+ */
+async function syncReminderPaid(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  costType: string,
+  periodMonth: number,
+  periodYear: number,
+  amount: number,
+  isPaid: boolean
+) {
+  const updateData: Record<string, unknown> = {
+    paid: isPaid,
+    amount,
+    updated_at: new Date().toISOString(),
+  }
+  if (isPaid) {
+    updateData.payment_date = getThaiToday()
+  } else {
+    updateData.payment_date = null
+  }
+  const result = await supabase
+    .from('fixed_cost_reminders')
+    .update(updateData)
+    .eq('user_id', userId)
+    .eq('cost_type', costType)
+    .eq('period_month', periodMonth)
+    .eq('period_year', periodYear)
+    .select()
+  return result
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
@@ -43,6 +127,13 @@ export async function POST(request: Request) {
       details: { name, amount: Number(amount), category },
     })
 
+    // Auto-seed the matching reminder row if it doesn't exist, then update amount
+    const reminderType = mapToReminderCostType(category, name)
+    if (reminderType) {
+      await ensureReminderExists(supabase, user.id, reminderType, periodMonth, periodYear)
+      await syncReminderPaid(supabase, user.id, reminderType, periodMonth, periodYear, Number(amount), false)
+    }
+
     return NextResponse.json({ success: true, cost })
   } catch (error: unknown) {
     console.error('Error saving fixed cost:', error)
@@ -60,6 +151,35 @@ export async function GET(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
+
+  // Fetch ALL fixed costs (no period filter)
+  if (searchParams.get('all') === 'true') {
+    const { data: allCosts, error } = await supabase
+      .from('fixed_costs')
+      .select('*')
+      .order('period_year', { ascending: false })
+      .order('period_month', { ascending: false })
+      .order('name')
+
+    if (error) throw error
+    return NextResponse.json({ costs: allCosts })
+  }
+
+  // Fetch all unpaid fixed costs from Feb 2026 onwards
+  if (searchParams.get('unpaid') === 'true') {
+      const { data: unpaidCosts, error } = await supabase
+        .from('fixed_costs')
+        .select('*')
+        .eq('is_paid', false)
+        .or('period_year.gt.2026,and(period_year.eq.2026,period_month.gte.2)')
+        .order('period_year', { ascending: true })
+        .order('period_month', { ascending: true })
+        .order('name')
+
+      if (error) throw error
+      return NextResponse.json({ costs: unpaidCosts })
+    }
+
     const thaiToday = getThaiToday()
     const month = Number(searchParams.get('month') || Number(thaiToday.split('-')[1]))
     const year = Number(searchParams.get('year') || Number(thaiToday.split('-')[0]))
@@ -141,11 +261,139 @@ export async function PATCH(request: Request) {
       details: { name: cost.name, amount: Number(cost.amount) },
     })
 
+    // Ensure reminder exists, then sync paid status
+    const reminderType = mapToReminderCostType(cost.category, cost.name)
+    if (reminderType) {
+      await ensureReminderExists(supabase, user.id, reminderType, cost.period_month, cost.period_year)
+      await syncReminderPaid(
+        supabase, user.id, reminderType,
+        cost.period_month, cost.period_year,
+        Number(cost.amount), isPaid
+      )
+    }
+
     return NextResponse.json({ success: true, cost })
   } catch (error: unknown) {
     console.error('Error updating fixed cost:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to update' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const body = await request.json()
+    const { id, name, category, amount, paymentMethod, dueDay, notes, isRecurring, receiptImageUrl } = body
+
+    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+    const updateData: Record<string, unknown> = {
+      name,
+      category,
+      amount: Number(amount),
+      payment_method: paymentMethod || 'Cash',
+      due_day: dueDay || null,
+      is_recurring: isRecurring !== undefined ? isRecurring : true,
+      notes: notes || null,
+      receipt_image_url: receiptImageUrl || null,
+    }
+
+    const { data: cost, error } = await supabase
+      .from('fixed_costs')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    // Update associated ledger entries if they exist
+    await supabase
+      .from('ledger_entries')
+      .update({
+        description: `Fixed cost - ${name}`,
+        category,
+        amount: Number(amount),
+        payment_method: paymentMethod || 'Cash',
+      })
+      .eq('reference_type', 'fixed_cost')
+      .eq('reference_id', id)
+
+    await logActivity({
+      supabase,
+      userId: user.id,
+      userEmail: user.email || '',
+      action: 'updated',
+      entityType: 'fixed_cost',
+      entityId: id,
+      details: { name, amount: Number(amount), category },
+    })
+
+    return NextResponse.json({ success: true, cost })
+  } catch (error: unknown) {
+    console.error('Error updating fixed cost:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to update fixed cost' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+    // Get the cost details before deleting for activity log
+    const { data: cost } = await supabase
+      .from('fixed_costs')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    // Delete associated ledger entries
+    await supabase
+      .from('ledger_entries')
+      .delete()
+      .eq('reference_type', 'fixed_cost')
+      .eq('reference_id', id)
+
+    // Delete the fixed cost
+    const { error } = await supabase
+      .from('fixed_costs')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+
+    if (cost) {
+      await logActivity({
+        supabase,
+        userId: user.id,
+        userEmail: user.email || '',
+        action: 'deleted',
+        entityType: 'fixed_cost',
+        entityId: id,
+        details: { name: cost.name, amount: Number(cost.amount), category: cost.category },
+      })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error: unknown) {
+    console.error('Error deleting fixed cost:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to delete fixed cost' },
       { status: 500 }
     )
   }

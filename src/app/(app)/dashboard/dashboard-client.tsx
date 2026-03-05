@@ -110,6 +110,8 @@ interface FixedCost {
   amount: number
   category: string
   is_paid: boolean
+  period_month: number
+  period_year: number
 }
 
 interface LedgerEntry {
@@ -123,23 +125,23 @@ interface LedgerEntry {
   reference_type: string | null
 }
 
-// Fixed cost reminder bills (mirrored from fixed-costs page)
-const REMINDER_BILLS = [
-  { name: 'Electricity', category: 'utilities' },
-  { name: 'Water', category: 'utilities' },
-  { name: 'UMB Credit Card', category: 'credit_card' },
-  { name: 'First Half Salary', category: 'employees' },
-  { name: 'Second Half Salary', category: 'employees' },
-]
+const COST_TYPE_LABELS: Record<string, string> = {
+  WATER: 'Water',
+  ELECTRICITY: 'Electricity',
+  CREDIT_CARD_UOB: 'Credit Card UOB',
+  INTERNET: 'Internet',
+  EMPLOYEE_FIRST_HALF: 'Employee (1st Half)',
+  EMPLOYEE_SECOND_HALF: 'Employee (2nd Half)',
+}
 
-interface FixedCostFull {
+interface ReminderRow {
   id: string
-  name: string
-  category: string
-  amount: number
-  is_paid: boolean
+  cost_type: string
   period_month: number
   period_year: number
+  due_date: string
+  amount: number
+  paid: boolean
 }
 
 export function DashboardClient() {
@@ -207,53 +209,42 @@ export function DashboardClient() {
     }
   }
 
-  // ── Overdue Fixed Cost Reminders ──
-  // Get current month/year in Bangkok timezone
-  const bkkParts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Bangkok',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date())
-  const bkkGet = (t: string) => Number(bkkParts.find(p => p.type === t)?.value ?? '0')
-  const bkkMonth = bkkGet('month')
-  const bkkYear = bkkGet('year')
-  const bkkDay = bkkGet('day')
+  // ── Overdue / Almost-Due Fixed Cost Reminders ──
+  const { data: reminderData } = useSWR('/api/fixed-cost-reminders', fetcher)
+  const allReminders: ReminderRow[] = reminderData?.reminders ?? []
 
-  const { data: fixedCostData } = useSWR(
-    `/api/fixed-costs?month=${bkkMonth}&year=${bkkYear}`,
-    fetcher
-  )
-  const currentMonthCosts: FixedCostFull[] = fixedCostData?.costs ?? []
-  const lastDayOfMonth = new Date(bkkYear, bkkMonth, 0).getDate()
+  const urgentReminders = useMemo(() => {
+    const todayStr = getThaiToday()
+    const todayMs = new Date(todayStr + 'T00:00:00+07:00').getTime()
+    const fiveDaysMs = 5 * 24 * 60 * 60 * 1000
 
-  const overdueItems = useMemo(() => {
-    return REMINDER_BILLS.map((bill) => {
-      const match = currentMonthCosts.find(
-        (c) =>
-          c.name.toLowerCase().includes(bill.name.toLowerCase()) ||
-          (bill.name === 'UMB Credit Card' && c.name.toLowerCase().includes('umb'))
-      )
-      const isPaid = match?.is_paid ?? false
-
-      let dueDate: number
-      if (bill.name === 'First Half Salary') {
-        dueDate = 15
-      } else if (bill.name === 'Second Half Salary') {
-        dueDate = lastDayOfMonth
-      } else {
-        dueDate = lastDayOfMonth - 2
-      }
-
-      const isOverdue = !isPaid && bkkDay >= dueDate
-      return { ...bill, isPaid, isOverdue, dueDate }
-    }).filter((item) => item.isOverdue)
-  }, [currentMonthCosts, bkkDay, lastDayOfMonth])
+    return allReminders
+      .map((r) => {
+        const dueMs = new Date(r.due_date + 'T00:00:00+07:00').getTime()
+        const daysUntilDue = (dueMs - todayMs) / (24 * 60 * 60 * 1000)
+        const isOverdue = daysUntilDue < 0
+        const isAlmostDue = !isOverdue && daysUntilDue <= 5
+        const dueDay = new Date(r.due_date + 'T12:00:00Z').getDate()
+        const periodLabel = new Date(r.period_year, r.period_month - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+        return {
+          ...r,
+          label: COST_TYPE_LABELS[r.cost_type] || r.cost_type,
+          dueDay,
+          isOverdue,
+          isAlmostDue,
+          daysUntilDue: Math.ceil(daysUntilDue),
+          periodLabel,
+        }
+      })
+      .filter((r) => r.isOverdue || r.isAlmostDue)
+      .sort((a, b) => a.daysUntilDue - b.daysUntilDue)
+  }, [allReminders])
 
   const sales: DailySale[] = data?.sales ?? []
   const receipts: ReceiptRow[] = data?.receipts ?? []
   const fixedCosts: FixedCost[] = data?.fixedCosts ?? []
   const ledgerEntries: LedgerEntry[] = data?.ledgerEntries ?? []
+  const [ledgerVisible, setLedgerVisible] = useState(5)
 
   const totalCash = sales.reduce((s, r) => s + Number(r.cash_amount), 0)
   const totalPromptPay = sales.reduce((s, r) => s + Number(r.promptpay_amount), 0)
@@ -301,6 +292,8 @@ export function DashboardClient() {
   const hasDestinations = destinationData.length > 0
 
   const totalExpenses = expenseData.reduce((s, d) => s + d.value, 0)
+  const totalReceiptExpenses = Object.values(receiptsByCategory).reduce((s, v) => s + v, 0)
+  const totalFixedCostExpenses = Object.values(fixedByCategory).reduce((s, v) => s + v, 0)
   const netProfit = totalIncome - totalExpenses
 
   const hasIncome = incomeData.length > 0
@@ -401,13 +394,25 @@ export function DashboardClient() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-4 rounded-2xl bg-rose-500 p-4 shadow-lg shadow-rose-500/20">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50/20">
-                <TrendingDown className="h-5 w-5 text-rose-50" />
+            <div className="rounded-2xl bg-rose-500 p-4 shadow-lg shadow-rose-500/20">
+              <div className="flex items-center gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50/20">
+                  <TrendingDown className="h-5 w-5 text-rose-50" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-rose-50/80 uppercase tracking-wide">Expenses</p>
+                  <p className="text-xl font-bold text-white">{formatBaht(totalExpenses)}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-medium text-rose-50/80 uppercase tracking-wide">Expenses</p>
-                <p className="text-xl font-bold text-white">{formatBaht(totalExpenses)}</p>
+              <div className="mt-3 space-y-1 border-t border-rose-50/20 pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-rose-50/80">Receipts</span>
+                  <span className="text-xs font-semibold text-white">{formatBaht(totalReceiptExpenses)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-rose-50/80">Fixed Costs</span>
+                  <span className="text-xs font-semibold text-white">{formatBaht(totalFixedCostExpenses)}</span>
+                </div>
               </div>
             </div>
             <div className={`flex items-center gap-4 rounded-2xl p-4 shadow-lg ${netProfit >= 0 ? 'bg-sky-500 shadow-sky-500/20' : 'bg-amber-500 shadow-amber-500/20'}`}>
@@ -421,8 +426,8 @@ export function DashboardClient() {
             </div>
           </div>
 
-          {/* Overdue Fixed Cost Reminders */}
-          {overdueItems.length > 0 && (
+          {/* Overdue & Almost-Due Fixed Cost Reminders */}
+          {urgentReminders.length > 0 && (
             <div className="mb-6 rounded-2xl border-2 border-red-200 bg-red-50/50 p-4 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -430,8 +435,10 @@ export function DashboardClient() {
                     <AlertTriangle className="h-4 w-4 text-red-600" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-red-700">Overdue Bills</h2>
-                    <p className="text-[11px] text-red-500">{overdueItems.length} unpaid fixed cost{overdueItems.length > 1 ? 's' : ''} past due</p>
+                    <h2 className="text-sm font-bold text-red-700">Upcoming & Overdue Bills</h2>
+                    <p className="text-[11px] text-red-500">
+                      {urgentReminders.filter(r => r.isOverdue).length} overdue, {urgentReminders.filter(r => r.isAlmostDue).length} due soon
+                    </p>
                   </div>
                 </div>
                 <Link
@@ -442,17 +449,39 @@ export function DashboardClient() {
                 </Link>
               </div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {overdueItems.map((item) => (
+                {urgentReminders.map((item) => (
                   <div
-                    key={item.name}
-                    className="flex items-center gap-3 rounded-xl border border-red-200 bg-white/80 px-3 py-2.5"
+                    key={item.id}
+                    className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
+                      item.isOverdue
+                        ? 'border-red-300 bg-red-50/80'
+                        : 'border-amber-300 bg-amber-50/60'
+                    }`}
                   >
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-100">
-                      <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                      item.isOverdue ? 'bg-red-100' : 'bg-amber-100'
+                    }`}>
+                      <AlertTriangle className={`h-3.5 w-3.5 ${item.isOverdue ? 'text-red-500' : 'text-amber-500'}`} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-semibold text-red-700">{item.name}</p>
-                      <p className="text-[10px] font-medium text-red-400">Due by {item.dueDate}{item.dueDate === 1 ? 'st' : item.dueDate === 2 ? 'nd' : item.dueDate === 3 ? 'rd' : 'th'}</p>
+                      <p className={`truncate text-xs font-semibold ${item.isOverdue ? 'text-red-700' : 'text-amber-700'}`}>
+                        {item.label}
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-muted-foreground">
+                          {item.periodLabel}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground/50">|</span>
+                        {item.isOverdue ? (
+                          <span className="rounded px-1 py-0.5 text-[9px] font-bold bg-red-100 text-red-600">
+                            Overdue
+                          </span>
+                        ) : (
+                          <span className="rounded px-1 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-600">
+                            Due in {item.daysUntilDue}d
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -573,9 +602,16 @@ export function DashboardClient() {
 
           {/* Ledger / Journal */}
           <div className="rounded-2xl border border-border bg-card shadow-sm">
-            <div className="border-b border-border px-5 py-4">
-              <h2 className="text-sm font-bold text-foreground">Ledger / Journal</h2>
-              <p className="text-xs text-muted-foreground">{dateLabel}</p>
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <div>
+                <h2 className="text-sm font-bold text-foreground">Ledger / Journal</h2>
+                <p className="text-xs text-muted-foreground">{dateLabel}</p>
+              </div>
+              {ledgerEntries.length > 0 && (
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                  {Math.min(ledgerVisible, ledgerEntries.length)} of {ledgerEntries.length}
+                </span>
+              )}
             </div>
 
             {ledgerEntries.length > 0 ? (
@@ -593,7 +629,7 @@ export function DashboardClient() {
                       </tr>
                     </thead>
                     <tbody>
-                      {ledgerEntries.map((entry) => (
+                      {ledgerEntries.slice(0, ledgerVisible).map((entry) => (
                         <tr key={entry.id} className="border-b border-border/50 last:border-0 transition-colors hover:bg-secondary/50">
                           <td className="whitespace-nowrap px-5 py-3 text-foreground">{formatThaiDate(entry.entry_date)}</td>
                           <td className="px-5 py-3 text-foreground">{entry.description}</td>
@@ -619,7 +655,7 @@ export function DashboardClient() {
 
                 {/* Mobile cards */}
                 <div className="flex flex-col divide-y divide-border/50 md:hidden">
-                  {ledgerEntries.map((entry) => (
+                  {ledgerEntries.slice(0, ledgerVisible).map((entry) => (
                     <div key={entry.id} className="flex items-center justify-between px-4 py-3">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-foreground">{entry.description}</p>
@@ -641,6 +677,28 @@ export function DashboardClient() {
                     </div>
                   ))}
                 </div>
+
+                {/* Load More / Show Less buttons */}
+                {ledgerEntries.length > 5 && (
+                  <div className="flex items-center justify-center gap-3 border-t border-border px-5 py-3">
+                    {ledgerVisible < ledgerEntries.length && (
+                      <button
+                        onClick={() => setLedgerVisible((v) => Math.min(v + 5, ledgerEntries.length))}
+                        className="rounded-lg bg-secondary px-4 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
+                      >
+                        Load 5 more
+                      </button>
+                    )}
+                    {ledgerVisible > 5 && (
+                      <button
+                        onClick={() => setLedgerVisible(5)}
+                        className="rounded-lg px-4 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary"
+                      >
+                        Show less
+                      </button>
+                    )}
+                  </div>
+                )}
               </>
             ) : (
               <div className="flex h-40 flex-col items-center justify-center gap-2 px-4 text-center">
