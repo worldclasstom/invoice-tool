@@ -304,21 +304,6 @@ export default function FixedCostsPage() {
     }
   };
 
-  // Reminder: mark paid / update amount
-  const markReminderPaid = async (id: string) => {
-    try {
-      const res = await fetch("/api/fixed-cost-reminders", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, paid: true }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      mutate("/api/fixed-cost-reminders");
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   // Seed reminders for ALL months from Feb 2026 through current month
   const [seeding, setSeeding] = useState(false);
   const seedAllReminders = async () => {
@@ -416,7 +401,10 @@ export default function FixedCostsPage() {
       <div className="mb-6 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 border-b border-border px-5 py-4">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
-          <h2 className="text-sm font-bold text-foreground">Fixed Cost Reminder</h2>
+          <div>
+            <h2 className="text-sm font-bold text-foreground">Fixed Cost Reminder</h2>
+            <p className="text-[9px] text-muted-foreground">Auto-clears when you pay in Activities</p>
+          </div>
           <span className="ml-auto text-[10px] text-muted-foreground">
             {reminderItems.length} unpaid
           </span>
@@ -433,7 +421,7 @@ export default function FixedCostsPage() {
           <div className="flex h-24 flex-col items-center justify-center gap-2 px-4">
             <Check className="h-6 w-6 text-emerald-500" />
             <p className="text-xs font-medium text-emerald-600">All fixed costs are paid</p>
-            <p className="text-[10px] text-muted-foreground">Click &quot;Seed Reminders&quot; to generate reminders from Feb 2026 to now</p>
+            <p className="text-[10px] text-muted-foreground">No outstanding reminders</p>
           </div>
         ) : (
           <div className="p-4">
@@ -452,33 +440,21 @@ export default function FixedCostsPage() {
                 </p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                   {items.map((item) => (
-                    <button
+                    <div
                       key={item.id}
-                      onClick={() => markReminderPaid(item.id)}
-                      className={`group relative flex flex-col rounded-xl border px-3 py-2.5 text-left transition-all hover:shadow-sm ${
+                      className={`flex flex-col rounded-xl border px-3 py-2.5 ${
                         item.isOverdue
-                          ? "border-red-300 bg-red-50/80 hover:border-red-400"
+                          ? "border-red-300 bg-red-50/80"
                           : item.isAlmostDue
-                          ? "border-amber-300 bg-amber-50/60 hover:border-amber-400"
-                          : "border-border bg-background hover:border-emerald-300 hover:bg-emerald-50/30"
+                          ? "border-amber-300 bg-amber-50/60"
+                          : "border-border bg-background"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-1">
-                        <p className={`text-xs font-semibold leading-tight ${
-                          item.isOverdue ? "text-red-600" : "text-foreground"
-                        }`}>
-                          {item.label}
-                        </p>
-                        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-[1.5px] transition-all ${
-                          item.isOverdue
-                            ? "border-red-400 group-hover:border-emerald-500 group-hover:bg-emerald-500"
-                            : item.isAlmostDue
-                            ? "border-amber-400 group-hover:border-emerald-500 group-hover:bg-emerald-500"
-                            : "border-muted-foreground/30 group-hover:border-emerald-500 group-hover:bg-emerald-500"
-                        }`}>
-                          <Check className="h-2.5 w-2.5 text-transparent group-hover:text-white" strokeWidth={3} />
-                        </div>
-                      </div>
+                      <p className={`text-xs font-semibold leading-tight ${
+                        item.isOverdue ? "text-red-600" : "text-foreground"
+                      }`}>
+                        {item.label}
+                      </p>
                       <div className="mt-1.5 flex items-center gap-1.5">
                         <span className="text-[9px] text-muted-foreground">
                           Due {item.dueDay}th
@@ -498,12 +474,7 @@ export default function FixedCostsPage() {
                           </span>
                         )}
                       </div>
-                      {Number(item.amount) > 0 && (
-                        <p className="mt-1 text-[10px] font-semibold text-foreground">
-                          {formatBaht(Number(item.amount))}
-                        </p>
-                      )}
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -979,16 +950,6 @@ export default function FixedCostsPage() {
       )}
     </div>
   );
-}
-
-/* ── Helper: check if a fixed cost maps to a reminder ── */
-function isLinkedToReminder(cost: FixedCost): boolean {
-  const n = cost.name.toLowerCase().trim();
-  if (cost.category === "utilities" && (n.includes("water") || n.includes("electric"))) return true;
-  if (cost.category === "credit_card" && (n.includes("uob") || n.includes("umb"))) return true;
-  if (cost.category === "internet") return true;
-  if (cost.category === "employees" && (n.includes("first") || n.includes("1st") || n.includes("second") || n.includes("2nd"))) return true;
-  return false;
 }
 
 /* ── Cost Section Component ── */

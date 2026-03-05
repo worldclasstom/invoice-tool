@@ -107,44 +107,5 @@ export async function POST(request: Request) {
   }
 }
 
-// PATCH: Mark a reminder as paid (or unpaid), optionally set amount
-export async function PATCH(request: Request) {
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-    const body = await request.json()
-    const { id, paid, amount } = body
-
-    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
-
-    const updateData: Record<string, unknown> = {
-      updated_at: new Date().toISOString(),
-    }
-    if (paid !== undefined) {
-      updateData.paid = paid
-      updateData.payment_date = paid ? getThaiToday() : null
-    }
-    if (amount !== undefined) {
-      updateData.amount = Number(amount)
-    }
-
-    const { data: reminder, error } = await supabase
-      .from('fixed_cost_reminders')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) throw error
-
-    return NextResponse.json({ success: true, reminder })
-  } catch (error: unknown) {
-    console.error('Error updating reminder:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to update reminder' },
-      { status: 500 }
-    )
-  }
-}
+// NOTE: No PATCH endpoint. Reminders are only updated via the
+// fixed-costs API sync (syncReminderPaid) when a cost is marked paid.
