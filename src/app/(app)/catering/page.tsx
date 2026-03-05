@@ -276,7 +276,7 @@ export default function CateringQuotationPage() {
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground">ป้ายจำนวน</label>
+                    <label className="text-[10px] font-semibold text-muted-foreground">กี่หน่วย</label>
                     <input
                       type="text"
                       value={item.quantityLabel}

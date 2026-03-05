@@ -17,35 +17,22 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const {
-      shopName,
-      shopAddress,
-      shopPhone,
-      shopContact,
-    customerName,
-    customerAddress,
-    customerPhone,
-    customerEmail,
-    eventLocation,
-      eventDate,
-      guestCount,
-      items,
-      menuCategories,
-      vatPercent,
-      depositPercent,
-      minGuests,
-      paymentNotes,
+      shopName, shopAddress, shopPhone, shopContact,
+      customerName, customerAddress, customerPhone, customerEmail,
+      eventLocation, eventDate, guestCount,
+      items, menuCategories,
+      vatPercent, depositPercent, minGuests, paymentNotes,
     } = body
 
     // Calculate totals
     const subtotal = (items ?? []).reduce(
-      (s: number, i: { quantity: number; unitPrice: number }) => s + i.quantity * i.unitPrice,
-      0
+      (s: number, i: { quantity: number; unitPrice: number }) => s + i.quantity * i.unitPrice, 0,
     )
     const vatRate = Number(vatPercent) || 0
     const vat = vatRate > 0 ? Math.round(subtotal * (vatRate / 100) * 100) / 100 : 0
     const grandTotal = subtotal + vat
 
-    // Load fonts
+    // ─── Load single static font ───
     const fontDir = path.join(process.cwd(), 'public/fonts')
     const regularBytes = fs.readFileSync(path.join(fontDir, 'NotoSansThai-Regular.ttf'))
 
@@ -53,274 +40,253 @@ export async function POST(request: Request) {
     pdfDoc.registerFontkit(fontkit)
     const font = await pdfDoc.embedFont(regularBytes)
 
-    // Load and embed the logo
+    // ─── Embed logo ───
     const logoPath = path.join(process.cwd(), 'public/images/madre-logo.png')
     const logoBytes = fs.readFileSync(logoPath)
     const logoImage = await pdfDoc.embedPng(logoBytes)
     const logoDims = logoImage.scale(0.5)
-    const logoW = Math.min(logoDims.width, 70)
+    const logoW = Math.min(logoDims.width, 60)
     const logoH = (logoW / logoDims.width) * logoDims.height
 
     const page = pdfDoc.addPage([612, 842]) // A4
     const { width, height } = page.getSize()
-    const margin = 50
+    const M = 50 // margin
 
-    // ─── Brand Colors ───
-    const brandGreen = rgb(0.22, 0.47, 0.34)
-    const darkText = rgb(0.15, 0.15, 0.15)
-    const midGray = rgb(0.4, 0.4, 0.4)
-    const lightGray = rgb(0.6, 0.6, 0.6)
-    const lineColor = rgb(0.82, 0.82, 0.82)
-    const headerBg = rgb(0.22, 0.47, 0.34)
-    const headerText = rgb(1, 1, 1)
-    const altRowBg = rgb(0.96, 0.98, 0.96)
-    const accentBg = rgb(0.93, 0.96, 0.93)
+    // ─── Colors ───
+    const green = rgb(0.22, 0.47, 0.34)
+    const dark = rgb(0.13, 0.13, 0.13)
+    const mid = rgb(0.38, 0.38, 0.38)
+    const light = rgb(0.58, 0.58, 0.58)
+    const line = rgb(0.82, 0.82, 0.82)
+    const white = rgb(1, 1, 1)
+    const altRow = rgb(0.965, 0.98, 0.965)
+    const accentBg = rgb(0.94, 0.97, 0.94)
 
-    let y = height - 45
+    let y = height - 50
 
-    // ============================================================
-    //  HEADER: Logo + Restaurant Name + Quotation Title
-    // ============================================================
-    // Draw logo
-    page.drawImage(logoImage, {
-      x: margin,
-      y: y - logoH + 10,
-      width: logoW,
-      height: logoH,
-    })
+    // ════════════════════════════════════════════════════════════
+    //  HEADER BLOCK
+    // ════════════════════════════════════════════════════════════
+    page.drawImage(logoImage, { x: M, y: y - logoH + 12, width: logoW, height: logoH })
 
-    // Restaurant name to the right of logo
-    const textX = margin + logoW + 14
-    page.drawText('Madre Cafe & Restaurant', {
-      x: textX, y: y, size: 16, font, color: brandGreen,
-    })
-    page.drawText('ร้านอาหาร ตำราแม่', {
-      x: textX, y: y - 18, size: 11, font, color: midGray,
-    })
+    const nameX = M + logoW + 12
+    page.drawText('Madre Cafe & Restaurant', { x: nameX, y: y + 2, size: 13, font, color: green })
+    page.drawText('ร้านอาหาร ตำราแม่', { x: nameX, y: y - 14, size: 9, font, color: mid })
 
-    // Quotation title on the right side
+    // Title block right-aligned
     const titleText = 'ใบเสนอราคาจัดเลี้ยง'
-    const titleWidth = font.widthOfTextAtSize(titleText, 18)
-    page.drawText(titleText, {
-      x: width - margin - titleWidth, y: y, size: 18, font, color: brandGreen,
-    })
-    const subTitleText = 'Catering Quotation'
-    const subTitleWidth = font.widthOfTextAtSize(subTitleText, 9)
-    page.drawText(subTitleText, {
-      x: width - margin - subTitleWidth, y: y - 16, size: 9, font, color: lightGray,
-    })
+    const tw = font.widthOfTextAtSize(titleText, 16)
+    page.drawText(titleText, { x: width - M - tw, y: y + 2, size: 16, font, color: green })
 
-    // Date on the right
+    const sub1 = 'Catering Quotation'
+    const sw1 = font.widthOfTextAtSize(sub1, 8)
+    page.drawText(sub1, { x: width - M - sw1, y: y - 14, size: 8, font, color: light })
+
     const today = new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
-    const dateText = `วันที่: ${today}`
-    const dateWidth = font.widthOfTextAtSize(dateText, 8)
-    page.drawText(dateText, {
-      x: width - margin - dateWidth, y: y - 30, size: 8, font, color: lightGray,
-    })
+    const dateStr = `วันที่ : ${today}`
+    const dw = font.widthOfTextAtSize(dateStr, 8)
+    page.drawText(dateStr, { x: width - M - dw, y: y - 26, size: 8, font, color: light })
 
-    y -= Math.max(logoH, 50) + 12
+    y -= Math.max(logoH, 48) + 14
 
-    // Divider
-    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1.5, color: brandGreen })
-    y -= 20
+    // Green divider
+    page.drawRectangle({ x: M, y, width: width - M * 2, height: 2, color: green })
+    y -= 22
 
-    // ============================================================
-    //  INFO SECTION: Shop + Customer side by side
-    // ============================================================
-    const halfW = (width - margin * 2 - 20) / 2
-    const leftX = margin
-    const rightX = margin + halfW + 20
+    // ════════════════════════════════════════════════════════════
+    //  TWO-COLUMN INFO (Shop left, Customer right)
+    // ════════════════════════════════════════════════════════════
+    const colW = (width - M * 2 - 30) / 2
+    const LX = M
+    const RX = M + colW + 30
+    const lineH = 14
+    const infoStartY = y
 
-    // Shop Info
-    page.drawText('ข้อมูลร้านค้า', { x: leftX, y, size: 10, font, color: brandGreen })
-    y -= 15
-    if (shopName) { page.drawText(shopName, { x: leftX, y, size: 9, font, color: darkText }); y -= 13 }
-    if (shopAddress) { page.drawText(shopAddress, { x: leftX, y, size: 8, font, color: midGray }); y -= 13 }
-    if (shopPhone) { page.drawText(`โทร: ${shopPhone}`, { x: leftX, y, size: 8, font, color: midGray }); y -= 13 }
-    if (shopContact) { page.drawText(`Line / Email: ${shopContact}`, { x: leftX, y, size: 8, font, color: midGray }); y -= 13 }
+    // -- LEFT: Shop Info --
+    let ly = infoStartY
+    page.drawText('ข้อมูลร้านค้า', { x: LX, y: ly, size: 10, font, color: green })
+    ly -= lineH + 2
+    if (shopName) { page.drawText(shopName, { x: LX, y: ly, size: 9, font, color: dark }); ly -= lineH }
+    if (shopAddress) { page.drawText(shopAddress, { x: LX, y: ly, size: 8, font, color: mid }); ly -= lineH }
+    if (shopPhone) { page.drawText(`โทร: ${shopPhone}`, { x: LX, y: ly, size: 8, font, color: mid }); ly -= lineH }
+    if (shopContact) { page.drawText(`Line / Email: ${shopContact}`, { x: LX, y: ly, size: 8, font, color: mid }); ly -= lineH }
 
-    // Customer Info (on the right, reset y to same start as shop info)
-    const shopLines = [shopName, shopAddress, shopPhone, shopContact].filter(Boolean).length
-    let rightY = y + shopLines * 13 + 15
-    page.drawText('ข้อมูลลูกค้า / งาน', { x: rightX, y: rightY, size: 10, font, color: brandGreen })
-    rightY -= 15
-    if (customerName) { page.drawText(customerName, { x: rightX, y: rightY, size: 9, font, color: darkText }); rightY -= 13 }
-    if (customerAddress) { page.drawText(customerAddress, { x: rightX, y: rightY, size: 8, font, color: midGray }); rightY -= 13 }
-    if (customerPhone) { page.drawText(`โทร: ${customerPhone}`, { x: rightX, y: rightY, size: 8, font, color: midGray }); rightY -= 13 }
-    if (customerEmail) { page.drawText(`อีเมล: ${customerEmail}`, { x: rightX, y: rightY, size: 8, font, color: midGray }); rightY -= 13 }
-    if (eventLocation) { page.drawText(`สถานที่: ${eventLocation}`, { x: rightX, y: rightY, size: 8, font, color: midGray }); rightY -= 13 }
+    // -- RIGHT: Customer Info --
+    let ry = infoStartY
+    page.drawText('ข้อมูลลูกค้า / งาน', { x: RX, y: ry, size: 10, font, color: green })
+    ry -= lineH + 2
+    if (customerName) { page.drawText(customerName, { x: RX, y: ry, size: 9, font, color: dark }); ry -= lineH }
+    if (customerAddress) { page.drawText(customerAddress, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lineH }
+    if (customerPhone) { page.drawText(`โทร: ${customerPhone}`, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lineH }
+    if (customerEmail) { page.drawText(`อีเมล: ${customerEmail}`, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lineH }
+    if (eventLocation) { page.drawText(`สถานที่จัดงาน: ${eventLocation}`, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lineH }
     if (eventDate) {
       const d = new Date(eventDate + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
-      page.drawText(`วันที่จัดงาน: ${d}`, { x: rightX, y: rightY, size: 8, font, color: midGray })
-      rightY -= 13
+      page.drawText(`วันที่จัดงาน: ${d}`, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lineH
     }
-    if (guestCount) { page.drawText(`จำนวนแขก: ${guestCount} คน`, { x: rightX, y: rightY, size: 8, font, color: midGray }); rightY -= 13 }
+    if (guestCount) { page.drawText(`จำนวนแขก: ${guestCount} คน`, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lineH }
 
-    y = Math.min(y, rightY) - 14
+    // Use the LOWER of the two columns so nothing overlaps
+    y = Math.min(ly, ry) - 18
 
-    // ============================================================
+    // ════════════════════════════════════════════════════════════
     //  ITEMS TABLE
-    // ============================================================
-    const tableW = width - margin * 2
-    const colX = [margin, margin + 32, margin + 210, margin + 310, margin + 380, margin + 455]
-    const rowH = 18
+    // ════════════════════════════════════════════════════════════
+    const tableW = width - M * 2
+    const rowH = 20
+    // Column positions
+    const c0 = M          // #
+    const c1 = M + 28     // Item name
+    const c2 = M + 195    // Detail
+    const c3 = M + 310    // Qty
+    const c4 = M + 380    // Unit price
+    const c5 = M + 460    // Total
 
-    // Table header
-    page.drawRectangle({ x: margin, y: y - 4, width: tableW, height: rowH + 4, color: headerBg })
-    page.drawText('#', { x: colX[0] + 6, y: y + 1, size: 8, font, color: headerText })
-    page.drawText('รายการ', { x: colX[1] + 4, y: y + 1, size: 8, font, color: headerText })
-    page.drawText('รายละเอียด', { x: colX[2] + 4, y: y + 1, size: 8, font, color: headerText })
-    page.drawText('จำนวน', { x: colX[3] + 4, y: y + 1, size: 8, font, color: headerText })
-    page.drawText('ราคา/หน่วย', { x: colX[4] + 4, y: y + 1, size: 8, font, color: headerText })
-    page.drawText('รวม (บาท)', { x: colX[5] + 4, y: y + 1, size: 8, font, color: headerText })
-    y -= rowH + 4
+    // Header row
+    page.drawRectangle({ x: M, y: y - 5, width: tableW, height: rowH + 4, color: green })
+    const hdrY = y + 1
+    page.drawText('#', { x: c0 + 8, y: hdrY, size: 8, font, color: white })
+    page.drawText('รายการ', { x: c1 + 4, y: hdrY, size: 8, font, color: white })
+    page.drawText('รายละเอียด', { x: c2 + 4, y: hdrY, size: 8, font, color: white })
+    page.drawText('จำนวน', { x: c3 + 4, y: hdrY, size: 8, font, color: white })
+    page.drawText('ราคา/หน่วย', { x: c4 + 4, y: hdrY, size: 8, font, color: white })
+    page.drawText('รวม (บาท)', { x: c5 + 4, y: hdrY, size: 8, font, color: white })
+    y -= rowH + 5
 
-    // Table rows
+    // Data rows
     for (let i = 0; i < (items ?? []).length; i++) {
       const item = items[i]
       const lineTotal = (item.quantity ?? 0) * (item.unitPrice ?? 0)
 
-      // Alternate row background
       if (i % 2 === 0) {
-        page.drawRectangle({ x: margin, y: y - 4, width: tableW, height: rowH, color: altRowBg })
+        page.drawRectangle({ x: M, y: y - 5, width: tableW, height: rowH, color: altRow })
       }
+      const rY = y + 1
+      page.drawText(String(i + 1), { x: c0 + 8, y: rY, size: 8, font, color: dark })
+      page.drawText(String(item.name ?? '').substring(0, 26), { x: c1 + 4, y: rY, size: 8, font, color: dark })
+      page.drawText(String(item.detail ?? '').substring(0, 18), { x: c2 + 4, y: rY, size: 8, font, color: mid })
+      page.drawText(String(item.quantityLabel || item.quantity || ''), { x: c3 + 4, y: rY, size: 8, font, color: dark })
+      page.drawText(fmtBaht(item.unitPrice ?? 0), { x: c4 + 4, y: rY, size: 8, font, color: dark })
 
-      page.drawText(String(i + 1), { x: colX[0] + 6, y: y + 1, size: 8, font, color: darkText })
-
-      // Truncate long text
-      const nameText = String(item.name ?? '').substring(0, 28)
-      page.drawText(nameText, { x: colX[1] + 4, y: y + 1, size: 8, font, color: darkText })
-
-      const detailText = String(item.detail ?? '').substring(0, 18)
-      page.drawText(detailText, { x: colX[2] + 4, y: y + 1, size: 8, font, color: midGray })
-
-      const qtyText = String(item.quantityLabel || item.quantity || '')
-      page.drawText(qtyText, { x: colX[3] + 4, y: y + 1, size: 8, font, color: darkText })
-
-      page.drawText(fmtBaht(item.unitPrice ?? 0), { x: colX[4] + 4, y: y + 1, size: 8, font, color: darkText })
-
-      const totalText = fmtBaht(lineTotal)
-      const totalW = font.widthOfTextAtSize(totalText, 8)
-      page.drawText(totalText, { x: width - margin - totalW - 4, y: y + 1, size: 8, font, color: darkText })
+      const tStr = fmtBaht(lineTotal)
+      const tW = font.widthOfTextAtSize(tStr, 8)
+      page.drawText(tStr, { x: width - M - tW - 6, y: rY, size: 8, font, color: dark })
 
       y -= rowH
-      page.drawLine({ start: { x: margin, y: y + 14 }, end: { x: width - margin, y: y + 14 }, thickness: 0.3, color: lineColor })
+      page.drawLine({ start: { x: M, y: y + 15 }, end: { x: width - M, y: y + 15 }, thickness: 0.3, color: line })
     }
-    y -= 8
+    y -= 10
 
-    // ============================================================
+    // ════════════════════════════════════════════════════════════
     //  MENU CATEGORIES
-    // ============================================================
-    if (menuCategories?.length > 0 && menuCategories.some((c: { category: string; items: string }) => c.category || c.items)) {
-      page.drawText('รายการเมนูอาหาร', { x: margin, y, size: 10, font, color: brandGreen })
-      y -= 16
+    // ════════════════════════════════════════════════════════════
+    const hasMenu = menuCategories?.length > 0 && menuCategories.some((c: { category: string; items: string }) => c.category || c.items)
+    if (hasMenu) {
+      page.drawText('รายการเมนูอาหาร', { x: M, y, size: 10, font, color: green })
+      y -= 18
 
-      // Menu header
-      page.drawRectangle({ x: margin, y: y - 4, width: tableW, height: rowH + 2, color: accentBg })
-      page.drawText('หมวด', { x: margin + 6, y: y + 1, size: 8, font, color: brandGreen })
-      page.drawText('รายการเมนู', { x: margin + 150, y: y + 1, size: 8, font, color: brandGreen })
+      page.drawRectangle({ x: M, y: y - 4, width: tableW, height: rowH, color: accentBg })
+      page.drawText('หมวด', { x: M + 8, y: y + 2, size: 8, font, color: green })
+      page.drawText('รายการเมนู', { x: M + 140, y: y + 2, size: 8, font, color: green })
       y -= rowH + 2
 
       for (const cat of menuCategories) {
         if (!cat.category && !cat.items) continue
-        page.drawText(String(cat.category ?? ''), { x: margin + 6, y: y + 1, size: 8, font, color: darkText })
-        // Wrap long items text
-        const itemsText = String(cat.items ?? '')
-        const maxChars = 70
-        if (itemsText.length > maxChars) {
-          page.drawText(itemsText.substring(0, maxChars), { x: margin + 150, y: y + 1, size: 8, font, color: midGray })
-          y -= 13
-          page.drawText(itemsText.substring(maxChars), { x: margin + 150, y: y + 1, size: 8, font, color: midGray })
+        page.drawText(String(cat.category ?? ''), { x: M + 8, y: y + 2, size: 8, font, color: dark })
+        const txt = String(cat.items ?? '')
+        const maxC = 65
+        if (txt.length > maxC) {
+          page.drawText(txt.substring(0, maxC), { x: M + 140, y: y + 2, size: 8, font, color: mid })
+          y -= 14
+          page.drawText(txt.substring(maxC), { x: M + 140, y: y + 2, size: 8, font, color: mid })
         } else {
-          page.drawText(itemsText, { x: margin + 150, y: y + 1, size: 8, font, color: midGray })
+          page.drawText(txt, { x: M + 140, y: y + 2, size: 8, font, color: mid })
         }
-        y -= 15
-        page.drawLine({ start: { x: margin, y: y + 11 }, end: { x: width - margin, y: y + 11 }, thickness: 0.3, color: lineColor })
+        y -= 16
+        page.drawLine({ start: { x: M, y: y + 12 }, end: { x: width - M, y: y + 12 }, thickness: 0.3, color: line })
       }
-      y -= 8
+      y -= 10
     }
 
-    // ============================================================
-    //  SUMMARY BOX
-    // ============================================================
-    const summaryW = 220
-    const summaryX = width - margin - summaryW
-    const summaryStartY = y
+    // ════════════════════════════════════════════════════════════
+    //  SUMMARY BOX (right-aligned)
+    // ════════════════════════════════════════════════════════════
+    const boxW = 220
+    const boxX = width - M - boxW
+    const numRows = 2 + (vatRate > 0 ? 1 : 0)
+    const boxH = numRows * 20 + 16
+    page.drawRectangle({ x: boxX - 10, y: y - boxH + 14, width: boxW + 12, height: boxH, color: accentBg, borderColor: line, borderWidth: 0.5 })
 
-    // Summary background
-    const summaryRows = 2 + (vatRate > 0 ? 1 : 0)
-    const summaryH = summaryRows * 18 + 26
-    page.drawRectangle({ x: summaryX - 8, y: summaryStartY - summaryH + 10, width: summaryW + 8, height: summaryH, color: accentBg, borderColor: lineColor, borderWidth: 0.5 })
-
-    page.drawText('ราคารวม', { x: summaryX, y, size: 8, font, color: midGray })
-    page.drawText(`${fmtBaht(subtotal)} บาท`, { x: summaryX + summaryW - font.widthOfTextAtSize(`${fmtBaht(subtotal)} บาท`, 8) - 8, y, size: 8, font, color: darkText })
-    y -= 18
-
-    if (vatRate > 0) {
-      page.drawText(`VAT ${vatRate}%`, { x: summaryX, y, size: 8, font, color: midGray })
-      page.drawText(`${fmtBaht(vat)} บาท`, { x: summaryX + summaryW - font.widthOfTextAtSize(`${fmtBaht(vat)} บาท`, 8) - 8, y, size: 8, font, color: darkText })
-      y -= 18
-    }
-
-    page.drawLine({ start: { x: summaryX, y: y + 14 }, end: { x: summaryX + summaryW - 8, y: y + 14 }, thickness: 1, color: brandGreen })
-    page.drawText('ยอดรวมสุทธิ', { x: summaryX, y, size: 11, font, color: brandGreen })
-    const grandTotalText = `${fmtBaht(grandTotal)} บาท`
-    page.drawText(grandTotalText, { x: summaryX + summaryW - font.widthOfTextAtSize(grandTotalText, 11) - 8, y, size: 11, font, color: brandGreen })
-    y -= 30
-
-    // ============================================================
-    //  PAYMENT TERMS
-    // ============================================================
-    page.drawText('เงื่อนไขการชำระเงิน', { x: margin, y, size: 10, font, color: brandGreen })
-    y -= 16
-    const bulletItems: string[] = []
-    if (depositPercent) bulletItems.push(`มัดจำ ${depositPercent}% ก่อนวันงาน`)
-    bulletItems.push('ชำระเงินส่วนที่เหลือในวันจัดงาน')
-    if (minGuests) bulletItems.push(`ราคานี้สำหรับขั้นต่ำ ${minGuests} คน`)
-    if (paymentNotes) bulletItems.push(paymentNotes)
-
-    for (const bullet of bulletItems) {
-      page.drawText(`  -  ${bullet}`, { x: margin + 4, y, size: 8, font, color: midGray })
-      y -= 14
-    }
+    // Subtotal
+    page.drawText('ราคารวม', { x: boxX, y, size: 9, font, color: mid })
+    const stStr = `${fmtBaht(subtotal)} บาท`
+    page.drawText(stStr, { x: boxX + boxW - font.widthOfTextAtSize(stStr, 9) - 8, y, size: 9, font, color: dark })
     y -= 20
 
-    // ============================================================
-    //  SIGNATURE LINES
-    // ============================================================
-    const sigLineW = 180
-    const leftSigX = margin + 20
-    const rightSigX = width - margin - sigLineW - 20
+    // VAT
+    if (vatRate > 0) {
+      const vatLabel = `VAT ${vatRate}%`
+      page.drawText(vatLabel, { x: boxX, y, size: 9, font, color: mid })
+      const vatStr = `${fmtBaht(vat)} บาท`
+      page.drawText(vatStr, { x: boxX + boxW - font.widthOfTextAtSize(vatStr, 9) - 8, y, size: 9, font, color: dark })
+      y -= 20
+    }
 
-    page.drawLine({ start: { x: leftSigX, y }, end: { x: leftSigX + sigLineW, y }, thickness: 0.8, color: lineColor })
-    page.drawLine({ start: { x: rightSigX, y }, end: { x: rightSigX + sigLineW, y }, thickness: 0.8, color: lineColor })
+    // Divider in box
+    page.drawLine({ start: { x: boxX, y: y + 16 }, end: { x: boxX + boxW - 8, y: y + 16 }, thickness: 1.2, color: green })
+
+    // Grand total
+    page.drawText('ยอดรวมสุทธิ', { x: boxX, y, size: 12, font, color: green })
+    const gtStr = `${fmtBaht(grandTotal)} บาท`
+    page.drawText(gtStr, { x: boxX + boxW - font.widthOfTextAtSize(gtStr, 12) - 8, y, size: 12, font, color: green })
+    y -= 32
+
+    // ════════════════════════════════════════════════════════════
+    //  PAYMENT TERMS
+    // ════════════════════════════════════════════════════════════
+    page.drawText('เงื่อนไขการชำระเงิน', { x: M, y, size: 10, font, color: green })
+    y -= 16
+    const bullets: string[] = []
+    if (depositPercent) bullets.push(`มัดจำ ${depositPercent}% ก่อนวันงาน`)
+    bullets.push('ชำระเงินส่วนที่เหลือในวันจัดงาน')
+    if (minGuests) bullets.push(`ราคานี้สำหรับขั้นต่ำ ${minGuests} คน`)
+    if (paymentNotes) bullets.push(paymentNotes)
+
+    for (const b of bullets) {
+      page.drawText(`  -  ${b}`, { x: M + 4, y, size: 8, font, color: mid })
+      y -= 14
+    }
+    y -= 24
+
+    // ════════════════════════════════════════════════════════════
+    //  SIGNATURE LINES
+    // ════════════════════════════════════════════════════════════
+    const sigW = 170
+    const sLX = M + 30
+    const sRX = width - M - sigW - 30
+
+    page.drawLine({ start: { x: sLX, y }, end: { x: sLX + sigW, y }, thickness: 0.8, color: line })
+    page.drawLine({ start: { x: sRX, y }, end: { x: sRX + sigW, y }, thickness: 0.8, color: line })
     y -= 14
 
-    const leftLabel = 'ผู้เสนอราคา (ร้านอาหาร)'
-    const rightLabel = 'ผู้อนุมัติ (ลูกค้า)'
-    const leftLabelW = font.widthOfTextAtSize(leftLabel, 8)
-    const rightLabelW = font.widthOfTextAtSize(rightLabel, 8)
-    page.drawText(leftLabel, { x: leftSigX + (sigLineW - leftLabelW) / 2, y, size: 8, font, color: lightGray })
-    page.drawText(rightLabel, { x: rightSigX + (sigLineW - rightLabelW) / 2, y, size: 8, font, color: lightGray })
+    const lbl1 = 'ผู้เสนอราคา (ร้านอาหาร)'
+    const lbl2 = 'ผู้อนุมัติ (ลูกค้า)'
+    page.drawText(lbl1, { x: sLX + (sigW - font.widthOfTextAtSize(lbl1, 8)) / 2, y, size: 8, font, color: light })
+    page.drawText(lbl2, { x: sRX + (sigW - font.widthOfTextAtSize(lbl2, 8)) / 2, y, size: 8, font, color: light })
 
     // ─── Footer ───
-    const footerY = 30
-    page.drawLine({ start: { x: margin, y: footerY + 12 }, end: { x: width - margin, y: footerY + 12 }, thickness: 0.5, color: lineColor })
-    const footerText = 'Madre Cafe & Restaurant  |  ร้านอาหาร ตำราแม่'
-    const footerW = font.widthOfTextAtSize(footerText, 7)
-    page.drawText(footerText, { x: (width - footerW) / 2, y: footerY, size: 7, font, color: lightGray })
+    const fY = 30
+    page.drawLine({ start: { x: M, y: fY + 12 }, end: { x: width - M, y: fY + 12 }, thickness: 0.5, color: line })
+    const fText = 'Madre Cafe & Restaurant  |  ร้านอาหาร ตำราแม่'
+    page.drawText(fText, { x: (width - font.widthOfTextAtSize(fText, 7)) / 2, y: fY, size: 7, font, color: light })
 
     const pdfBytes = await pdfDoc.save()
-
     return NextResponse.json({
       pdf: Buffer.from(pdfBytes).toString('base64'),
       quotation: { subtotal, vat, grandTotal },
     })
   } catch (error) {
     console.error('Error creating catering quotation:', error)
-    return NextResponse.json(
-      { error: 'Failed to create quotation' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to create quotation' }, { status: 500 })
   }
 }
