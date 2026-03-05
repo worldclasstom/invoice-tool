@@ -292,6 +292,8 @@ export function DashboardClient() {
   const hasDestinations = destinationData.length > 0
 
   const totalExpenses = expenseData.reduce((s, d) => s + d.value, 0)
+  const totalReceiptExpenses = Object.values(receiptsByCategory).reduce((s, v) => s + v, 0)
+  const totalFixedCostExpenses = Object.values(fixedByCategory).reduce((s, v) => s + v, 0)
   const netProfit = totalIncome - totalExpenses
 
   const hasIncome = incomeData.length > 0
@@ -392,13 +394,25 @@ export function DashboardClient() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-4 rounded-2xl bg-rose-500 p-4 shadow-lg shadow-rose-500/20">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50/20">
-                <TrendingDown className="h-5 w-5 text-rose-50" />
+            <div className="rounded-2xl bg-rose-500 p-4 shadow-lg shadow-rose-500/20">
+              <div className="flex items-center gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50/20">
+                  <TrendingDown className="h-5 w-5 text-rose-50" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-rose-50/80 uppercase tracking-wide">Expenses</p>
+                  <p className="text-xl font-bold text-white">{formatBaht(totalExpenses)}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-medium text-rose-50/80 uppercase tracking-wide">Expenses</p>
-                <p className="text-xl font-bold text-white">{formatBaht(totalExpenses)}</p>
+              <div className="mt-3 space-y-1 border-t border-rose-50/20 pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-rose-50/80">Receipts</span>
+                  <span className="text-xs font-semibold text-white">{formatBaht(totalReceiptExpenses)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-rose-50/80">Fixed Costs</span>
+                  <span className="text-xs font-semibold text-white">{formatBaht(totalFixedCostExpenses)}</span>
+                </div>
               </div>
             </div>
             <div className={`flex items-center gap-4 rounded-2xl p-4 shadow-lg ${netProfit >= 0 ? 'bg-sky-500 shadow-sky-500/20' : 'bg-amber-500 shadow-amber-500/20'}`}>
