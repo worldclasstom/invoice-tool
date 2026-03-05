@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { formatBaht, formatThaiDate } from '@/lib/utils'
-import { Upload, Camera, Trash2, Plus, FileText, X } from 'lucide-react'
+import { Upload, Camera, Trash2, Edit3, Plus, FileText, X } from 'lucide-react'
 import useSWR, { mutate } from 'swr'
 
 const CATEGORIES = [
@@ -33,6 +33,7 @@ export default function ReceiptsPage() {
   const receipts: Receipt[] = data?.receipts ?? []
 
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [isManual, setIsManual] = useState(false)
 
   const [receiptDate, setReceiptDate] = useState(
@@ -63,6 +64,7 @@ export default function ReceiptsPage() {
   }
 
   const resetForm = () => {
+    setEditingId(null)
     setReceiptDate(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' }))
     setVendor('')
     setTotal('')
@@ -88,22 +90,36 @@ export default function ReceiptsPage() {
     setDeletingId(null)
   }
 
+  const editReceipt = (receipt: Receipt) => {
+    setEditingId(receipt.id)
+    setReceiptDate(receipt.receipt_date)
+    setVendor(receipt.vendor)
+    setTotal(String(receipt.total))
+    setCategory(receipt.category)
+    setNotes(receipt.notes || '')
+    setImageUrl(receipt.image_url)
+    setIsManual(receipt.is_manual)
+    setShowForm(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
+      const payload = {
+        receiptDate,
+        vendor,
+        total: Number(total),
+        category,
+        notes: notes || null,
+        imageUrl,
+        isManual,
+      }
       const res = await fetch('/api/receipts', {
-        method: 'POST',
+        method: editingId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          receiptDate,
-          vendor,
-          total: Number(total),
-          category,
-          notes: notes || null,
-          imageUrl,
-          isManual,
-        }),
+        body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
       })
       if (!res.ok) throw new Error('Failed to save')
       resetForm()
@@ -135,7 +151,18 @@ export default function ReceiptsPage() {
       {/* New Receipt Form */}
       {showForm && (
         <div className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h2 className="mb-4 text-sm font-bold text-foreground">New Receipt</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-foreground">{editingId ? 'Edit Receipt' : 'New Receipt'}</h2>
+            {editingId && (
+              <button
+                type="button"
+                onClick={() => { resetForm(); setShowForm(false) }}
+                className="rounded-lg px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors"
+              >
+                Cancel Edit
+              </button>
+            )}
+          </div>
 
           {/* Toggle: Upload vs Manual */}
           <div className="mb-5 flex rounded-xl bg-secondary p-1">
@@ -272,7 +299,7 @@ export default function ReceiptsPage() {
                 disabled={saving}
                 className="rounded-xl bg-primary px-6 py-2.5 text-xs font-bold text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:brightness-110 disabled:opacity-50"
               >
-                {saving ? 'Saving...' : 'Save Receipt'}
+                {saving ? 'Saving...' : editingId ? 'Update Receipt' : 'Save Receipt'}
               </button>
               <button
                 type="button"
@@ -330,14 +357,23 @@ export default function ReceiptsPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3">
-                        <button
-                          onClick={() => deleteReceipt(r.id, r.vendor)}
-                          disabled={deletingId === r.id}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 disabled:opacity-50"
-                          aria-label={`Delete receipt from ${r.vendor}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button
+                            onClick={() => editReceipt(r)}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-secondary hover:text-foreground"
+                            aria-label={`Edit receipt from ${r.vendor}`}
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => deleteReceipt(r.id, r.vendor)}
+                            disabled={deletingId === r.id}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                            aria-label={`Delete receipt from ${r.vendor}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -359,14 +395,23 @@ export default function ReceiptsPage() {
                   <p className="shrink-0 text-sm font-semibold text-rose-500">
                     -{formatBaht(Number(r.total))}
                   </p>
-                  <button
-                    onClick={() => deleteReceipt(r.id, r.vendor)}
-                    disabled={deletingId === r.id}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-                    aria-label={`Delete receipt from ${r.vendor}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex shrink-0 gap-1">
+                    <button
+                      onClick={() => editReceipt(r)}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-secondary hover:text-foreground"
+                      aria-label={`Edit receipt from ${r.vendor}`}
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => deleteReceipt(r.id, r.vendor)}
+                      disabled={deletingId === r.id}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                      aria-label={`Delete receipt from ${r.vendor}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

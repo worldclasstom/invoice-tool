@@ -106,6 +106,7 @@ export default function FixedCostsPage() {
 
 
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [category, setCategory] = useState("utilities");
   const [amount, setAmount] = useState("");
@@ -172,6 +173,7 @@ export default function FixedCostsPage() {
   };
 
   const resetForm = () => {
+    setEditingId(null);
     setName("");
     setCategory("utilities");
     setAmount("");
@@ -188,21 +190,22 @@ export default function FixedCostsPage() {
     e.preventDefault();
     setSaving(true);
     try {
+      const payload = {
+        name,
+        category,
+        amount: Number(amount),
+        paymentMethod,
+        dueDay: dueDay ? Number(dueDay) : null,
+        periodMonth: month,
+        periodYear: year,
+        notes: notes || null,
+        isRecurring,
+        receiptImageUrl: receiptImageUrl || null,
+      };
       const res = await fetch("/api/fixed-costs", {
-        method: "POST",
+        method: editingId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          category,
-          amount: Number(amount),
-          paymentMethod,
-          dueDay: dueDay ? Number(dueDay) : null,
-          periodMonth: month,
-          periodYear: year,
-          notes: notes || null,
-          isRecurring,
-          receiptImageUrl: receiptImageUrl || null,
-        }),
+        body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
       });
       if (!res.ok) throw new Error("Failed to save");
       resetForm();
@@ -213,6 +216,20 @@ export default function FixedCostsPage() {
       console.error(err);
     }
     setSaving(false);
+  };
+
+  const editCost = (cost: FixedCost) => {
+    setEditingId(cost.id);
+    setName(cost.name);
+    setCategory(cost.category);
+    setAmount(String(cost.amount));
+    setPaymentMethod(cost.payment_method);
+    setDueDay(cost.due_day ? String(cost.due_day) : "");
+    setNotes(cost.notes || "");
+    setIsRecurring(cost.is_recurring);
+    setReceiptImageUrl(cost.receipt_image_url);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const togglePaid = async (id: string, isPaid: boolean) => {
@@ -392,9 +409,20 @@ export default function FixedCostsPage() {
       {/* ── Add Cost Form ── */}
       {showForm && (
         <div className="mb-6 rounded-2xl border-2 border-violet-200 bg-card p-5 shadow-sm">
-          <h2 className="mb-4 text-sm font-bold text-foreground">
-            Add Fixed Cost
-          </h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-foreground">
+              {editingId ? "Edit Fixed Cost" : "Add Fixed Cost"}
+            </h2>
+            {editingId && (
+              <button
+                type="button"
+                onClick={() => { resetForm(); setShowForm(false); }}
+                className="rounded-lg px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors"
+              >
+                Cancel Edit
+              </button>
+            )}
+          </div>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* Recurring toggle */}
             <div>
@@ -646,7 +674,7 @@ export default function FixedCostsPage() {
                 ) : (
                   <>
                     <Check className="h-3.5 w-3.5" />
-                    Save
+                    {editingId ? "Update" : "Save"}
                   </>
                 )}
               </button>
@@ -742,6 +770,7 @@ export default function FixedCostsPage() {
               costs={recurringCosts}
               togglePaid={togglePaid}
               deleteCost={deleteCost}
+              editCost={editCost}
             />
           )}
           {oneTimeCosts.length > 0 && (
@@ -752,6 +781,7 @@ export default function FixedCostsPage() {
               costs={oneTimeCosts}
               togglePaid={togglePaid}
               deleteCost={deleteCost}
+              editCost={editCost}
             />
           )}
         </>
@@ -802,6 +832,7 @@ function CostSection({
   costs,
   togglePaid,
   deleteCost,
+  editCost,
 }: {
   title: string;
   subtitle: string;
@@ -809,6 +840,7 @@ function CostSection({
   costs: FixedCost[];
   togglePaid: (id: string, isPaid: boolean) => void;
   deleteCost: (id: string, name: string) => void;
+  editCost: (cost: FixedCost) => void;
 }) {
   const sectionPaid = costs.filter((c) => c.is_paid).length;
   const allPaid = sectionPaid === costs.length;
@@ -837,7 +869,7 @@ function CostSection({
       {/* Mobile cards */}
       <div className="flex flex-col divide-y divide-border/50 md:hidden">
         {costs.map((cost) => (
-          <CostCardMobile key={cost.id} cost={cost} togglePaid={togglePaid} deleteCost={deleteCost} />
+          <CostCardMobile key={cost.id} cost={cost} togglePaid={togglePaid} deleteCost={deleteCost} editCost={editCost} />
         ))}
       </div>
 
@@ -861,6 +893,7 @@ function CostSection({
                 cost={cost}
                 togglePaid={togglePaid}
                 deleteCost={deleteCost}
+                editCost={editCost}
               />
             ))}
           </tbody>
@@ -875,10 +908,12 @@ function CostRowDesktop({
   cost,
   togglePaid,
   deleteCost,
+  editCost,
 }: {
   cost: FixedCost;
   togglePaid: (id: string, isPaid: boolean) => void;
   deleteCost: (id: string, name: string) => void;
+  editCost: (cost: FixedCost) => void;
 }) {
   return (
     <tr
@@ -941,13 +976,22 @@ function CostRowDesktop({
         -{formatBaht(Number(cost.amount))}
       </td>
       <td className="px-5 py-3">
-        <button
-          onClick={() => deleteCost(cost.id, cost.name)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-          aria-label={`Delete ${cost.name}`}
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+          <button
+            onClick={() => editCost(cost)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-secondary hover:text-foreground"
+            aria-label={`Edit ${cost.name}`}
+          >
+            <Edit3 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => deleteCost(cost.id, cost.name)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive"
+            aria-label={`Delete ${cost.name}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -958,10 +1002,12 @@ function CostCardMobile({
   cost,
   togglePaid,
   deleteCost,
+  editCost,
 }: {
   cost: FixedCost;
   togglePaid: (id: string, isPaid: boolean) => void;
   deleteCost: (id: string, name: string) => void;
+  editCost: (cost: FixedCost) => void;
 }) {
   return (
     <div
@@ -1009,13 +1055,22 @@ function CostCardMobile({
       <p className="shrink-0 text-sm font-semibold text-red-600">
         -{formatBaht(Number(cost.amount))}
       </p>
-      <button
-        onClick={() => deleteCost(cost.id, cost.name)}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive"
-        aria-label={`Delete ${cost.name}`}
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
+      <div className="flex shrink-0 gap-1">
+        <button
+          onClick={() => editCost(cost)}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-secondary hover:text-foreground"
+          aria-label={`Edit ${cost.name}`}
+        >
+          <Edit3 className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={() => deleteCost(cost.id, cost.name)}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive"
+          aria-label={`Delete ${cost.name}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }
