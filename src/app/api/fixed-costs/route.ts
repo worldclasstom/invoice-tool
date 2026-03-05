@@ -150,3 +150,57 @@ export async function PATCH(request: Request) {
     )
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+    // Get the cost details before deleting for activity log
+    const { data: cost } = await supabase
+      .from('fixed_costs')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    // Delete associated ledger entries
+    await supabase
+      .from('ledger_entries')
+      .delete()
+      .eq('reference_type', 'fixed_cost')
+      .eq('reference_id', id)
+
+    // Delete the fixed cost
+    const { error } = await supabase
+      .from('fixed_costs')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+
+    if (cost) {
+      await logActivity({
+        supabase,
+        userId: user.id,
+        userEmail: user.email || '',
+        action: 'deleted',
+        entityType: 'fixed_cost',
+        entityId: id,
+        details: { name: cost.name, amount: Number(cost.amount), category: cost.category },
+      })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error: unknown) {
+    console.error('Error deleting fixed cost:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to delete fixed cost' },
+      { status: 500 }
+    )
+  }
+}

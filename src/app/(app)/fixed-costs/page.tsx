@@ -228,6 +228,18 @@ export default function FixedCostsPage() {
     }
   };
 
+  const deleteCost = async (id: string, name: string) => {
+    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/fixed-costs?id=${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      mutate(`/api/fixed-costs?month=${month}&year=${year}`);
+    } catch (err) {
+      alert("Failed to delete fixed cost.");
+      console.error(err);
+    }
+  };
+
   // Computed
   const recurringCosts = costs.filter((c) => c.is_recurring);
   const oneTimeCosts = costs.filter((c) => !c.is_recurring);
@@ -728,6 +740,7 @@ export default function FixedCostsPage() {
               icon={<RotateCcw className="h-3.5 w-3.5 text-violet-500" />}
               costs={recurringCosts}
               togglePaid={togglePaid}
+              deleteCost={deleteCost}
             />
           )}
           {oneTimeCosts.length > 0 && (
@@ -737,6 +750,7 @@ export default function FixedCostsPage() {
               icon={<CalendarDays className="h-3.5 w-3.5 text-amber-500" />}
               costs={oneTimeCosts}
               togglePaid={togglePaid}
+              deleteCost={deleteCost}
             />
           )}
         </>
@@ -786,12 +800,14 @@ function CostSection({
   icon,
   costs,
   togglePaid,
+  deleteCost,
 }: {
   title: string;
   subtitle: string;
   icon: React.ReactNode;
   costs: FixedCost[];
   togglePaid: (id: string, isPaid: boolean) => void;
+  deleteCost: (id: string, name: string) => void;
 }) {
   const sectionPaid = costs.filter((c) => c.is_paid).length;
   const allPaid = sectionPaid === costs.length;
@@ -820,7 +836,7 @@ function CostSection({
       {/* Mobile cards */}
       <div className="flex flex-col divide-y divide-border/50 md:hidden">
         {costs.map((cost) => (
-          <CostCardMobile key={cost.id} cost={cost} togglePaid={togglePaid} />
+          <CostCardMobile key={cost.id} cost={cost} togglePaid={togglePaid} deleteCost={deleteCost} />
         ))}
       </div>
 
@@ -834,6 +850,7 @@ function CostSection({
               <th className="px-5 py-3">Category</th>
               <th className="px-5 py-3">Payment</th>
               <th className="px-5 py-3 text-right">Amount</th>
+              <th className="px-5 py-3 w-16"></th>
             </tr>
           </thead>
           <tbody>
@@ -842,6 +859,7 @@ function CostSection({
                 key={cost.id}
                 cost={cost}
                 togglePaid={togglePaid}
+                deleteCost={deleteCost}
               />
             ))}
           </tbody>
@@ -855,13 +873,15 @@ function CostSection({
 function CostRowDesktop({
   cost,
   togglePaid,
+  deleteCost,
 }: {
   cost: FixedCost;
   togglePaid: (id: string, isPaid: boolean) => void;
+  deleteCost: (id: string, name: string) => void;
 }) {
   return (
     <tr
-      className={`border-b border-border/50 transition-all duration-300 last:border-0 ${
+      className={`group border-b border-border/50 transition-all duration-300 last:border-0 ${
         cost.is_paid ? "bg-emerald-50/60" : ""
       }`}
     >
@@ -919,6 +939,15 @@ function CostRowDesktop({
       >
         -{formatBaht(Number(cost.amount))}
       </td>
+      <td className="px-5 py-3">
+        <button
+          onClick={() => deleteCost(cost.id, cost.name)}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+          aria-label={`Delete ${cost.name}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </td>
     </tr>
   );
 }
@@ -927,9 +956,11 @@ function CostRowDesktop({
 function CostCardMobile({
   cost,
   togglePaid,
+  deleteCost,
 }: {
   cost: FixedCost;
   togglePaid: (id: string, isPaid: boolean) => void;
+  deleteCost: (id: string, name: string) => void;
 }) {
   return (
     <div
@@ -977,6 +1008,13 @@ function CostCardMobile({
       <p className="shrink-0 text-sm font-semibold text-red-600">
         -{formatBaht(Number(cost.amount))}
       </p>
+      <button
+        onClick={() => deleteCost(cost.id, cost.name)}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive"
+        aria-label={`Delete ${cost.name}`}
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
     </div>
   );
 }

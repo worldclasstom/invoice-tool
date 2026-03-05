@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { formatBaht, formatThaiDate } from '@/lib/utils'
-import { Upload, Camera, Trash2, Plus, FileText } from 'lucide-react'
+import { Upload, Camera, Trash2, Plus, FileText, X } from 'lucide-react'
 import useSWR, { mutate } from 'swr'
 
 const CATEGORIES = [
@@ -70,6 +70,22 @@ export default function ReceiptsPage() {
     setNotes('')
     setImageUrl(null)
     setIsManual(false)
+  }
+
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const deleteReceipt = async (id: string, vendor: string) => {
+    if (!confirm(`Delete receipt from "${vendor}"? This cannot be undone.`)) return
+    setDeletingId(id)
+    try {
+      const res = await fetch(`/api/receipts?id=${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete')
+      mutate('/api/receipts')
+    } catch (err) {
+      alert('Failed to delete receipt.')
+      console.error(err)
+    }
+    setDeletingId(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -292,11 +308,12 @@ export default function ReceiptsPage() {
                     <th className="px-5 py-3">Category</th>
                     <th className="px-5 py-3 text-right">Total</th>
                     <th className="px-5 py-3">Type</th>
+                    <th className="px-5 py-3 w-16"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {receipts.map((r) => (
-                    <tr key={r.id} className="border-b border-border/50 last:border-0 transition-colors hover:bg-secondary/50">
+                    <tr key={r.id} className="group border-b border-border/50 last:border-0 transition-colors hover:bg-secondary/50">
                       <td className="whitespace-nowrap px-5 py-3 text-foreground">
                         {formatThaiDate(r.receipt_date)}
                       </td>
@@ -312,6 +329,16 @@ export default function ReceiptsPage() {
                           {r.is_manual ? 'Manual' : 'Upload'}
                         </span>
                       </td>
+                      <td className="px-5 py-3">
+                        <button
+                          onClick={() => deleteReceipt(r.id, r.vendor)}
+                          disabled={deletingId === r.id}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 disabled:opacity-50"
+                          aria-label={`Delete receipt from ${r.vendor}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -321,7 +348,7 @@ export default function ReceiptsPage() {
             {/* Mobile cards */}
             <div className="flex flex-col divide-y divide-border/50 md:hidden">
               {receipts.map((r) => (
-                <div key={r.id} className="flex items-center justify-between px-4 py-3">
+                <div key={r.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{r.vendor}</p>
                     <div className="flex items-center gap-2 mt-0.5">
@@ -329,9 +356,17 @@ export default function ReceiptsPage() {
                       <span className="text-xs capitalize text-muted-foreground">{r.category}</span>
                     </div>
                   </div>
-                  <p className="text-sm font-semibold text-rose-500">
+                  <p className="shrink-0 text-sm font-semibold text-rose-500">
                     -{formatBaht(Number(r.total))}
                   </p>
+                  <button
+                    onClick={() => deleteReceipt(r.id, r.vendor)}
+                    disabled={deletingId === r.id}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                    aria-label={`Delete receipt from ${r.vendor}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               ))}
             </div>
