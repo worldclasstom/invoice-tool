@@ -60,6 +60,21 @@ export async function GET(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
+
+    // Fetch all unpaid fixed costs across all months/years
+    if (searchParams.get('unpaid') === 'true') {
+      const { data: unpaidCosts, error } = await supabase
+        .from('fixed_costs')
+        .select('*')
+        .eq('is_paid', false)
+        .order('period_year', { ascending: true })
+        .order('period_month', { ascending: true })
+        .order('name')
+
+      if (error) throw error
+      return NextResponse.json({ costs: unpaidCosts })
+    }
+
     const thaiToday = getThaiToday()
     const month = Number(searchParams.get('month') || Number(thaiToday.split('-')[1]))
     const year = Number(searchParams.get('year') || Number(thaiToday.split('-')[0]))

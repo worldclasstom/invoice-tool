@@ -52,14 +52,7 @@ const CATEGORY_SUGGESTIONS: Record<string, string[]> = {
   employees: ["First Half Salary", "Second Half Salary"],
 };
 
-// Bills to track in reminder section
-const REMINDER_BILLS = [
-  { name: "Electricity", category: "utilities" },
-  { name: "Water", category: "utilities" },
-  { name: "UMB Credit Card", category: "credit_card" },
-  { name: "First Half Salary", category: "employees" },
-  { name: "Second Half Salary", category: "employees" },
-];
+
 
 const PAYMENT_METHODS = ["Cash", "KBank", "SCB", "Bangkok Bank", "Krungsri"];
 const PIE_COLORS = ["#8b5cf6", "#06b6d4", "#f59e0b", "#22c55e", "#f43f5e", "#3b82f6", "#ec4899", "#14b8a6"];
@@ -102,6 +95,10 @@ export default function FixedCostsPage() {
     fetcher
   );
   const costs: FixedCost[] = data?.costs ?? [];
+
+  // Fetch ALL unpaid fixed costs across all months/years for the reminder
+  const { data: unpaidData } = useSWR('/api/fixed-costs?unpaid=true', fetcher);
+  const allUnpaidCosts: FixedCost[] = unpaidData?.costs ?? [];
 
 
 
@@ -211,6 +208,7 @@ export default function FixedCostsPage() {
       resetForm();
       setShowForm(false);
       mutate(`/api/fixed-costs?month=${month}&year=${year}`);
+      mutate('/api/fixed-costs?unpaid=true');
     } catch (err) {
       alert("Failed to save fixed cost.");
       console.error(err);
@@ -241,17 +239,19 @@ export default function FixedCostsPage() {
       });
       if (!res.ok) throw new Error("Failed to update");
       mutate(`/api/fixed-costs?month=${month}&year=${year}`);
+      mutate('/api/fixed-costs?unpaid=true');
     } catch (err) {
       console.error(err);
     }
   };
 
-  const deleteCost = async (id: string, name: string) => {
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+  const deleteCost = async (id: string, costName: string) => {
+    if (!confirm(`Delete "${costName}"? This cannot be undone.`)) return;
     try {
       const res = await fetch(`/api/fixed-costs?id=${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
       mutate(`/api/fixed-costs?month=${month}&year=${year}`);
+      mutate('/api/fixed-costs?unpaid=true');
     } catch (err) {
       alert("Failed to delete fixed cost.");
       console.error(err);
@@ -286,41 +286,30 @@ export default function FixedCostsPage() {
     year: "numeric",
   });
 
-  // Reminder logic: date-based overdue detection
-  // - "First Half Salary": due by the 15th
-  // - "Second Half Salary": due by the last day
-  // - All other bills: due 2 days before end of month
-  const lastDayOfMonth = new Date(year, month, 0).getDate(); // e.g. 28/30/31
+  // Reminder: all unpaid costs across all months, with overdue detection
   const today = bkkDay;
+  const reminderItems = allUnpaidCosts.map((cost) => {
+    const costLastDay = new Date(cost.period_year, cost.period_month, 0).getDate();
+    const dueDate = cost.due_day || costLastDay;
+    // Overdue if: the cost's period is in the past, OR it's the current period and past the due day
+    const isPastPeriod =
+      cost.period_year < bkkYear ||
+      (cost.period_year === bkkYear && cost.period_month < bkkMonth);
+    const isCurrentPeriodOverdue =
+      cost.period_year === bkkYear && cost.period_month === bkkMonth && today >= dueDate;
+    const isOverdue = isPastPeriod || isCurrentPeriodOverdue;
 
-  const reminderItems = REMINDER_BILLS.map((bill) => {
-    // Check current month for matching paid entry
-    const currentMatch = costs.find(
-      (c) =>
-        c.name.toLowerCase().includes(bill.name.toLowerCase()) ||
-        (bill.name === "UMB Credit Card" && c.name.toLowerCase().includes("umb"))
-    );
-    const isPaidThisMonth = currentMatch?.is_paid ?? false;
-
-    // Determine the due date for this specific bill
-    let dueDate: number;
-    if (bill.name === "First Half Salary") {
-      dueDate = 15;
-    } else if (bill.name === "Second Half Salary") {
-      dueDate = lastDayOfMonth;
-    } else {
-      // 2 days before end of month for all other bills
-      dueDate = lastDayOfMonth - 2;
-    }
-
-    // Overdue: past the due date and still not paid this month
-    const isOverdue = !isPaidThisMonth && today >= dueDate;
+    // Format month/year label in Thai short format
+    const periodLabel = new Date(cost.period_year, cost.period_month - 1).toLocaleDateString("th-TH", {
+      month: "short",
+      year: "2-digit",
+    });
 
     return {
-      ...bill,
-      isPaidThisMonth,
+      ...cost,
       isOverdue,
       dueDate,
+      periodLabel,
     };
   });
 
@@ -348,62 +337,63 @@ export default function FixedCostsPage() {
       <div className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
-          <h2 className="text-sm font-bold text-foreground">Fixed Cost Reminder</h2>
+          <h2 className="text-sm font-bold text-foreground">Unpaid Fixed Costs</h2>
           <span className="ml-auto text-[10px] text-muted-foreground">
-            {reminderItems.filter((r) => r.isPaidThisMonth).length}/{reminderItems.length} paid
+            {reminderItems.length} unpaid
           </span>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {reminderItems.map((item) => {
-            const isRed = item.isOverdue && !item.isPaidThisMonth;
-            return (
-              <div
-                key={item.name}
-                className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-all ${
-                  item.isPaidThisMonth
-                    ? "border-emerald-200 bg-emerald-50/60"
-                    : isRed
-                    ? "border-red-300 bg-red-50/80"
-                    : "border-border bg-background"
+        {reminderItems.length === 0 ? (
+          <div className="flex h-16 items-center justify-center rounded-xl border border-dashed border-emerald-300 bg-emerald-50/30">
+            <p className="text-xs font-medium text-emerald-600">All fixed costs are paid</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {reminderItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => {
+                  togglePaid(item.id, true);
+                  mutate('/api/fixed-costs?unpaid=true');
+                }}
+                className={`group flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-all ${
+                  item.isOverdue
+                    ? "border-red-300 bg-red-50/80 hover:border-red-400"
+                    : "border-border bg-background hover:border-emerald-300 hover:bg-emerald-50/40"
                 }`}
               >
                 <div
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
-                    item.isPaidThisMonth
-                      ? "border-emerald-500 bg-emerald-500"
-                      : isRed
-                      ? "border-red-400 bg-transparent"
-                      : "border-muted-foreground/30 bg-transparent"
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+                    item.isOverdue
+                      ? "border-red-400 bg-transparent group-hover:border-emerald-400 group-hover:bg-emerald-100"
+                      : "border-muted-foreground/30 bg-transparent group-hover:border-emerald-400 group-hover:bg-emerald-100"
                   }`}
                 >
-                  {item.isPaidThisMonth && (
-                    <Check className="h-3 w-3 text-white" strokeWidth={3} />
-                  )}
+                  <Check className="h-3.5 w-3.5 text-transparent group-hover:text-emerald-600" strokeWidth={3} />
                 </div>
-                <div className="min-w-0">
-                  <p
-                    className={`truncate text-xs font-semibold ${
-                      item.isPaidThisMonth
-                        ? "text-emerald-700 line-through"
-                        : isRed
-                        ? "text-red-600"
-                        : "text-foreground"
-                    }`}
-                  >
+                <div className="min-w-0 flex-1">
+                  <p className={`truncate text-xs font-semibold ${item.isOverdue ? "text-red-600" : "text-foreground"}`}>
                     {item.name}
                   </p>
-                  {item.isPaidThisMonth ? (
-                    <p className="text-[9px] font-medium text-emerald-600">Paid</p>
-                  ) : isRed ? (
-                    <p className="text-[9px] font-bold text-red-500">Overdue — due by {item.dueDate}th</p>
-                  ) : (
-                    <p className="text-[9px] text-muted-foreground">Due by {item.dueDate}th</p>
-                  )}
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${
+                      item.isOverdue
+                        ? "bg-red-100 text-red-600"
+                        : "bg-secondary text-muted-foreground"
+                    }`}>
+                      {item.periodLabel}
+                    </span>
+                    <span className={`text-[9px] ${item.isOverdue ? "font-bold text-red-500" : "text-muted-foreground"}`}>
+                      {item.isOverdue ? "Overdue" : `Due ${item.dueDate}th`}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+                <p className="shrink-0 text-xs font-semibold text-red-500">
+                  {formatBaht(Number(item.amount))}
+                </p>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Add Cost Form ── */}
