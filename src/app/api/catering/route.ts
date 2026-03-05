@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       const d = new Date(eventDate + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
       page.drawText(`วันที่จัดงาน: ${d}`, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lineH
     }
-    if (guestCount) { page.drawText(`จำนวนแขก: ${guestCount} คน`, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lineH }
+    if (guestCount) { page.drawText(`จำนวนคน: ${guestCount} คน`, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lineH }
 
     // Use the LOWER of the two columns so nothing overlaps
     y = Math.min(ly, ry) - 18
@@ -247,8 +247,15 @@ export async function POST(request: Request) {
     page.drawText('เงื่อนไขการชำระเงิน', { x: M, y, size: 10, font, color: green })
     y -= 16
     const bullets: string[] = []
-    if (depositPercent) bullets.push(`มัดจำ ${depositPercent}% ก่อนวันงาน`)
-    bullets.push('ชำระเงินส่วนที่เหลือในวันจัดงาน')
+    if (depositPercent) {
+      const depRate = Number(depositPercent) || 0
+      const depAmount = Math.round(grandTotal * (depRate / 100) * 100) / 100
+      const remaining = Math.round((grandTotal - depAmount) * 100) / 100
+      bullets.push(`มัดจำ ${depositPercent}% : ${fmtBaht(depAmount)} บาท ก่อนวันงาน`)
+      bullets.push(`ชำระเงินส่วนที่เหลือ ${fmtBaht(remaining)} บาท ในวันจัดงาน`)
+    } else {
+      bullets.push('ชำระเงินส่วนที่เหลือในวันจัดงาน')
+    }
     if (minGuests) bullets.push(`ราคานี้สำหรับขั้นต่ำ ${minGuests} คน`)
     if (paymentNotes) bullets.push(paymentNotes)
 

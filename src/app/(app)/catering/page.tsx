@@ -231,7 +231,7 @@ export default function CateringQuotationPage() {
                 <input type="date" required value={eventDate} onChange={(e) => setEventDate(e.target.value)} className={inputClass} />
               </div>
               <div>
-                <label className={labelClass}>จำนวนแขก</label>
+                <label className={labelClass}>จำนวนคน</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -276,13 +276,13 @@ export default function CateringQuotationPage() {
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground">กี่หน่วย</label>
+                    <label className="text-[10px] font-semibold text-muted-foreground">หน่วย</label>
                     <input
                       type="text"
                       value={item.quantityLabel}
                       onChange={(e) => updateItem(index, 'quantityLabel', e.target.value)}
                       className="w-full rounded-lg border border-input bg-card px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      placeholder="เช่น 50 คน"
+                      placeholder="เช่น จาน, ถาด, ชุด"
                     />
                   </div>
                   <div className="flex-1">
