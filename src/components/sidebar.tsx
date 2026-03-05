@@ -17,6 +17,7 @@ import {
   TrendingUp,
   FileSpreadsheet,
   Megaphone,
+  Settings2,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -29,6 +30,10 @@ const navigation = [
   { name: 'Ad Costs', href: '/ad-costs', icon: Megaphone, color: 'text-blue-500' },
   { name: 'Invoice', href: '/invoices', icon: FileText, color: 'text-sky-500' },
   { name: 'Tax Export', href: '/tax', icon: FileSpreadsheet, color: 'text-emerald-600' },
+]
+
+const managementNav = [
+  { name: 'Expense Management', href: '/management/expenses', icon: Settings2, color: 'text-teal-500' },
 ]
 
 // Primary items shown in the mobile bottom bar
@@ -114,6 +119,32 @@ export function Sidebar() {
             )
           })}
         </ul>
+
+        {/* Management */}
+        <div className="mx-1 my-3 h-px bg-border" />
+        <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Management</p>
+        <ul className="flex flex-col gap-1">
+          {managementNav.map((item) => {
+            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+            return (
+              <li key={item.name}>
+                <Link
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
+                      : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
+                  )}
+                >
+                  <item.icon className={cn('h-[18px] w-[18px] shrink-0', isActive ? 'text-primary-foreground' : item.color)} />
+                  {item.name}
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
       </nav>
 
       {/* Logout */}
@@ -158,7 +189,7 @@ export function Sidebar() {
             className={cn(
               'flex flex-col items-center gap-0.5 rounded-lg px-1.5 py-1 text-[9px] font-medium transition-all min-w-0',
               // Highlight "More" if one of the non-bottom-bar pages is active
-              (pathname?.startsWith('/invoices') || pathname?.startsWith('/tax'))
+              (pathname?.startsWith('/invoices') || pathname?.startsWith('/tax') || pathname?.startsWith('/management'))
                 ? 'text-primary'
                 : 'text-muted-foreground'
             )}
