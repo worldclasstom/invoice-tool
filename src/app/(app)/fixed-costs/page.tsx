@@ -112,8 +112,21 @@ export default function FixedCostsPage() {
   const bkkYear = bkkGet('year');
   const bkkMonth = bkkGet('month');
   const bkkDay = bkkGet('day');
-  const [month] = useState(bkkMonth);
-  const [year] = useState(bkkYear);
+  // Global period filter (controls summary boxes + activities)
+  type PeriodTab = "this_month" | "last_month" | "custom";
+  const [periodTab, setPeriodTab] = useState<PeriodTab>("this_month");
+  const [customMonth, setCustomMonth] = useState(bkkMonth);
+  const [customYear, setCustomYear] = useState(bkkYear);
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
+
+  const lastMonth = bkkMonth === 1 ? 12 : bkkMonth - 1;
+  const lastYear = bkkMonth === 1 ? bkkYear - 1 : bkkYear;
+
+  const month = periodTab === "this_month" ? bkkMonth : periodTab === "last_month" ? lastMonth : customMonth;
+  const year = periodTab === "this_month" ? bkkYear : periodTab === "last_month" ? lastYear : customYear;
+
+  const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
+  const yearOptions = Array.from({ length: 5 }, (_, i) => bkkYear - 2 + i);
 
   const { data, isLoading } = useSWR(
     `/api/fixed-costs?month=${month}&year=${year}`,
@@ -240,8 +253,6 @@ export default function FixedCostsPage() {
         body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
       });
       if (!res.ok) throw new Error("Failed to save");
-      const sm = periodMode === "this_month" ? month : formMonth;
-      const sy = periodMode === "this_month" ? year : formYear;
       resetForm();
       setShowForm(false);
       mutate((key: string) => typeof key === "string" && key.startsWith("/api/fixed-costs"), undefined, { revalidate: true });
@@ -342,7 +353,7 @@ export default function FixedCostsPage() {
   const totalAll = totalPaid + totalUnpaid;
   const paidCount = costs.filter((c) => c.is_paid).length;
 
-  const thaiMonth = new Date(year, month - 1).toLocaleDateString("th-TH", {
+  const periodLabel = new Date(year, month - 1).toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
   });
@@ -383,7 +394,7 @@ export default function FixedCostsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">Fixed Costs</h1>
-          <p className="text-xs text-muted-foreground">{thaiMonth}</p>
+          <p className="text-xs text-muted-foreground">{periodLabel}</p>
         </div>
         <button
           onClick={() => {
@@ -395,6 +406,79 @@ export default function FixedCostsPage() {
           {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
           {showForm ? "Close" : "Add Cost"}
         </button>
+      </div>
+
+      {/* ── Period Filter Tabs ── */}
+      <div className="mb-4 flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 shadow-sm">
+        <button
+          onClick={() => { setPeriodTab("this_month"); setShowCustomPicker(false); }}
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+            periodTab === "this_month"
+              ? "bg-violet-100 text-violet-700"
+              : "text-muted-foreground hover:bg-secondary"
+          }`}
+        >
+          This Month
+        </button>
+        <button
+          onClick={() => { setPeriodTab("last_month"); setShowCustomPicker(false); }}
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+            periodTab === "last_month"
+              ? "bg-violet-100 text-violet-700"
+              : "text-muted-foreground hover:bg-secondary"
+          }`}
+        >
+          Last Month
+        </button>
+        <div className="relative">
+          <button
+            onClick={() => { setPeriodTab("custom"); setShowCustomPicker(!showCustomPicker); }}
+            className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+              periodTab === "custom"
+                ? "bg-violet-100 text-violet-700"
+                : "text-muted-foreground hover:bg-secondary"
+            }`}
+          >
+            <CalendarDays className="h-3 w-3" />
+            {periodTab === "custom"
+              ? new Date(customYear, customMonth - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })
+              : "Custom"}
+            <ChevronDown className="h-3 w-3" />
+          </button>
+          {showCustomPicker && (
+            <div className="absolute left-0 top-full z-20 mt-1 flex gap-2 rounded-xl border border-border bg-card p-3 shadow-lg">
+              <select
+                value={customMonth}
+                onChange={(e) => setCustomMonth(Number(e.target.value))}
+                className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+              >
+                {monthOptions.map((m) => (
+                  <option key={m} value={m}>
+                    {new Date(2026, m - 1).toLocaleDateString("en-US", { month: "short" })}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={customYear}
+                onChange={(e) => setCustomYear(Number(e.target.value))}
+                className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setShowCustomPicker(false)}
+                className="rounded-lg bg-violet-500 px-3 py-1.5 text-[10px] font-bold text-white"
+              >
+                Go
+              </button>
+            </div>
+          )}
+        </div>
+        <span className="ml-auto text-[10px] text-muted-foreground">
+          {periodLabel}
+        </span>
       </div>
 
       {/* ── Add Cost Form ── */}
@@ -804,12 +888,13 @@ export default function FixedCostsPage() {
         </div>
       )}
 
-      {/* ── Activities (All Costs with own period filter) ── */}
+      {/* ── Activities ── */}
       <CostSection
         title="Activities"
         icon={<RotateCcw className="h-3.5 w-3.5 text-violet-500" />}
-        bkkMonth={bkkMonth}
-        bkkYear={bkkYear}
+        periodLabel={periodLabel}
+        costs={costs}
+        isLoading={isLoading}
         togglePaid={togglePaid}
         deleteCost={deleteCost}
         editCost={editCost}
@@ -906,7 +991,7 @@ export default function FixedCostsPage() {
           <h2 className="mb-1 text-sm font-bold text-foreground">
             Fixed Cost Breakdown
           </h2>
-          <p className="mb-3 text-xs text-muted-foreground">By category this month</p>
+          <p className="mb-3 text-xs text-muted-foreground">By category for {periodLabel}</p>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie
@@ -937,49 +1022,28 @@ export default function FixedCostsPage() {
   );
 }
 
-/* ── Cost Section Component with own period filter ── */
+/* ── Cost Section Component (receives costs from parent) ── */
 function CostSection({
   title,
   icon,
-  bkkMonth,
-  bkkYear,
+  periodLabel,
+  costs,
+  isLoading: sectionLoading,
   togglePaid,
   deleteCost,
   editCost,
 }: {
   title: string;
   icon: React.ReactNode;
-  bkkMonth: number;
-  bkkYear: number;
+  periodLabel: string;
+  costs: FixedCost[];
+  isLoading: boolean;
   togglePaid: (id: string, isPaid: boolean) => void;
   deleteCost: (id: string, name: string) => void;
   editCost: (cost: FixedCost) => void;
 }) {
-  type PeriodTab = "this_month" | "last_month" | "custom";
-  const [tab, setTab] = useState<PeriodTab>("this_month");
-  const [customMonth, setCustomMonth] = useState(bkkMonth);
-  const [customYear, setCustomYear] = useState(bkkYear);
-  const [showCustomPicker, setShowCustomPicker] = useState(false);
-
-  const lastMonth = bkkMonth === 1 ? 12 : bkkMonth - 1;
-  const lastYear = bkkMonth === 1 ? bkkYear - 1 : bkkYear;
-
-  const activeMonth = tab === "this_month" ? bkkMonth : tab === "last_month" ? lastMonth : customMonth;
-  const activeYear = tab === "this_month" ? bkkYear : tab === "last_month" ? lastYear : customYear;
-
-  const { data: sectionData, isLoading: sectionLoading } = useSWR(
-    `/api/fixed-costs?month=${activeMonth}&year=${activeYear}`,
-    fetcher
-  );
-  const costs: FixedCost[] = sectionData?.costs ?? [];
-
   const sectionPaid = costs.filter((c) => c.is_paid).length;
   const allPaid = costs.length > 0 && sectionPaid === costs.length;
-
-  const periodLabel = new Date(activeYear, activeMonth - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }) + " payments";
-
-  const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
-  const yearOptions = Array.from({ length: 5 }, (_, i) => bkkYear - 2 + i);
 
   return (
     <div className="mb-4 rounded-2xl border border-border bg-card shadow-sm">
@@ -989,7 +1053,7 @@ function CostSection({
           {icon}
           <div>
             <h2 className="text-sm font-bold text-foreground">{title}</h2>
-            <p className="text-[11px] text-muted-foreground">{periodLabel}</p>
+            <p className="text-[11px] text-muted-foreground">{periodLabel} payments</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1001,76 +1065,6 @@ function CostSection({
             <span className="text-[11px] text-muted-foreground">
               {sectionPaid}/{costs.length} paid
             </span>
-          )}
-        </div>
-      </div>
-
-      {/* Period filter tabs */}
-      <div className="flex items-center gap-2 border-b border-border px-5 py-2.5">
-        <button
-          onClick={() => { setTab("this_month"); setShowCustomPicker(false); }}
-          className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
-            tab === "this_month"
-              ? "bg-violet-100 text-violet-700"
-              : "text-muted-foreground hover:bg-secondary"
-          }`}
-        >
-          This Month
-        </button>
-        <button
-          onClick={() => { setTab("last_month"); setShowCustomPicker(false); }}
-          className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
-            tab === "last_month"
-              ? "bg-violet-100 text-violet-700"
-              : "text-muted-foreground hover:bg-secondary"
-          }`}
-        >
-          Last Month
-        </button>
-        <div className="relative">
-          <button
-            onClick={() => { setTab("custom"); setShowCustomPicker(!showCustomPicker); }}
-            className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
-              tab === "custom"
-                ? "bg-violet-100 text-violet-700"
-                : "text-muted-foreground hover:bg-secondary"
-            }`}
-          >
-            <CalendarDays className="h-3 w-3" />
-            {tab === "custom"
-              ? new Date(customYear, customMonth - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })
-              : "Custom"}
-            <ChevronDown className="h-3 w-3" />
-          </button>
-          {showCustomPicker && (
-            <div className="absolute left-0 top-full z-20 mt-1 flex gap-2 rounded-xl border border-border bg-card p-3 shadow-lg">
-              <select
-                value={customMonth}
-                onChange={(e) => setCustomMonth(Number(e.target.value))}
-                className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
-              >
-                {monthOptions.map((m) => (
-                  <option key={m} value={m}>
-                    {new Date(2026, m - 1).toLocaleDateString("en-US", { month: "short" })}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={customYear}
-                onChange={(e) => setCustomYear(Number(e.target.value))}
-                className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-              <button
-                onClick={() => setShowCustomPicker(false)}
-                className="rounded-lg bg-violet-500 px-3 py-1.5 text-[10px] font-bold text-white"
-              >
-                Go
-              </button>
-            </div>
           )}
         </div>
       </div>
