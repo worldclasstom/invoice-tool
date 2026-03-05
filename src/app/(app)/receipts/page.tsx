@@ -95,24 +95,38 @@ export default function ReceiptsPage() {
   const [total, setTotal] = useState('')
   const [category, setCategory] = useState('ingredients')
   const [notes, setNotes] = useState('')
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [imageUrls, setImageUrls] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 })
   const [saving, setSaving] = useState(false)
+  const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 })
+
+  // Legacy single-image getter for edit mode
+  const imageUrl = imageUrls[0] ?? null
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = e.target.files
+    if (!files || files.length === 0) return
     setUploading(true)
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/upload', { method: 'POST', body: formData })
-      const result = await res.json()
-      if (result.url) setImageUrl(result.url)
-    } catch (err) {
-      console.error('Upload failed:', err)
+    setUploadProgress({ current: 0, total: files.length })
+    const uploaded: string[] = [...imageUrls]
+    for (let i = 0; i < files.length; i++) {
+      setUploadProgress({ current: i + 1, total: files.length })
+      try {
+        const formData = new FormData()
+        formData.append('file', files[i])
+        const res = await fetch('/api/upload', { method: 'POST', body: formData })
+        const result = await res.json()
+        if (result.url) uploaded.push(result.url)
+      } catch (err) {
+        console.error(`Upload failed for file ${i + 1}:`, err)
+      }
     }
+    setImageUrls(uploaded)
     setUploading(false)
+    setUploadProgress({ current: 0, total: 0 })
+    // Reset the input so the same files can be re-selected
+    e.target.value = ''
   }
 
   const resetForm = () => {
@@ -122,7 +136,7 @@ export default function ReceiptsPage() {
     setTotal('')
     setCategory('ingredients')
     setNotes('')
-    setImageUrl(null)
+    setImageUrls([])
     setIsManual(false)
   }
 
@@ -149,7 +163,7 @@ export default function ReceiptsPage() {
     setTotal(String(receipt.total))
     setCategory(receipt.category)
     setNotes(receipt.notes || '')
-    setImageUrl(receipt.image_url)
+    setImageUrls(receipt.image_url ? [receipt.image_url] : [])
     setIsManual(receipt.is_manual)
     setShowForm(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -158,22 +172,66 @@ export default function ReceiptsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
+
     try {
-      const payload = {
-        receiptDate,
-        vendor,
-        total: Number(total),
-        category,
-        notes: notes || null,
-        imageUrl,
-        isManual,
+      if (editingId) {
+        // Single update
+        const payload = {
+          id: editingId,
+          receiptDate,
+          vendor,
+          total: Number(total),
+          category,
+          notes: notes || null,
+          imageUrl: imageUrls[0] || null,
+          isManual,
+        }
+        const res = await fetch('/api/receipts', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        if (!res.ok) throw new Error('Failed to update')
+      } else if (!isManual && imageUrls.length > 1) {
+        // Batch create: one receipt per image
+        setSaveProgress({ current: 0, total: imageUrls.length })
+        for (let i = 0; i < imageUrls.length; i++) {
+          setSaveProgress({ current: i + 1, total: imageUrls.length })
+          const payload = {
+            receiptDate,
+            vendor: imageUrls.length > 1 ? `${vendor || 'Receipt'} (${i + 1})` : vendor,
+            total: Number(total),
+            category,
+            notes: notes || null,
+            imageUrl: imageUrls[i],
+            isManual: false,
+          }
+          const res = await fetch('/api/receipts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+          if (!res.ok) throw new Error(`Failed to save receipt ${i + 1}`)
+        }
+        setSaveProgress({ current: 0, total: 0 })
+      } else {
+        // Single create
+        const payload = {
+          receiptDate,
+          vendor,
+          total: Number(total),
+          category,
+          notes: notes || null,
+          imageUrl: imageUrls[0] || null,
+          isManual,
+        }
+        const res = await fetch('/api/receipts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        if (!res.ok) throw new Error('Failed to save')
       }
-      const res = await fetch('/api/receipts', {
-        method: editingId ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
-      })
-      if (!res.ok) throw new Error('Failed to save')
       resetForm()
       setShowForm(false)
       mutate('/api/receipts')
@@ -244,39 +302,78 @@ export default function ReceiptsPage() {
             {/* Image upload area */}
             {!isManual && (
               <div>
-                {imageUrl ? (
-                  <div className="relative">
-                    <img src={imageUrl} alt="Receipt" className="max-h-48 rounded-xl object-contain" />
-                    <button
-                      type="button"
-                      onClick={() => setImageUrl(null)}
-                      className="absolute right-2 top-2 rounded-full bg-card/90 p-1.5 shadow-md hover:bg-destructive/10"
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </button>
-                  </div>
-                ) : (
-                  <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed border-rose-300 bg-rose-50/50 px-6 py-8 transition-all hover:border-rose-400 hover:bg-rose-50">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100">
-                        <Camera className="h-5 w-5 text-rose-500" />
-                      </div>
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100">
-                        <Upload className="h-5 w-5 text-rose-500" />
-                      </div>
+                {/* Uploaded image previews */}
+                {imageUrls.length > 0 && (
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {imageUrls.length} receipt{imageUrls.length > 1 ? 's' : ''} uploaded
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setImageUrls([])}
+                        className="text-[10px] font-medium text-destructive hover:underline"
+                      >
+                        Clear all
+                      </button>
                     </div>
-                    <span className="text-sm font-medium text-muted-foreground">
-                      {uploading ? 'Uploading...' : 'Tap to upload receipt image'}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      className="sr-only"
-                      disabled={uploading}
-                    />
-                  </label>
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+                      {imageUrls.map((url, i) => (
+                        <div key={i} className="group relative aspect-square rounded-xl overflow-hidden border border-border bg-secondary">
+                          <img src={url} alt={`Receipt ${i + 1}`} className="h-full w-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setImageUrls((prev) => prev.filter((_, j) => j !== i))}
+                            className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-card/90 opacity-0 shadow-md transition-all group-hover:opacity-100 hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </button>
+                          <span className="absolute bottom-1 left-1 rounded bg-card/80 px-1.5 py-0.5 text-[9px] font-bold text-foreground shadow-sm">
+                            {i + 1}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
+
+                {/* Upload area (always visible so user can add more) */}
+                <label className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed px-6 transition-all ${
+                  imageUrls.length > 0
+                    ? 'border-border bg-secondary/50 py-4 hover:border-rose-300 hover:bg-rose-50/30'
+                    : 'border-rose-300 bg-rose-50/50 py-8 hover:border-rose-400 hover:bg-rose-50'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100">
+                      <Camera className="h-5 w-5 text-rose-500" />
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100">
+                      <Upload className="h-5 w-5 text-rose-500" />
+                    </div>
+                  </div>
+                  {uploading ? (
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Uploading {uploadProgress.current} of {uploadProgress.total}...
+                    </span>
+                  ) : (
+                    <div className="text-center">
+                      <span className="text-sm font-medium text-muted-foreground">
+                        {imageUrls.length > 0 ? 'Add more receipts' : 'Upload receipt images'}
+                      </span>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground/70">
+                        Select one or multiple images at once
+                      </p>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="sr-only"
+                    disabled={uploading}
+                  />
+                </label>
               </div>
             )}
 
@@ -345,13 +442,29 @@ export default function ReceiptsPage() {
               />
             </div>
 
+            {!isManual && imageUrls.length > 1 && (
+              <div className="rounded-xl bg-sky-50 border border-sky-200 px-4 py-2.5">
+                <p className="text-xs font-medium text-sky-700">
+                  Batch mode: {imageUrls.length} receipts will be created, each with the details above. Vendor names will be numbered (e.g. &quot;Makro (1)&quot;, &quot;Makro (2)&quot;).
+                </p>
+              </div>
+            )}
+
             <div className="flex gap-3">
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || uploading}
                 className="rounded-xl bg-primary px-6 py-2.5 text-xs font-bold text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:brightness-110 disabled:opacity-50"
               >
-                {saving ? 'Saving...' : editingId ? 'Update Receipt' : 'Save Receipt'}
+                {saving
+                  ? saveProgress.total > 1
+                    ? `Saving ${saveProgress.current}/${saveProgress.total}...`
+                    : 'Saving...'
+                  : editingId
+                  ? 'Update Receipt'
+                  : !isManual && imageUrls.length > 1
+                  ? `Save ${imageUrls.length} Receipts`
+                  : 'Save Receipt'}
               </button>
               <button
                 type="button"
