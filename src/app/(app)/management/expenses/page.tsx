@@ -17,6 +17,8 @@ import {
   Plus,
   Minus,
   Trash2,
+  Pencil,
+  Check,
   X,
   ArrowUpRight,
   ArrowDownRight,
@@ -103,6 +105,11 @@ export default function CashFlowManagementPage() {
   })
   const [adjSubmitting, setAdjSubmitting] = useState(false)
   const [adjDeleting, setAdjDeleting] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editAmount, setEditAmount] = useState('')
+  const [editNote, setEditNote] = useState('')
+  const [editType, setEditType] = useState<'add' | 'subtract'>('add')
+  const [editSaving, setEditSaving] = useState(false)
   const [adjVisible, setAdjVisible] = useState(ADJ_PAGE_SIZE)
 
   const { data, isLoading, mutate } = useSWR(
@@ -125,15 +132,17 @@ export default function CashFlowManagementPage() {
     if (!adjAmount || Number(adjAmount) <= 0 || !adjDate) return
     setAdjSubmitting(true)
     try {
-      await fetch('/api/management/expenses', {
+      const res = await fetch('/api/management/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ method: adjMethod, type: adjType, amount: Number(adjAmount), note: adjNote, adjustment_date: adjDate }),
       })
-      setAdjAmount('')
-      setAdjNote('')
-      setShowAdjustForm(false)
-      mutate()
+      if (res.ok) {
+        setAdjAmount('')
+        setAdjNote('')
+        setShowAdjustForm(false)
+        await mutate()
+      }
     } catch (err) { console.error('Error:', err) }
     finally { setAdjSubmitting(false) }
   }, [adjAmount, adjMethod, adjType, adjNote, adjDate, mutate])
@@ -142,10 +151,42 @@ export default function CashFlowManagementPage() {
     setAdjDeleting(id)
     try {
       await fetch(`/api/management/expenses?id=${id}`, { method: 'DELETE' })
-      mutate()
+      await mutate()
     } catch (err) { console.error('Error:', err) }
     finally { setAdjDeleting(null) }
   }, [mutate])
+
+  const startEdit = useCallback((adj: typeof allAdjustments[0]) => {
+    setEditingId(adj.id)
+    setEditAmount(String(adj.amount))
+    setEditNote(adj.note || '')
+    setEditType(adj.type as 'add' | 'subtract')
+  }, [])
+
+  const cancelEdit = useCallback(() => {
+    setEditingId(null)
+    setEditAmount('')
+    setEditNote('')
+  }, [])
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingId || !editAmount || Number(editAmount) <= 0) return
+    setEditSaving(true)
+    try {
+      const res = await fetch('/api/management/expenses', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingId, type: editType, amount: Number(editAmount), note: editNote }),
+      })
+      if (res.ok) {
+        setEditingId(null)
+        setEditAmount('')
+        setEditNote('')
+        await mutate()
+      }
+    } catch (err) { console.error('Error:', err) }
+    finally { setEditSaving(false) }
+  }, [editingId, editType, editAmount, editNote, mutate])
 
   const allExpenseItems = useMemo(() => {
     const items: { label: string; amount: number; color: string; group: string }[] = []
@@ -588,6 +629,65 @@ export default function CashFlowManagementPage() {
                       {visibleAdjustments.map((adj) => {
                         const cfg = METHOD_CONFIG[adj.method as keyof typeof METHOD_CONFIG] ?? METHOD_CONFIG.cash
                         const isAdd = adj.type === 'add'
+                        const isEditing = editingId === adj.id
+
+                        if (isEditing) {
+                          return (
+                            <div key={adj.id} className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3">
+                              <div className="flex items-center gap-2 mb-2.5">
+                                <cfg.icon className={`h-3.5 w-3.5 ${cfg.iconColor}`} />
+                                <span className="text-sm font-semibold text-foreground">{cfg.label}</span>
+                                <span className="text-[10px] text-muted-foreground">Editing</span>
+                              </div>
+                              <div className="flex gap-2 mb-2">
+                                {(['add', 'subtract'] as const).map((t) => (
+                                  <button
+                                    key={t}
+                                    onClick={() => setEditType(t)}
+                                    className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                                      editType === t
+                                        ? t === 'add' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                                        : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
+                                    }`}
+                                  >
+                                    {t === 'add' ? <Plus className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+                                    {t === 'add' ? 'Add' : 'Subtract'}
+                                  </button>
+                                ))}
+                              </div>
+                              <input
+                                type="number"
+                                value={editAmount}
+                                onChange={(e) => setEditAmount(e.target.value)}
+                                placeholder="Amount"
+                                min="0"
+                                step="0.01"
+                                className="mb-2 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                              />
+                              <input
+                                type="text"
+                                value={editNote}
+                                onChange={(e) => setEditNote(e.target.value)}
+                                placeholder="Note / reason (optional)"
+                                className="mb-3 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                              />
+                              <div className="flex items-center justify-end gap-2">
+                                <button onClick={cancelEdit} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-secondary transition-colors">
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={handleSaveEdit}
+                                  disabled={editSaving || !editAmount || Number(editAmount) <= 0}
+                                  className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                                >
+                                  {editSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                                  {editSaving ? 'Saving...' : 'Save'}
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        }
+
                         return (
                           <div key={adj.id} className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2.5">
                             <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${isAdd ? 'bg-emerald-50' : 'bg-rose-50'}`}>
@@ -609,6 +709,12 @@ export default function CashFlowManagementPage() {
                             <span className={`shrink-0 text-sm font-bold tabular-nums ${isAdd ? 'text-emerald-600' : 'text-rose-500'}`}>
                               {isAdd ? '+' : '-'}{formatBaht(adj.amount)}
                             </span>
+                            <button
+                              onClick={() => startEdit(adj)}
+                              className="shrink-0 rounded-lg p-1.5 text-muted-foreground/50 transition-colors hover:bg-primary/10 hover:text-primary"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
                             <button
                               onClick={() => handleDeleteAdjustment(adj.id)}
                               disabled={adjDeleting === adj.id}
