@@ -397,92 +397,6 @@ export default function FixedCostsPage() {
         </button>
       </div>
 
-      {/* ── Fixed Cost Reminder ── */}
-      <div className="mb-6 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-        <div className="flex items-center gap-2 border-b border-border px-5 py-4">
-          <AlertTriangle className="h-4 w-4 text-amber-500" />
-          <div>
-            <h2 className="text-sm font-bold text-foreground">Fixed Cost Reminder</h2>
-            <p className="text-[9px] text-muted-foreground">Auto-clears when you pay in Activities</p>
-          </div>
-          <span className="ml-auto text-[10px] text-muted-foreground">
-            {reminderItems.length} unpaid
-          </span>
-          <button
-            onClick={seedAllReminders}
-            disabled={seeding}
-            className="rounded-lg bg-secondary px-3 py-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground disabled:opacity-50"
-          >
-            {seeding ? "Seeding..." : "+ Seed Reminders"}
-          </button>
-        </div>
-
-        {reminderItems.length === 0 ? (
-          <div className="flex h-24 flex-col items-center justify-center gap-2 px-4">
-            <Check className="h-6 w-6 text-emerald-500" />
-            <p className="text-xs font-medium text-emerald-600">All fixed costs are paid</p>
-            <p className="text-[10px] text-muted-foreground">No outstanding reminders</p>
-          </div>
-        ) : (
-          <div className="p-4">
-            {/* Group by period */}
-            {Object.entries(
-              reminderItems.reduce<Record<string, typeof reminderItems>>((groups, item) => {
-                const key = `${item.period_year}-${item.period_month}`;
-                if (!groups[key]) groups[key] = [];
-                groups[key].push(item);
-                return groups;
-              }, {})
-            ).map(([key, items]) => (
-              <div key={key} className="mb-4 last:mb-0">
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  {items[0].periodLabel}
-                </p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                  {items.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`flex flex-col rounded-xl border px-3 py-2.5 ${
-                        item.isOverdue
-                          ? "border-red-300 bg-red-50/80"
-                          : item.isAlmostDue
-                          ? "border-amber-300 bg-amber-50/60"
-                          : "border-border bg-background"
-                      }`}
-                    >
-                      <p className={`text-xs font-semibold leading-tight ${
-                        item.isOverdue ? "text-red-600" : "text-foreground"
-                      }`}>
-                        {item.label}
-                      </p>
-                      <div className="mt-1.5 flex items-center gap-1.5">
-                        <span className="text-[9px] text-muted-foreground">
-                          Due {item.dueDay}th
-                        </span>
-                        <span className="text-[9px] text-muted-foreground/50">|</span>
-                        {item.isOverdue ? (
-                          <span className="rounded px-1 py-0.5 text-[9px] font-bold bg-red-100 text-red-600">
-                            Overdue
-                          </span>
-                        ) : item.isAlmostDue ? (
-                          <span className="rounded px-1 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-600">
-                            Due Soon
-                          </span>
-                        ) : (
-                          <span className="rounded px-1 py-0.5 text-[9px] font-semibold bg-secondary text-muted-foreground">
-                            Upcoming
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* ── Add Cost Form ── */}
       {showForm && (
         <div className="mb-6 rounded-2xl border-2 border-violet-200 bg-card p-5 shadow-sm">
@@ -860,14 +774,14 @@ export default function FixedCostsPage() {
             {paidCount} of {costs.length}
           </p>
         </div>
-        <div className="rounded-2xl bg-amber-500 p-4 shadow-lg shadow-amber-500/20">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-50/80">
+        <div className="rounded-2xl bg-red-500 p-4 shadow-lg shadow-red-500/20">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-red-50/80">
             Unpaid
           </p>
           <p className="text-lg font-bold text-white">
             {formatBaht(totalUnpaid)}
           </p>
-          <p className="text-[11px] text-amber-50/70 mt-0.5">
+          <p className="text-[11px] text-red-50/70 mt-0.5">
             {costs.length - paidCount} remaining
           </p>
         </div>
@@ -900,6 +814,91 @@ export default function FixedCostsPage() {
         deleteCost={deleteCost}
         editCost={editCost}
       />
+
+      {/* ── Fixed Cost Reminder ── */}
+      <div className="mb-4 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+          <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <div>
+            <h2 className="text-sm font-bold text-foreground">Fixed Cost Reminder</h2>
+            <p className="text-[9px] text-muted-foreground">Auto-clears when you pay in Activities</p>
+          </div>
+          <span className="ml-auto text-[10px] text-muted-foreground">
+            {reminderItems.length} unpaid
+          </span>
+          <button
+            onClick={seedAllReminders}
+            disabled={seeding}
+            className="rounded-lg bg-secondary px-3 py-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground disabled:opacity-50"
+          >
+            {seeding ? "Seeding..." : "+ Seed Reminders"}
+          </button>
+        </div>
+
+        {reminderItems.length === 0 ? (
+          <div className="flex h-24 flex-col items-center justify-center gap-2 px-4">
+            <Check className="h-6 w-6 text-emerald-500" />
+            <p className="text-xs font-medium text-emerald-600">All fixed costs are paid</p>
+            <p className="text-[10px] text-muted-foreground">No outstanding reminders</p>
+          </div>
+        ) : (
+          <div className="p-4">
+            {Object.entries(
+              reminderItems.reduce<Record<string, typeof reminderItems>>((groups, item) => {
+                const key = `${item.period_year}-${item.period_month}`;
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(item);
+                return groups;
+              }, {})
+            ).map(([key, items]) => (
+              <div key={key} className="mb-4 last:mb-0">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {items[0].periodLabel}
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                  {items.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`flex flex-col rounded-xl border px-3 py-2.5 ${
+                        item.isOverdue
+                          ? "border-red-300 bg-red-50/80"
+                          : item.isAlmostDue
+                          ? "border-amber-300 bg-amber-50/60"
+                          : "border-border bg-background"
+                      }`}
+                    >
+                      <p className={`text-xs font-semibold leading-tight ${
+                        item.isOverdue ? "text-red-600" : "text-foreground"
+                      }`}>
+                        {item.label}
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <span className="text-[9px] text-muted-foreground">
+                          Due {item.dueDay}th
+                        </span>
+                        <span className="text-[9px] text-muted-foreground/50">|</span>
+                        {item.isOverdue ? (
+                          <span className="rounded px-1 py-0.5 text-[9px] font-bold bg-red-100 text-red-600">
+                            Overdue
+                          </span>
+                        ) : item.isAlmostDue ? (
+                          <span className="rounded px-1 py-0.5 text-[9px] font-bold bg-amber-100 text-amber-600">
+                            Due Soon
+                          </span>
+                        ) : (
+                          <span className="rounded px-1 py-0.5 text-[9px] font-semibold bg-secondary text-muted-foreground">
+                            Upcoming
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ── Pie Chart ── */}
       {pieData.length > 0 && (
@@ -956,7 +955,7 @@ function CostSection({
   deleteCost: (id: string, name: string) => void;
   editCost: (cost: FixedCost) => void;
 }) {
-  type PeriodTab = "this_month" | "last_month" | "all" | "custom";
+  type PeriodTab = "this_month" | "last_month" | "custom";
   const [tab, setTab] = useState<PeriodTab>("this_month");
   const [customMonth, setCustomMonth] = useState(bkkMonth);
   const [customYear, setCustomYear] = useState(bkkYear);
@@ -968,19 +967,16 @@ function CostSection({
   const activeMonth = tab === "this_month" ? bkkMonth : tab === "last_month" ? lastMonth : customMonth;
   const activeYear = tab === "this_month" ? bkkYear : tab === "last_month" ? lastYear : customYear;
 
-  const swrKey = tab === "all"
-    ? "/api/fixed-costs?all=true"
-    : `/api/fixed-costs?month=${activeMonth}&year=${activeYear}`;
-
-  const { data: sectionData, isLoading: sectionLoading } = useSWR(swrKey, fetcher);
+  const { data: sectionData, isLoading: sectionLoading } = useSWR(
+    `/api/fixed-costs?month=${activeMonth}&year=${activeYear}`,
+    fetcher
+  );
   const costs: FixedCost[] = sectionData?.costs ?? [];
 
   const sectionPaid = costs.filter((c) => c.is_paid).length;
   const allPaid = costs.length > 0 && sectionPaid === costs.length;
 
-  const periodLabel = tab === "all"
-    ? "All payments"
-    : new Date(activeYear, activeMonth - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }) + " payments";
+  const periodLabel = new Date(activeYear, activeMonth - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }) + " payments";
 
   const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
   const yearOptions = Array.from({ length: 5 }, (_, i) => bkkYear - 2 + i);
@@ -1030,16 +1026,6 @@ function CostSection({
           }`}
         >
           Last Month
-        </button>
-        <button
-          onClick={() => { setTab("all"); setShowCustomPicker(false); }}
-          className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
-            tab === "all"
-              ? "bg-violet-100 text-violet-700"
-              : "text-muted-foreground hover:bg-secondary"
-          }`}
-        >
-          All
         </button>
         <div className="relative">
           <button
@@ -1096,7 +1082,7 @@ function CostSection({
         </div>
       ) : costs.length === 0 ? (
         <div className="flex h-24 flex-col items-center justify-center gap-1 px-4">
-          <p className="text-xs text-muted-foreground">{tab === "all" ? "No activities yet" : `No activities for ${periodLabel}`}</p>
+          <p className="text-xs text-muted-foreground">No activities for {periodLabel}</p>
         </div>
       ) : (
         <>
