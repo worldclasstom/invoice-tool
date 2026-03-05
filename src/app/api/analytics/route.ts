@@ -405,8 +405,6 @@ export async function GET(request: NextRequest) {
       netProfit: totalRevenue - totalExpenses,
       avgDailySales: Math.round(totalRevenue / daysCount),
       daysReported: (sales ?? []).length,
-      totalTables,
-      totalTogo,
       totalAdSpend,
     },
     // Monthly charts
