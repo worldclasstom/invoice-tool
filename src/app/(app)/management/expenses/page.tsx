@@ -454,7 +454,8 @@ export default function CashFlowManagementPage() {
               )}
 
               {/* ═══════════════ ADJUST FUNDS (wallet only) ═══════════════ */}
-              {isWalletTab && (<div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+              {isWalletTab && (<>
+              <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
                 <div className="px-5 pt-5 pb-3">
                   <h3 className="text-sm font-bold text-foreground">Adjust Funds</h3>
                   <p className="text-xs text-muted-foreground">Add or deduct money with a date and reason</p>
@@ -650,7 +651,7 @@ export default function CashFlowManagementPage() {
                   </div>
                 )}
               </div>
-              )}
+              </>)}
             </div>
           )}
         </div>
