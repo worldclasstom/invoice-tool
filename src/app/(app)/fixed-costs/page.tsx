@@ -1066,7 +1066,8 @@ function CostSection({
           <thead>
             <tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               <th className="px-5 py-3 w-16">Status</th>
-              <th className="px-5 py-3">Name / Period</th>
+              <th className="px-5 py-3">Name</th>
+              <th className="px-5 py-3">Date</th>
               <th className="px-5 py-3">Category</th>
               <th className="px-5 py-3">Payment</th>
               <th className="px-5 py-3 text-right">Amount</th>
@@ -1142,10 +1143,25 @@ function CostRowDesktop({
             </a>
           )}
         </span>
-        <span className="block text-[10px] text-muted-foreground/60 mt-0.5">
+      </td>
+      <td className="px-5 py-3">
+        <span className={`block text-xs ${cost.is_paid ? "text-muted-foreground/70" : "text-foreground"}`}>
           {new Date(cost.period_year, cost.period_month - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-          {cost.paid_date && ` \u00B7 Paid ${new Date(cost.paid_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
         </span>
+        {cost.due_day && (
+          <span className="block text-[10px] text-muted-foreground/60 mt-0.5">
+            Due: {cost.due_day}th
+          </span>
+        )}
+        {cost.is_paid && cost.paid_date ? (
+          <span className="block text-[10px] font-medium text-emerald-600 mt-0.5">
+            Paid: {new Date(cost.paid_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+          </span>
+        ) : cost.is_paid ? (
+          <span className="block text-[10px] font-medium text-emerald-600 mt-0.5">
+            Paid
+          </span>
+        ) : null}
       </td>
       <td
         className={`px-5 py-3 capitalize ${
