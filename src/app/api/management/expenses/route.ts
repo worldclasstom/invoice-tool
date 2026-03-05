@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { logActivity } from '@/lib/activity-log'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -29,12 +30,7 @@ export async function GET(request: NextRequest) {
 
     if (salesErr) throw salesErr
 
-    const revenue = {
-      cash: 0,
-      promptpay: 0,
-      credit_card: 0,
-      total: 0,
-    }
+    const revenue = { cash: 0, promptpay: 0, credit_card: 0, total: 0 }
     for (const s of (sales ?? [])) {
       revenue.cash += Number(s.cash_amount) || 0
       revenue.promptpay += Number(s.promptpay_amount) || 0
@@ -42,7 +38,7 @@ export async function GET(request: NextRequest) {
       revenue.total += Number(s.total_amount) || 0
     }
 
-    // Expense: Receipts (ingredients, packaging, etc.)
+    // Expense: Receipts
     const { data: receipts, error: recErr } = await supabase
       .from('receipts')
       .select('total, category')
@@ -98,10 +94,39 @@ export async function GET(request: NextRequest) {
 
     const totalExpenses = receiptTotal + fixedTotal + adTotal
 
+    // Wallet adjustments for this month
+    const { data: adjustments, error: adjErr } = await supabase
+      .from('wallet_adjustments')
+      .select('*')
+      .gte('adjustment_date', from)
+      .lte('adjustment_date', to)
+      .order('created_at', { ascending: false })
+
+    if (adjErr) throw adjErr
+
+    // Compute wallet balances per method: revenue + adds - subtracts - expenses (distributed by revenue ratio)
+    const walletAdjustments = { cash: 0, promptpay: 0, credit_card: 0 }
+    for (const adj of (adjustments ?? [])) {
+      const amt = Number(adj.amount) || 0
+      const method = adj.method as keyof typeof walletAdjustments
+      if (method in walletAdjustments) {
+        walletAdjustments[method] += adj.type === 'add' ? amt : -amt
+      }
+    }
+
+    const wallet = {
+      cash: revenue.cash + walletAdjustments.cash,
+      promptpay: revenue.promptpay + walletAdjustments.promptpay,
+      credit_card: revenue.credit_card + walletAdjustments.credit_card,
+      total: revenue.total + walletAdjustments.cash + walletAdjustments.promptpay + walletAdjustments.credit_card,
+    }
+
     return NextResponse.json({
       month,
       year,
       revenue,
+      wallet,
+      adjustments: adjustments ?? [],
       expenses: {
         total: totalExpenses,
         receipts: { total: receiptTotal, byCategory: receiptsByCategory },
@@ -114,6 +139,107 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching expense management data:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch data' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const body = await request.json()
+    const { method, type, amount, note, adjustment_date } = body
+
+    if (!method || !type || !amount || !adjustment_date) {
+      return NextResponse.json({ error: 'method, type, amount, and adjustment_date are required' }, { status: 400 })
+    }
+
+    if (!['cash', 'promptpay', 'credit_card'].includes(method)) {
+      return NextResponse.json({ error: 'Invalid method' }, { status: 400 })
+    }
+    if (!['add', 'subtract'].includes(type)) {
+      return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
+    }
+    if (Number(amount) <= 0) {
+      return NextResponse.json({ error: 'Amount must be positive' }, { status: 400 })
+    }
+
+    const { data: adjustment, error } = await supabase
+      .from('wallet_adjustments')
+      .insert({
+        user_id: user.id,
+        method,
+        type,
+        amount: Number(amount),
+        note: note || '',
+        adjustment_date,
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+
+    const methodLabels: Record<string, string> = { cash: 'Cash', promptpay: 'PromptPay', credit_card: 'Credit Card' }
+    await logActivity({
+      supabase,
+      userId: user.id,
+      userEmail: user.email || '',
+      action: type === 'add' ? 'added_funds' : 'subtracted_funds',
+      entityType: 'wallet_adjustment',
+      entityId: adjustment.id,
+      details: {
+        method: methodLabels[method] || method,
+        amount: Number(amount),
+        note: note || '',
+        date: adjustment_date,
+      },
+    })
+
+    return NextResponse.json({ success: true, adjustment })
+  } catch (error: unknown) {
+    console.error('Error creating wallet adjustment:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to create adjustment' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+
+    const { error } = await supabase
+      .from('wallet_adjustments')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+
+    await logActivity({
+      supabase,
+      userId: user.id,
+      userEmail: user.email || '',
+      action: 'deleted',
+      entityType: 'wallet_adjustment',
+      entityId: id,
+      details: {},
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error: unknown) {
+    console.error('Error deleting wallet adjustment:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to delete adjustment' },
       { status: 500 }
     )
   }
