@@ -939,8 +939,8 @@ export default function FixedCostsPage() {
         <>
           {recurringCosts.length > 0 && (
             <CostSection
-              title="Recurring Costs"
-              subtitle="Every month"
+              title="Activities"
+              subtitle="Monthly recurring payments"
               icon={<RotateCcw className="h-3.5 w-3.5 text-violet-500" />}
               costs={recurringCosts}
               togglePaid={togglePaid}
@@ -950,8 +950,8 @@ export default function FixedCostsPage() {
           )}
           {oneTimeCosts.length > 0 && (
             <CostSection
-              title="This Month Only"
-              subtitle="One-time for this period"
+              title="One-Time Activities"
+              subtitle="This period only"
               icon={<CalendarDays className="h-3.5 w-3.5 text-amber-500" />}
               costs={oneTimeCosts}
               togglePaid={togglePaid}
@@ -999,6 +999,16 @@ export default function FixedCostsPage() {
   );
 }
 
+/* ── Helper: check if a fixed cost maps to a reminder ── */
+function isLinkedToReminder(cost: FixedCost): boolean {
+  const n = cost.name.toLowerCase().trim();
+  if (cost.category === "utilities" && (n.includes("water") || n.includes("electric"))) return true;
+  if (cost.category === "credit_card" && (n.includes("uob") || n.includes("umb"))) return true;
+  if (cost.category === "internet") return true;
+  if (cost.category === "employees" && (n.includes("first") || n.includes("1st") || n.includes("second") || n.includes("2nd"))) return true;
+  return false;
+}
+
 /* ── Cost Section Component ── */
 function CostSection({
   title,
@@ -1030,15 +1040,17 @@ function CostSection({
             <p className="text-[11px] text-muted-foreground">{subtitle}</p>
           </div>
         </div>
-        {allPaid ? (
-          <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700">
-            <Check className="h-3 w-3" /> All Paid
-          </span>
-        ) : (
-          <span className="text-[11px] text-muted-foreground">
-            {sectionPaid}/{costs.length} paid
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {allPaid ? (
+            <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700">
+              <Check className="h-3 w-3" /> All Paid
+            </span>
+          ) : (
+            <span className="text-[11px] text-muted-foreground">
+              {sectionPaid}/{costs.length} paid
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Mobile cards */}
@@ -1054,7 +1066,7 @@ function CostSection({
           <thead>
             <tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               <th className="px-5 py-3 w-16">Status</th>
-              <th className="px-5 py-3">Name</th>
+              <th className="px-5 py-3">Name / Period</th>
               <th className="px-5 py-3">Category</th>
               <th className="px-5 py-3">Payment</th>
               <th className="px-5 py-3 text-right">Amount</th>
@@ -1130,6 +1142,10 @@ function CostRowDesktop({
             </a>
           )}
         </span>
+        <span className="block text-[10px] text-muted-foreground/60 mt-0.5">
+          {new Date(cost.period_year, cost.period_month - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+          {cost.paid_date && ` \u00B7 Paid ${new Date(cost.paid_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+        </span>
       </td>
       <td
         className={`px-5 py-3 capitalize ${
@@ -1151,21 +1167,29 @@ function CostRowDesktop({
         -{formatBaht(Number(cost.amount))}
       </td>
       <td className="px-5 py-3">
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-          <button
-            onClick={() => editCost(cost)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-secondary hover:text-foreground"
-            aria-label={`Edit ${cost.name}`}
-          >
-            <Edit3 className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => deleteCost(cost.id, cost.name)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive"
-            aria-label={`Delete ${cost.name}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+        <div className="flex items-center gap-1">
+          {cost.is_paid && isLinkedToReminder(cost) && (
+            <span className="flex items-center gap-0.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600" title="Reminder auto-cleared">
+              <Check className="h-2.5 w-2.5" />
+              Synced
+            </span>
+          )}
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+            <button
+              onClick={() => editCost(cost)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-secondary hover:text-foreground"
+              aria-label={`Edit ${cost.name}`}
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => deleteCost(cost.id, cost.name)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive"
+              aria-label={`Delete ${cost.name}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </td>
     </tr>
@@ -1224,8 +1248,19 @@ function CostCardMobile({
         </p>
         <p className="text-xs text-muted-foreground">
           {CATEGORY_LABELS[cost.category] || cost.category} &middot;{" "}
-          {cost.payment_method}
+          {cost.payment_method} &middot;{" "}
+          {new Date(cost.period_year, cost.period_month - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
         </p>
+        {cost.is_paid && cost.paid_date && (
+          <p className="flex items-center gap-1 text-[10px] text-emerald-600">
+            Paid {new Date(cost.paid_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            {isLinkedToReminder(cost) && (
+              <span className="inline-flex items-center gap-0.5 rounded bg-emerald-100 px-1 py-0.5 text-[8px] font-bold text-emerald-600">
+                <Check className="h-2 w-2" />Synced
+              </span>
+            )}
+          </p>
+        )}
       </div>
       <p className="shrink-0 text-sm font-semibold text-red-600">
         -{formatBaht(Number(cost.amount))}
