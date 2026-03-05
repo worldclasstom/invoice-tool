@@ -44,7 +44,9 @@ export async function GET() {
   }
 }
 
-// POST: Seed reminders for a given month/year (creates all 6 if not existing)
+// POST: Seed reminders
+// If { seedAll: true } -> seeds ALL months from Feb 2026 through current month
+// If { periodMonth, periodYear } -> seeds a single month
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
@@ -52,22 +54,41 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const body = await request.json()
-    const { periodMonth, periodYear } = body
+    const { seedAll, periodMonth, periodYear } = body
 
-    if (!periodMonth || !periodYear) {
-      return NextResponse.json({ error: 'Missing periodMonth or periodYear' }, { status: 400 })
+    // Build list of (month, year) pairs to seed
+    const periods: { m: number; y: number }[] = []
+
+    if (seedAll) {
+      // From Feb 2026 through the current Bangkok month
+      const thaiToday = getThaiToday() // YYYY-MM-DD
+      const currentYear = Number(thaiToday.split('-')[0])
+      const currentMonth = Number(thaiToday.split('-')[1])
+      let y = 2026
+      let m = 2
+      while (y < currentYear || (y === currentYear && m <= currentMonth)) {
+        periods.push({ m, y })
+        m++
+        if (m > 12) { m = 1; y++ }
+      }
+    } else if (periodMonth && periodYear) {
+      periods.push({ m: periodMonth, y: periodYear })
+    } else {
+      return NextResponse.json({ error: 'Provide { seedAll: true } or { periodMonth, periodYear }' }, { status: 400 })
     }
 
-    // Create reminder rows for all 6 cost types (skip if already exists via UNIQUE constraint)
-    const rows = COST_TYPES.map((costType) => ({
-      cost_type: costType,
-      period_month: periodMonth,
-      period_year: periodYear,
-      due_date: getDueDate(costType, periodMonth, periodYear),
-      amount: 0,
-      paid: false,
-      user_id: user.id,
-    }))
+    // Build all rows for every period
+    const rows = periods.flatMap(({ m, y }) =>
+      COST_TYPES.map((costType) => ({
+        cost_type: costType,
+        period_month: m,
+        period_year: y,
+        due_date: getDueDate(costType, m, y),
+        amount: 0,
+        paid: false,
+        user_id: user.id,
+      }))
+    )
 
     const { data, error } = await supabase
       .from('fixed_cost_reminders')
@@ -76,7 +97,7 @@ export async function POST(request: Request) {
 
     if (error) throw error
 
-    return NextResponse.json({ success: true, reminders: data })
+    return NextResponse.json({ success: true, count: data?.length ?? 0 })
   } catch (error: unknown) {
     console.error('Error seeding reminders:', error)
     return NextResponse.json(

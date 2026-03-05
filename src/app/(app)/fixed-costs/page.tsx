@@ -316,19 +316,22 @@ export default function FixedCostsPage() {
     }
   };
 
-  // Seed current month reminders
-  const seedReminders = async (m: number, y: number) => {
+  // Seed reminders for ALL months from Feb 2026 through current month
+  const [seeding, setSeeding] = useState(false);
+  const seedAllReminders = async () => {
+    setSeeding(true);
     try {
       const res = await fetch("/api/fixed-cost-reminders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ periodMonth: m, periodYear: y }),
+        body: JSON.stringify({ seedAll: true }),
       });
       if (!res.ok) throw new Error("Failed");
       mutate("/api/fixed-cost-reminders");
     } catch (err) {
       console.error(err);
     }
+    setSeeding(false);
   };
 
   // Computed
@@ -418,10 +421,11 @@ export default function FixedCostsPage() {
             {reminderItems.length} unpaid
           </span>
           <button
-            onClick={() => seedReminders(bkkMonth, bkkYear)}
-            className="rounded-lg bg-secondary px-3 py-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
+            onClick={seedAllReminders}
+            disabled={seeding}
+            className="rounded-lg bg-secondary px-3 py-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground disabled:opacity-50"
           >
-            + Seed This Month
+            {seeding ? "Seeding..." : "+ Seed Reminders"}
           </button>
         </div>
 
@@ -429,7 +433,7 @@ export default function FixedCostsPage() {
           <div className="flex h-24 flex-col items-center justify-center gap-2 px-4">
             <Check className="h-6 w-6 text-emerald-500" />
             <p className="text-xs font-medium text-emerald-600">All fixed costs are paid</p>
-            <p className="text-[10px] text-muted-foreground">Click &quot;Seed This Month&quot; to generate reminders for the current month</p>
+            <p className="text-[10px] text-muted-foreground">Click &quot;Seed Reminders&quot; to generate reminders from Feb 2026 to now</p>
           </div>
         ) : (
           <>
