@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { formatBaht, formatThaiDate } from '@/lib/utils'
-import { Upload, Camera, Trash2, Edit3, Plus, FileText, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { Upload, Camera, Trash2, Edit3, Plus, FileText, ChevronDown, ChevronUp, CalendarRange } from 'lucide-react'
 import useSWR, { mutate } from 'swr'
 
 const CATEGORIES = [
@@ -35,11 +35,58 @@ export default function ReceiptsPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(10)
-
-  const visibleReceipts = receipts.slice(0, visibleCount)
-  const hasMore = receipts.length > visibleCount
-  const isExpanded = visibleCount > 10
   const [isManual, setIsManual] = useState(false)
+
+  // Filter state
+  type FilterPreset = 'all' | 'this_week' | 'this_month' | 'prev_month' | 'custom'
+  const [filterPreset, setFilterPreset] = useState<FilterPreset>('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+
+  const filteredReceipts = useMemo(() => {
+    if (filterPreset === 'all') return receipts
+
+    const now = new Date()
+    // Use Bangkok timezone for date calculations
+    const bangkokNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }))
+    let from: string
+    let to: string
+
+    if (filterPreset === 'this_week') {
+      const day = bangkokNow.getDay()
+      const diff = day === 0 ? 6 : day - 1 // Monday = start of week
+      const weekStart = new Date(bangkokNow)
+      weekStart.setDate(bangkokNow.getDate() - diff)
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekStart.getDate() + 6)
+      from = weekStart.toLocaleDateString('en-CA')
+      to = weekEnd.toLocaleDateString('en-CA')
+    } else if (filterPreset === 'this_month') {
+      from = `${bangkokNow.getFullYear()}-${String(bangkokNow.getMonth() + 1).padStart(2, '0')}-01`
+      const lastDay = new Date(bangkokNow.getFullYear(), bangkokNow.getMonth() + 1, 0).getDate()
+      to = `${bangkokNow.getFullYear()}-${String(bangkokNow.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    } else if (filterPreset === 'prev_month') {
+      const prevMonth = new Date(bangkokNow.getFullYear(), bangkokNow.getMonth() - 1, 1)
+      from = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}-01`
+      const lastDay = new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0).getDate()
+      to = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    } else {
+      // custom
+      from = customFrom || '1970-01-01'
+      to = customTo || '2099-12-31'
+    }
+
+    return receipts.filter((r) => r.receipt_date >= from && r.receipt_date <= to)
+  }, [receipts, filterPreset, customFrom, customTo])
+
+  const visibleReceipts = filteredReceipts.slice(0, visibleCount)
+  const hasMore = filteredReceipts.length > visibleCount
+  const isExpanded = visibleCount > 10
+
+  const selectPreset = (preset: FilterPreset) => {
+    setFilterPreset(preset)
+    setVisibleCount(10) // Reset pagination when changing filter
+  }
 
   const [receiptDate, setReceiptDate] = useState(
     new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
@@ -321,11 +368,63 @@ export default function ReceiptsPage() {
       {/* Receipt List */}
       <div className="rounded-2xl border border-border bg-card shadow-sm">
         <div className="border-b border-border px-5 py-4 flex items-center justify-between">
-          <h2 className="text-sm font-bold text-foreground">Recent Receipts</h2>
-          {receipts.length > 0 && (
+          <h2 className="text-sm font-bold text-foreground">Receipts</h2>
+          {filteredReceipts.length > 0 && (
             <span className="text-xs text-muted-foreground">
-              Showing {Math.min(visibleCount, receipts.length)} of {receipts.length}
+              Showing {Math.min(visibleCount, filteredReceipts.length)} of {filteredReceipts.length}
             </span>
+          )}
+        </div>
+
+        {/* Date Filters */}
+        <div className="border-b border-border px-5 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <CalendarRange className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
+            {([
+              ['all', 'All'],
+              ['this_week', 'This Week'],
+              ['this_month', 'This Month'],
+              ['prev_month', 'Previous Month'],
+              ['custom', 'Custom Range'],
+            ] as [FilterPreset, string][]).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => selectPreset(key)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                  filterPreset === key
+                    ? 'bg-foreground text-background shadow-sm'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {filterPreset === 'custom' && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <label className="text-xs font-medium text-muted-foreground">From</label>
+              <input
+                type="date"
+                value={customFrom}
+                onChange={(e) => { setCustomFrom(e.target.value); setVisibleCount(10) }}
+                className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+              <label className="text-xs font-medium text-muted-foreground">To</label>
+              <input
+                type="date"
+                value={customTo}
+                onChange={(e) => { setCustomTo(e.target.value); setVisibleCount(10) }}
+                className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+              {(customFrom || customTo) && (
+                <button
+                  onClick={() => { setCustomFrom(''); setCustomTo('') }}
+                  className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -333,7 +432,7 @@ export default function ReceiptsPage() {
           <div className="flex h-40 items-center justify-center">
             <p className="text-sm text-muted-foreground">Loading...</p>
           </div>
-        ) : receipts.length > 0 ? (
+        ) : filteredReceipts.length > 0 ? (
           <>
             {/* Desktop table */}
             <div className="hidden overflow-x-auto md:block">
@@ -452,7 +551,19 @@ export default function ReceiptsPage() {
         ) : (
           <div className="flex h-40 flex-col items-center justify-center gap-2 px-4 text-center">
             <Receipt className="h-8 w-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">No receipts yet. Add your first receipt above.</p>
+            <p className="text-sm text-muted-foreground">
+              {receipts.length > 0 && filterPreset !== 'all'
+                ? 'No receipts match this filter.'
+                : 'No receipts yet. Add your first receipt above.'}
+            </p>
+            {receipts.length > 0 && filterPreset !== 'all' && (
+              <button
+                onClick={() => selectPreset('all')}
+                className="mt-1 text-xs font-semibold text-primary hover:underline"
+              >
+                Show all receipts
+              </button>
+            )}
           </div>
         )}
       </div>
