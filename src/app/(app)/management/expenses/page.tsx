@@ -726,18 +726,18 @@ export default function CashFlowManagementPage() {
                         )
                       })}
                     </div>
-                    {(displayAdjustments.length > ADJ_PAGE_SIZE || adjVisible > ADJ_PAGE_SIZE) && (
+                    {(adjVisible < displayAdjustments.length || visibleAdjustments.length > ADJ_PAGE_SIZE) && (
                       <div className="flex items-center justify-center gap-2 border-t border-border px-5 py-3">
                         {adjVisible < displayAdjustments.length && (
                           <button
-                            onClick={() => setAdjVisible((v) => v + ADJ_PAGE_SIZE)}
+                            onClick={() => setAdjVisible((v) => Math.min(v + ADJ_PAGE_SIZE, displayAdjustments.length))}
                             className="flex items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary/80"
                           >
                             <ChevronDown className="h-4 w-4" />
-                            Load More ({displayAdjustments.length - adjVisible} remaining)
+                            Load More ({Math.max(0, displayAdjustments.length - adjVisible)} remaining)
                           </button>
                         )}
-                        {adjVisible > ADJ_PAGE_SIZE && (
+                        {visibleAdjustments.length > ADJ_PAGE_SIZE && (
                           <button
                             onClick={() => setAdjVisible(ADJ_PAGE_SIZE)}
                             className="rounded-xl px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary"
