@@ -26,7 +26,8 @@ export async function POST(request: Request) {
       guestCount,
       items,
       menuCategories,
-      vatEnabled,
+      vatPercent,
+      shopAddress,
       depositPercent,
       minGuests,
       paymentNotes,
@@ -37,7 +38,8 @@ export async function POST(request: Request) {
       (s: number, i: { quantity: number; unitPrice: number }) => s + i.quantity * i.unitPrice,
       0
     )
-    const vat = vatEnabled ? Math.round(subtotal * 0.07 * 100) / 100 : 0
+    const vatRate = Number(vatPercent) || 0
+    const vat = vatRate > 0 ? Math.round(subtotal * (vatRate / 100) * 100) / 100 : 0
     const grandTotal = subtotal + vat
 
     // Load Thai font
@@ -65,12 +67,13 @@ export async function POST(request: Request) {
 
     // ─── Shop info ───
     if (shopName) { page.drawText(`ชื่อร้าน: ${shopName}`, { x: 50, y, size: 10, font: thaiFont, color: darkGray }); y -= 16 }
+    if (shopAddress) { page.drawText(`ที่อยู่: ${shopAddress}`, { x: 50, y, size: 10, font: thaiFont, color: darkGray }); y -= 16 }
     if (shopPhone) { page.drawText(`โทร: ${shopPhone}`, { x: 50, y, size: 10, font: thaiFont, color: darkGray }); y -= 16 }
     if (shopContact) { page.drawText(`Line / Email: ${shopContact}`, { x: 50, y, size: 10, font: thaiFont, color: darkGray }); y -= 16 }
     y -= 8
 
     // ─── Customer info ───
-    if (customerName) { page.drawText(`ชื่อลูกค้า: ${customerName}`, { x: 50, y, size: 10, font: thaiFont, color: darkGray }); y -= 16 }
+    if (customerName) { page.drawText(`ลูกค้า / สำนักงาน / บริษัท: ${customerName}`, { x: 50, y, size: 10, font: thaiFont, color: darkGray }); y -= 16 }
     if (eventLocation) { page.drawText(`สถานที่จัดงาน: ${eventLocation}`, { x: 50, y, size: 10, font: thaiFont, color: darkGray }); y -= 16 }
     if (eventDate) {
       const d = new Date(eventDate + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
@@ -128,8 +131,8 @@ export async function POST(request: Request) {
     page.drawText(`Subtotal`, { x: 380, y, size: 10, font: thaiFont, color: gray })
     page.drawText(`${fmtBaht(subtotal)} บาท`, { x: 470, y, size: 10, font: thaiFont, color: darkGray })
     y -= 16
-    if (vatEnabled) {
-      page.drawText(`VAT 7%`, { x: 380, y, size: 10, font: thaiFont, color: gray })
+    if (vatRate > 0) {
+      page.drawText(`VAT ${vatRate}%`, { x: 380, y, size: 10, font: thaiFont, color: gray })
       page.drawText(`${fmtBaht(vat)} บาท`, { x: 470, y, size: 10, font: thaiFont, color: darkGray })
       y -= 16
     }

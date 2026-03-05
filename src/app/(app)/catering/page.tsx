@@ -27,6 +27,7 @@ const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' 
 export default function CateringQuotationPage() {
   // Shop info
   const [shopName, setShopName] = useState('')
+  const [shopAddress, setShopAddress] = useState('')
   const [shopPhone, setShopPhone] = useState('')
   const [shopContact, setShopContact] = useState('')
 
@@ -47,7 +48,7 @@ export default function CateringQuotationPage() {
   ])
 
   // Summary options
-  const [vatEnabled, setVatEnabled] = useState(false)
+  const [vatPercent, setVatPercent] = useState('')
   const [depositPercent, setDepositPercent] = useState('50')
   const [minGuests, setMinGuests] = useState('')
   const [paymentNotes, setPaymentNotes] = useState('')
@@ -73,11 +74,13 @@ export default function CateringQuotationPage() {
   }
 
   const subtotal = items.reduce((s, item) => s + toNum(item.quantity) * toNum(item.unitPrice), 0)
-  const vat = vatEnabled ? Math.round(subtotal * 0.07 * 100) / 100 : 0
+  const vatRate = toNum(vatPercent)
+  const vat = vatRate > 0 ? Math.round(subtotal * (vatRate / 100) * 100) / 100 : 0
   const grandTotal = subtotal + vat
 
   const resetForm = () => {
     setShopName('')
+    setShopAddress('')
     setShopPhone('')
     setShopContact('')
     setCustomerName('')
@@ -86,7 +89,7 @@ export default function CateringQuotationPage() {
     setGuestCount('')
     setItems([{ name: '', detail: '', quantity: '1', quantityLabel: '', unitPrice: '' }])
     setMenuCategories([{ category: '', items: '' }])
-    setVatEnabled(false)
+    setVatPercent('')
     setDepositPercent('50')
     setMinGuests('')
     setPaymentNotes('')
@@ -101,6 +104,7 @@ export default function CateringQuotationPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shopName,
+          shopAddress,
           shopPhone,
           shopContact,
           customerName,
@@ -115,7 +119,7 @@ export default function CateringQuotationPage() {
             unitPrice: toNum(i.unitPrice),
           })),
           menuCategories: menuCategories.filter((m) => m.category || m.items),
-          vatEnabled,
+          vatPercent: vatRate,
           depositPercent: toNum(depositPercent),
           minGuests: toNum(minGuests),
           paymentNotes,
@@ -169,6 +173,10 @@ export default function CateringQuotationPage() {
               <label className={labelClass}>ชื่อร้าน</label>
               <input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} className={inputClass} placeholder="ชื่อร้านอาหาร / ร้านค้า" />
             </div>
+            <div>
+              <label className={labelClass}>ที่อยู่</label>
+              <input type="text" value={shopAddress} onChange={(e) => setShopAddress(e.target.value)} className={inputClass} placeholder="ที่อยู่ร้านค้า" />
+            </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={labelClass}>เบอร์โทร</label>
@@ -187,8 +195,8 @@ export default function CateringQuotationPage() {
           <h2 className="mb-4 text-sm font-bold text-foreground">ข้อมูลลูกค้าและงาน</h2>
           <div className="flex flex-col gap-3">
             <div>
-              <label className={labelClass}>ชื่อลูกค้า *</label>
-              <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className={inputClass} placeholder="ชื่อลูกค้า" />
+              <label className={labelClass}>ชื่อลูกค้า / สำนักงาน / บริษัท *</label>
+              <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className={inputClass} placeholder="ชื่อลูกค้า / สำนักงาน / บริษัท" />
             </div>
             <div>
               <label className={labelClass}>สถานที่จัดงาน</label>
@@ -330,16 +338,20 @@ export default function CateringQuotationPage() {
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <h2 className="mb-4 text-sm font-bold text-foreground">สรุปราคาและเงื่อนไขการชำระเงิน</h2>
 
-          {/* VAT toggle */}
+          {/* VAT % input */}
           <div className="mb-4 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setVatEnabled(!vatEnabled)}
-              className={`relative h-6 w-11 rounded-full transition-colors ${vatEnabled ? 'bg-primary' : 'bg-secondary'}`}
-            >
-              <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${vatEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
-            </button>
-            <span className="text-sm font-medium text-foreground">รวม VAT 7%</span>
+            <div className="w-24">
+              <label className={labelClass}>VAT %</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={vatPercent}
+                onChange={(e) => { if (e.target.value === '' || /^\d*\.?\d*$/.test(e.target.value)) setVatPercent(e.target.value) }}
+                className={inputClass}
+                placeholder="0"
+              />
+            </div>
+            <span className="mt-5 text-xs text-muted-foreground">เว้นว่างหรือใส่ 0 หากไม่มี VAT</span>
           </div>
 
           {/* Totals */}
@@ -349,9 +361,9 @@ export default function CateringQuotationPage() {
                 <span className="text-muted-foreground">ราคารวม</span>
                 <span className="text-foreground">{formatBaht(subtotal)}</span>
               </div>
-              {vatEnabled && (
+              {vatRate > 0 && (
                 <div className="flex items-center justify-between py-1 text-sm">
-                  <span className="text-muted-foreground">VAT 7%</span>
+                  <span className="text-muted-foreground">VAT {vatPercent}%</span>
                   <span className="text-foreground">{formatBaht(vat)}</span>
                 </div>
               )}
