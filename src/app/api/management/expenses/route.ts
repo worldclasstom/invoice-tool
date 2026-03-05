@@ -104,29 +104,70 @@ export async function GET(request: NextRequest) {
 
     if (adjErr) throw adjErr
 
-    // Compute wallet balances per method: revenue + adds - subtracts - expenses (distributed by revenue ratio)
-    const walletAdjustments = { cash: 0, promptpay: 0, credit_card: 0 }
-    for (const adj of (adjustments ?? [])) {
+    // ────── ALL-TIME OVERALL WALLET ──────
+    // All-time revenue
+    const { data: allSales } = await supabase
+      .from('daily_sales')
+      .select('cash_amount, promptpay_amount, credit_card_amount, total_amount')
+
+    const allRevenue = { cash: 0, promptpay: 0, credit_card: 0, total: 0 }
+    for (const s of (allSales ?? [])) {
+      allRevenue.cash += Number(s.cash_amount) || 0
+      allRevenue.promptpay += Number(s.promptpay_amount) || 0
+      allRevenue.credit_card += Number(s.credit_card_amount) || 0
+      allRevenue.total += Number(s.total_amount) || 0
+    }
+
+    // All-time expenses
+    const { data: allReceipts } = await supabase.from('receipts').select('total')
+    const allReceiptTotal = (allReceipts ?? []).reduce((s, r) => s + (Number(r.total) || 0), 0)
+
+    const { data: allFixed } = await supabase.from('fixed_costs').select('amount')
+    const allFixedTotal = (allFixed ?? []).reduce((s, f) => s + (Number(f.amount) || 0), 0)
+
+    const { data: allAds } = await supabase.from('ad_costs').select('amount')
+    const allAdTotal = (allAds ?? []).reduce((s, a) => s + (Number(a.amount) || 0), 0)
+
+    const allExpensesTotal = allReceiptTotal + allFixedTotal + allAdTotal
+
+    // All-time wallet adjustments
+    const { data: allAdjustments } = await supabase
+      .from('wallet_adjustments')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    const allWalletAdj = { cash: 0, promptpay: 0, credit_card: 0 }
+    for (const adj of (allAdjustments ?? [])) {
       const amt = Number(adj.amount) || 0
-      const method = adj.method as keyof typeof walletAdjustments
-      if (method in walletAdjustments) {
-        walletAdjustments[method] += adj.type === 'add' ? amt : -amt
+      const method = adj.method as keyof typeof allWalletAdj
+      if (method in allWalletAdj) {
+        allWalletAdj[method] += adj.type === 'add' ? amt : -amt
       }
     }
 
-    const wallet = {
-      cash: revenue.cash + walletAdjustments.cash,
-      promptpay: revenue.promptpay + walletAdjustments.promptpay,
-      credit_card: revenue.credit_card + walletAdjustments.credit_card,
-      total: revenue.total + walletAdjustments.cash + walletAdjustments.promptpay + walletAdjustments.credit_card,
+    const overallWallet = {
+      cash: allRevenue.cash + allWalletAdj.cash,
+      promptpay: allRevenue.promptpay + allWalletAdj.promptpay,
+      credit_card: allRevenue.credit_card + allWalletAdj.credit_card,
+      total: allRevenue.total + allWalletAdj.cash + allWalletAdj.promptpay + allWalletAdj.credit_card - allExpensesTotal,
+      totalRevenue: allRevenue.total,
+      totalExpenses: allExpensesTotal,
+      totalAdjustments: allWalletAdj.cash + allWalletAdj.promptpay + allWalletAdj.credit_card,
     }
+
+    // Per-method wallet after expenses (distribute expenses proportionally by revenue)
+    const revTotal = allRevenue.total || 1
+    overallWallet.cash = allRevenue.cash + allWalletAdj.cash - (allExpensesTotal * (allRevenue.cash / revTotal))
+    overallWallet.promptpay = allRevenue.promptpay + allWalletAdj.promptpay - (allExpensesTotal * (allRevenue.promptpay / revTotal))
+    overallWallet.credit_card = allRevenue.credit_card + allWalletAdj.credit_card - (allExpensesTotal * (allRevenue.credit_card / revTotal))
 
     return NextResponse.json({
       month,
       year,
       revenue,
-      wallet,
-      adjustments: adjustments ?? [],
+      overallWallet,
+      adjustments: allAdjustments ?? [],
+      monthlyAdjustments: adjustments ?? [],
       expenses: {
         total: totalExpenses,
         receipts: { total: receiptTotal, byCategory: receiptsByCategory },

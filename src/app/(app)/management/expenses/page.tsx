@@ -7,6 +7,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Wallet,
   TrendingUp,
   TrendingDown,
@@ -31,9 +32,9 @@ const MONTH_NAMES = [
 ]
 
 const METHOD_CONFIG = {
-  cash: { label: 'Cash', icon: Banknote, color: 'border-l-emerald-500', iconColor: 'text-emerald-600', bgColor: 'bg-emerald-50' },
-  promptpay: { label: 'PromptPay', icon: Smartphone, color: 'border-l-sky-500', iconColor: 'text-sky-600', bgColor: 'bg-sky-50' },
-  credit_card: { label: 'Credit Card', icon: CreditCard, color: 'border-l-amber-500', iconColor: 'text-amber-600', bgColor: 'bg-amber-50' },
+  cash: { label: 'Cash', icon: Banknote, color: 'border-l-emerald-500', iconColor: 'text-emerald-600', bgColor: 'bg-emerald-50', darkBg: 'bg-emerald-500/15' },
+  promptpay: { label: 'PromptPay', icon: Smartphone, color: 'border-l-sky-500', iconColor: 'text-sky-600', bgColor: 'bg-sky-50', darkBg: 'bg-sky-500/15' },
+  credit_card: { label: 'Credit Card', icon: CreditCard, color: 'border-l-amber-500', iconColor: 'text-amber-600', bgColor: 'bg-amber-50', darkBg: 'bg-amber-500/15' },
 } as const
 
 const RECEIPT_CATEGORY_LABELS: Record<string, string> = {
@@ -59,6 +60,8 @@ const EXPENSE_COLORS: Record<string, string> = {
 }
 function getColor(key: string) { return EXPENSE_COLORS[key] ?? EXPENSE_COLORS.other }
 
+const ADJ_PAGE_SIZE = 5
+
 export default function ExpenseManagementPage() {
   const bkk = getBangkokNow()
   const [month, setMonth] = useState(bkk.month)
@@ -70,6 +73,7 @@ export default function ExpenseManagementPage() {
   const [adjNote, setAdjNote] = useState('')
   const [adjSubmitting, setAdjSubmitting] = useState(false)
   const [adjDeleting, setAdjDeleting] = useState<string | null>(null)
+  const [adjVisible, setAdjVisible] = useState(ADJ_PAGE_SIZE)
 
   const { data, isLoading, mutate } = useSWR(
     `/api/management/expenses?month=${month}&year=${year}`,
@@ -86,8 +90,8 @@ export default function ExpenseManagementPage() {
   }
 
   const revenue = data?.revenue ?? { cash: 0, promptpay: 0, credit_card: 0, total: 0 }
-  const wallet = data?.wallet ?? { cash: 0, promptpay: 0, credit_card: 0, total: 0 }
-  const adjustments = data?.adjustments ?? []
+  const overallWallet = data?.overallWallet ?? { cash: 0, promptpay: 0, credit_card: 0, total: 0, totalRevenue: 0, totalExpenses: 0, totalAdjustments: 0 }
+  const adjustments: { id: string; method: string; type: string; amount: number; note: string; adjustment_date: string; created_at: string }[] = data?.adjustments ?? []
   const expenses = data?.expenses ?? { total: 0, receipts: { total: 0, byCategory: {} }, fixedCosts: { total: 0, byCategory: {} }, adCosts: { total: 0, byPlatform: {} } }
   const netProfit = data?.netProfit ?? 0
 
@@ -95,10 +99,7 @@ export default function ExpenseManagementPage() {
     if (!adjAmount || Number(adjAmount) <= 0) return
     setAdjSubmitting(true)
     try {
-      const lastDay = new Date(year, month, 0).getDate()
-      const today = bkk.day
-      const adjDay = Math.min(today, lastDay)
-      const adjDate = `${year}-${String(month).padStart(2, '0')}-${String(adjDay).padStart(2, '0')}`
+      const adjDate = `${bkk.year}-${String(bkk.month).padStart(2, '0')}-${String(bkk.day).padStart(2, '0')}`
 
       await fetch('/api/management/expenses', {
         method: 'POST',
@@ -120,7 +121,7 @@ export default function ExpenseManagementPage() {
     } finally {
       setAdjSubmitting(false)
     }
-  }, [adjAmount, adjMethod, adjType, adjNote, month, year, bkk.day, mutate])
+  }, [adjAmount, adjMethod, adjType, adjNote, bkk, mutate])
 
   const handleDeleteAdjustment = useCallback(async (id: string) => {
     setAdjDeleting(id)
@@ -149,6 +150,8 @@ export default function ExpenseManagementPage() {
     return items
   }, [expenses])
 
+  const visibleAdjustments = adjustments.slice(0, adjVisible)
+
   return (
     <div className="mx-auto max-w-3xl">
       {/* Header */}
@@ -156,24 +159,11 @@ export default function ExpenseManagementPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-lg font-bold text-primary-foreground">Expense Management</h1>
-            <p className="mt-1 text-sm font-medium text-primary-foreground/80">Wallet overview & expense tracking</p>
+            <p className="mt-1 text-sm font-medium text-primary-foreground/80">Overall financial overview</p>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-foreground/15">
             <Wallet className="h-5 w-5 text-primary-foreground" />
           </div>
-        </div>
-
-        {/* Month navigation */}
-        <div className="mt-4 flex items-center gap-2">
-          <button onClick={() => navigateMonth(-1)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-foreground/15 text-primary-foreground/80 transition-colors hover:bg-primary-foreground/25">
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <div className="flex flex-1 items-center justify-center rounded-xl bg-primary-foreground/10 px-4 py-2">
-            <span className="text-sm font-bold text-primary-foreground">{MONTH_NAMES[month - 1]} {year}</span>
-          </div>
-          <button onClick={() => navigateMonth(1)} disabled={month === bkk.month && year === bkk.year} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-foreground/15 text-primary-foreground/80 transition-colors hover:bg-primary-foreground/25 disabled:opacity-30">
-            <ChevronRight className="h-4 w-4" />
-          </button>
         </div>
       </div>
 
@@ -184,36 +174,56 @@ export default function ExpenseManagementPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {/* ═══ WALLET CARD ═══ */}
+          {/* ═══════════════ OVERALL WALLET ═══════════════ */}
           <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-            {/* Wallet header with total */}
-            <div className="bg-gradient-to-br from-foreground to-foreground/85 px-5 py-5">
-              <div className="flex items-center gap-2 mb-3">
+            {/* Total balance */}
+            <div className="bg-gradient-to-br from-foreground to-foreground/85 px-5 py-6">
+              <div className="flex items-center gap-2 mb-1">
                 <Wallet className="h-4 w-4 text-background/70" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-background/60">Available Funds</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-background/60">Total Balance</span>
               </div>
-              <p className="text-3xl font-bold text-background tabular-nums">{formatBaht(wallet.total)}</p>
-              <p className="mt-1 text-xs text-background/50">Revenue + adjustments for {MONTH_NAMES[month - 1]}</p>
+              <p className={`text-3xl font-bold tabular-nums ${overallWallet.total >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {formatBaht(overallWallet.total)}
+              </p>
+              <p className="mt-2 text-[11px] text-background/40">All-time revenue minus all expenses, adjusted to reality</p>
+
+              {/* Summary row */}
+              <div className="mt-4 flex gap-3">
+                <div className="flex-1 rounded-xl bg-background/10 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-background/50">Revenue</p>
+                  <p className="text-sm font-bold text-emerald-400 tabular-nums">{formatBaht(overallWallet.totalRevenue)}</p>
+                </div>
+                <div className="flex-1 rounded-xl bg-background/10 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-background/50">Expenses</p>
+                  <p className="text-sm font-bold text-rose-400 tabular-nums">{formatBaht(overallWallet.totalExpenses)}</p>
+                </div>
+                <div className="flex-1 rounded-xl bg-background/10 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-background/50">Adjusted</p>
+                  <p className={`text-sm font-bold tabular-nums ${overallWallet.totalAdjustments >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {overallWallet.totalAdjustments >= 0 ? '+' : ''}{formatBaht(overallWallet.totalAdjustments)}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Per-method breakdown */}
             <div className="p-4 flex flex-col gap-2">
               {(Object.keys(METHOD_CONFIG) as Array<keyof typeof METHOD_CONFIG>).map((key) => {
                 const cfg = METHOD_CONFIG[key]
-                const value = wallet[key]
+                const value = overallWallet[key] as number
                 return (
                   <div key={key} className={`flex items-center gap-3 rounded-xl border border-border bg-background p-3 border-l-4 ${cfg.color}`}>
                     <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${cfg.bgColor}`}>
                       <cfg.icon className={`h-4 w-4 ${cfg.iconColor}`} />
                     </div>
                     <span className="flex-1 text-sm font-medium text-foreground">{cfg.label}</span>
-                    <span className="text-sm font-bold text-foreground tabular-nums">{formatBaht(value)}</span>
+                    <span className={`text-sm font-bold tabular-nums ${value >= 0 ? 'text-foreground' : 'text-rose-500'}`}>{formatBaht(value)}</span>
                   </div>
                 )
               })}
             </div>
 
-            {/* Adjust funds button */}
+            {/* Adjust funds button / form */}
             <div className="px-4 pb-4">
               {!showAdjustForm ? (
                 <button
@@ -238,13 +248,13 @@ export default function ExpenseManagementPage() {
                       onClick={() => setAdjType('add')}
                       className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold transition-all ${adjType === 'add' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}
                     >
-                      <Plus className="h-3.5 w-3.5" /> Add
+                      <Plus className="h-3.5 w-3.5" /> Add Money
                     </button>
                     <button
                       onClick={() => setAdjType('subtract')}
                       className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold transition-all ${adjType === 'subtract' ? 'bg-rose-500 text-white shadow-md shadow-rose-500/25' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}
                     >
-                      <Minus className="h-3.5 w-3.5" /> Subtract
+                      <Minus className="h-3.5 w-3.5" /> Deduct Money
                     </button>
                   </div>
 
@@ -282,14 +292,14 @@ export default function ExpenseManagementPage() {
                     />
                   </div>
 
-                  {/* Note */}
+                  {/* Note / Reason */}
                   <div className="mb-4">
-                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Note (optional)</label>
+                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Reason / Note</label>
                     <input
                       type="text"
                       value={adjNote}
                       onChange={(e) => setAdjNote(e.target.value)}
-                      placeholder="e.g. Bank deposit, Petty cash withdrawal..."
+                      placeholder="e.g. Bank deposit, Cash lost, Owner withdrawal..."
                       className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
@@ -300,22 +310,29 @@ export default function ExpenseManagementPage() {
                     className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition-all disabled:opacity-40 ${adjType === 'add' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/25' : 'bg-rose-500 hover:bg-rose-600 shadow-md shadow-rose-500/25'}`}
                   >
                     {adjSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : adjType === 'add' ? <Plus className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
-                    {adjSubmitting ? 'Saving...' : adjType === 'add' ? 'Add Funds' : 'Subtract Funds'}
+                    {adjSubmitting ? 'Saving...' : adjType === 'add' ? 'Add Money' : 'Deduct Money'}
                   </button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* ═══ ADJUSTMENT HISTORY ═══ */}
+          {/* ═══════════════ ADJUSTMENT HISTORY (all-time, paginated) ═══════════════ */}
           {adjustments.length > 0 && (
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div className="mb-4">
-                <h3 className="text-sm font-bold text-foreground">Adjustment History</h3>
-                <p className="text-xs text-muted-foreground">{adjustments.length} adjustment{adjustments.length > 1 ? 's' : ''} this month</p>
+            <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+              <div className="p-5 pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">Adjustment History</h3>
+                    <p className="text-xs text-muted-foreground">{adjustments.length} total adjustment{adjustments.length > 1 ? 's' : ''}</p>
+                  </div>
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                    Showing {Math.min(adjVisible, adjustments.length)} of {adjustments.length}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col gap-2">
-                {adjustments.map((adj: { id: string; method: string; type: string; amount: number; note: string; adjustment_date: string; created_at: string }) => {
+              <div className="px-5 pb-3 flex flex-col gap-2">
+                {visibleAdjustments.map((adj) => {
                   const cfg = METHOD_CONFIG[adj.method as keyof typeof METHOD_CONFIG] ?? METHOD_CONFIG.cash
                   const isAdd = adj.type === 'add'
                   return (
@@ -333,7 +350,7 @@ export default function ExpenseManagementPage() {
                         </div>
                         {adj.note && <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{adj.note}</p>}
                         <p className="text-[10px] text-muted-foreground/60">
-                          {new Date(adj.adjustment_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {new Date(adj.adjustment_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </p>
                       </div>
                       <span className={`shrink-0 text-sm font-bold tabular-nums ${isAdd ? 'text-emerald-600' : 'text-rose-500'}`}>
@@ -350,10 +367,52 @@ export default function ExpenseManagementPage() {
                   )
                 })}
               </div>
+              {/* Load more / Show less */}
+              {(adjustments.length > ADJ_PAGE_SIZE || adjVisible > ADJ_PAGE_SIZE) && (
+                <div className="flex items-center justify-center gap-2 border-t border-border px-5 py-3">
+                  {adjVisible < adjustments.length && (
+                    <button
+                      onClick={() => setAdjVisible((v) => v + ADJ_PAGE_SIZE)}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary/80"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                      Load More ({adjustments.length - adjVisible} remaining)
+                    </button>
+                  )}
+                  {adjVisible > ADJ_PAGE_SIZE && (
+                    <button
+                      onClick={() => setAdjVisible(ADJ_PAGE_SIZE)}
+                      className="rounded-xl px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary"
+                    >
+                      Show less
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
-          {/* ═══ SUMMARY KPIs ═══ */}
+          {/* ═══════════════ MONTHLY VIEW SEPARATOR ═══════════════ */}
+          <div className="flex items-center gap-3 mt-2">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Monthly Breakdown</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
+          {/* Month navigation */}
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigateMonth(-1)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-secondary">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="flex flex-1 items-center justify-center rounded-xl border border-border bg-card px-4 py-2">
+              <span className="text-sm font-bold text-foreground">{MONTH_NAMES[month - 1]} {year}</span>
+            </div>
+            <button onClick={() => navigateMonth(1)} disabled={month === bkk.month && year === bkk.year} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-30">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* ═══ MONTHLY SUMMARY KPIs ═══ */}
           <div className="grid gap-3 grid-cols-2 lg:grid-cols-3">
             <div className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 shadow-sm">
               <div className="flex items-center justify-between">
@@ -364,7 +423,7 @@ export default function ExpenseManagementPage() {
               </div>
               <div>
                 <p className="text-lg font-bold text-foreground leading-tight">{formatBaht(revenue.total)}</p>
-                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Total Revenue</p>
+                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Revenue</p>
               </div>
             </div>
 
@@ -377,7 +436,7 @@ export default function ExpenseManagementPage() {
               </div>
               <div>
                 <p className="text-lg font-bold text-foreground leading-tight">{formatBaht(expenses.total)}</p>
-                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Total Expenses</p>
+                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">Expenses</p>
               </div>
             </div>
 
@@ -397,8 +456,8 @@ export default function ExpenseManagementPage() {
           {/* ═══ TOTAL EXPENSES BREAKDOWN ═══ */}
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="mb-4">
-              <h3 className="text-sm font-bold text-foreground">Total Expenses</h3>
-              <p className="text-xs text-muted-foreground">All costs summed across categories</p>
+              <h3 className="text-sm font-bold text-foreground">Expenses Breakdown</h3>
+              <p className="text-xs text-muted-foreground">{MONTH_NAMES[month - 1]} {year} - all costs by category</p>
             </div>
 
             <div className="grid grid-cols-3 gap-2 mb-4">
@@ -442,18 +501,20 @@ export default function ExpenseManagementPage() {
               </div>
             )}
 
-            <div className="mt-4 flex items-center justify-between rounded-xl bg-destructive/10 px-4 py-3">
-              <span className="text-sm font-bold text-destructive">Total Expenses</span>
-              <span className="text-xl font-bold text-destructive">{formatBaht(expenses.total)}</span>
-            </div>
+            {expenses.total > 0 && (
+              <div className="mt-4 flex items-center justify-between rounded-xl bg-destructive/10 px-4 py-3">
+                <span className="text-sm font-bold text-destructive">Total Expenses</span>
+                <span className="text-xl font-bold text-destructive">{formatBaht(expenses.total)}</span>
+              </div>
+            )}
           </div>
 
           {/* ═══ NET PROFIT BAR ═══ */}
           <div className={`rounded-2xl border p-5 shadow-sm ${netProfit >= 0 ? 'border-emerald-200 bg-emerald-50/50' : 'border-rose-200 bg-rose-50/50'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-foreground">Net Profit / Loss</h3>
-                <p className="text-xs text-muted-foreground">Revenue minus all expenses</p>
+                <h3 className="text-sm font-bold text-foreground">Monthly Net Profit / Loss</h3>
+                <p className="text-xs text-muted-foreground">{MONTH_NAMES[month - 1]} {year}</p>
               </div>
               <p className={`text-2xl font-bold ${netProfit >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                 {formatBaht(netProfit)}
