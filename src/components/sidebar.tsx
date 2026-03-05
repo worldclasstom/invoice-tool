@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
   Megaphone,
   Settings2,
+  UtensilsCrossed,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -29,6 +30,7 @@ const navigation = [
   { name: 'Fixed Costs', href: '/fixed-costs', icon: Wallet, color: 'text-violet-500' },
   { name: 'Ad Costs', href: '/ad-costs', icon: Megaphone, color: 'text-blue-500' },
   { name: 'Invoice', href: '/invoices', icon: FileText, color: 'text-sky-500' },
+  { name: 'Catering Quote', href: '/catering', icon: UtensilsCrossed, color: 'text-orange-500' },
   { name: 'Tax Export', href: '/tax', icon: FileSpreadsheet, color: 'text-emerald-600' },
 ]
 
@@ -189,7 +191,7 @@ export function Sidebar() {
             className={cn(
               'flex flex-col items-center gap-0.5 rounded-lg px-1.5 py-1 text-[9px] font-medium transition-all min-w-0',
               // Highlight "More" if one of the non-bottom-bar pages is active
-              (pathname?.startsWith('/invoices') || pathname?.startsWith('/tax') || pathname?.startsWith('/management'))
+              (pathname?.startsWith('/invoices') || pathname?.startsWith('/catering') || pathname?.startsWith('/tax') || pathname?.startsWith('/management'))
                 ? 'text-primary'
                 : 'text-muted-foreground'
             )}
