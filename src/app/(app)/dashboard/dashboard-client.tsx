@@ -718,7 +718,7 @@ export function DashboardClient() {
                 <h2 className="text-sm font-bold text-foreground">Team Activity</h2>
                 {activityTotal > 0 && (
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                    {activityLogs.length} of {activityTotal}
+                    Showing {activityLogs.length} of {activityTotal}
                   </span>
                 )}
               </div>
@@ -810,25 +810,38 @@ export function DashboardClient() {
                   })}
                 </div>
 
-                {activityHasMore && (
-                  <div className="border-t border-border px-5 py-3">
-                    <button
-                      onClick={loadMoreActivity}
-                      disabled={activityLoadingMore}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary py-2.5 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:opacity-50"
-                    >
-                      {activityLoadingMore ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Loading...
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="h-4 w-4" />
-                          Load More ({activityTotal - activityLogs.length} remaining)
-                        </>
-                      )}
-                    </button>
+                {(activityHasMore || activityLogs.length > ACTIVITY_PAGE_SIZE) && (
+                  <div className="flex items-center justify-center gap-2 border-t border-border px-5 py-3">
+                    {activityHasMore && (
+                      <button
+                        onClick={loadMoreActivity}
+                        disabled={activityLoadingMore}
+                        className="flex items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:opacity-50"
+                      >
+                        {activityLoadingMore ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-4 w-4" />
+                            Load More ({activityTotal - activityLogs.length} remaining)
+                          </>
+                        )}
+                      </button>
+                    )}
+                    {activityLogs.length > ACTIVITY_PAGE_SIZE && (
+                      <button
+                        onClick={() => {
+                          setActivityLogs((prev) => prev.slice(0, ACTIVITY_PAGE_SIZE))
+                          setActivityHasMore(activityTotal > ACTIVITY_PAGE_SIZE)
+                        }}
+                        className="rounded-xl px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary"
+                      >
+                        Show less
+                      </button>
+                    )}
                   </div>
                 )}
               </>
