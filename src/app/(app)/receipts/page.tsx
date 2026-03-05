@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { formatBaht, formatThaiDate } from '@/lib/utils'
-import { Upload, Camera, Trash2, Edit3, Plus, FileText, X } from 'lucide-react'
+import { Upload, Camera, Trash2, Edit3, Plus, FileText, X, ChevronDown, ChevronUp } from 'lucide-react'
 import useSWR, { mutate } from 'swr'
 
 const CATEGORIES = [
@@ -34,6 +34,11 @@ export default function ReceiptsPage() {
 
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [visibleCount, setVisibleCount] = useState(10)
+
+  const visibleReceipts = receipts.slice(0, visibleCount)
+  const hasMore = receipts.length > visibleCount
+  const isExpanded = visibleCount > 10
   const [isManual, setIsManual] = useState(false)
 
   const [receiptDate, setReceiptDate] = useState(
@@ -315,8 +320,13 @@ export default function ReceiptsPage() {
 
       {/* Receipt List */}
       <div className="rounded-2xl border border-border bg-card shadow-sm">
-        <div className="border-b border-border px-5 py-4">
+        <div className="border-b border-border px-5 py-4 flex items-center justify-between">
           <h2 className="text-sm font-bold text-foreground">Recent Receipts</h2>
+          {receipts.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              Showing {Math.min(visibleCount, receipts.length)} of {receipts.length}
+            </span>
+          )}
         </div>
 
         {isLoading ? (
@@ -339,7 +349,7 @@ export default function ReceiptsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {receipts.map((r) => (
+                  {visibleReceipts.map((r) => (
                     <tr key={r.id} className="group border-b border-border/50 last:border-0 transition-colors hover:bg-secondary/50">
                       <td className="whitespace-nowrap px-5 py-3 text-foreground">
                         {formatThaiDate(r.receipt_date)}
@@ -383,7 +393,7 @@ export default function ReceiptsPage() {
 
             {/* Mobile cards */}
             <div className="flex flex-col divide-y divide-border/50 md:hidden">
-              {receipts.map((r) => (
+              {visibleReceipts.map((r) => (
                 <div key={r.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{r.vendor}</p>
@@ -415,6 +425,29 @@ export default function ReceiptsPage() {
                 </div>
               ))}
             </div>
+            {/* Load More / Show Less */}
+            {(hasMore || isExpanded) && (
+              <div className="flex items-center justify-center gap-3 border-t border-border px-5 py-3">
+                {hasMore && (
+                  <button
+                    onClick={() => setVisibleCount((prev) => prev + 5)}
+                    className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                    Load 5 More
+                  </button>
+                )}
+                {isExpanded && (
+                  <button
+                    onClick={() => setVisibleCount(10)}
+                    className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                    Show Less
+                  </button>
+                )}
+              </div>
+            )}
           </>
         ) : (
           <div className="flex h-40 flex-col items-center justify-center gap-2 px-4 text-center">
