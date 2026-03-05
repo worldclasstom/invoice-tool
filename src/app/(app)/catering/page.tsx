@@ -134,21 +134,21 @@ export default function CateringQuotationPage() {
       window.open(URL.createObjectURL(pdfBlob), '_blank')
     } catch (err) {
       console.error('Error:', err)
-      alert('Failed to generate quotation. Please try again.')
+      alert('ไม่สามารถสร้างใบเสนอราคาได้ กรุณาลองใหม่อีกครั้ง')
     }
     setSaving(false)
   }
 
   const inputClass = 'w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary'
-  const labelClass = 'mb-1 block text-xs font-semibold text-muted-foreground uppercase tracking-wide'
+  const labelClass = 'mb-1 block text-xs font-semibold text-muted-foreground tracking-wide'
 
   return (
     <div className="mx-auto max-w-3xl">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Catering Quotation</h1>
-          <p className="text-xs text-muted-foreground">Create catering event quotations</p>
+          <h1 className="text-xl font-bold text-foreground">ใบเสนอราคาจัดเลี้ยง</h1>
+          <p className="text-xs text-muted-foreground">สร้างใบเสนอราคาสำหรับงานจัดเลี้ยง</p>
         </div>
         <button
           type="button"
@@ -156,51 +156,51 @@ export default function CateringQuotationPage() {
           className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition-all hover:brightness-110"
         >
           <UtensilsCrossed className="h-4 w-4" />
-          New Quotation
+          ใบเสนอราคาใหม่
         </button>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        {/* Shop Information */}
+        {/* ข้อมูลร้าน */}
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h2 className="mb-4 text-sm font-bold text-foreground">Shop Information</h2>
+          <h2 className="mb-4 text-sm font-bold text-foreground">ข้อมูลร้านค้า</h2>
           <div className="flex flex-col gap-3">
             <div>
-              <label className={labelClass}>Shop Name</label>
-              <input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} className={inputClass} placeholder="Restaurant / shop name" />
+              <label className={labelClass}>ชื่อร้าน</label>
+              <input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} className={inputClass} placeholder="ชื่อร้านอาหาร / ร้านค้า" />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className={labelClass}>Phone</label>
-                <input type="tel" value={shopPhone} onChange={(e) => setShopPhone(e.target.value)} className={inputClass} placeholder="Phone number" />
+                <label className={labelClass}>เบอร์โทร</label>
+                <input type="tel" value={shopPhone} onChange={(e) => setShopPhone(e.target.value)} className={inputClass} placeholder="เบอร์โทรศัพท์" />
               </div>
               <div>
-                <label className={labelClass}>Line / Email</label>
-                <input type="text" value={shopContact} onChange={(e) => setShopContact(e.target.value)} className={inputClass} placeholder="Contact info" />
+                <label className={labelClass}>Line / อีเมล</label>
+                <input type="text" value={shopContact} onChange={(e) => setShopContact(e.target.value)} className={inputClass} placeholder="ช่องทางติดต่อ" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Customer / Event Info */}
+        {/* ข้อมูลลูกค้าและงาน */}
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h2 className="mb-4 text-sm font-bold text-foreground">Customer & Event Details</h2>
+          <h2 className="mb-4 text-sm font-bold text-foreground">ข้อมูลลูกค้าและงาน</h2>
           <div className="flex flex-col gap-3">
             <div>
-              <label className={labelClass}>Customer Name *</label>
-              <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className={inputClass} placeholder="Customer name" />
+              <label className={labelClass}>ชื่อลูกค้า *</label>
+              <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className={inputClass} placeholder="ชื่อลูกค้า" />
             </div>
             <div>
-              <label className={labelClass}>Event Location</label>
-              <input type="text" value={eventLocation} onChange={(e) => setEventLocation(e.target.value)} className={inputClass} placeholder="Venue / location" />
+              <label className={labelClass}>สถานที่จัดงาน</label>
+              <input type="text" value={eventLocation} onChange={(e) => setEventLocation(e.target.value)} className={inputClass} placeholder="สถานที่ / สถานที่จัดงาน" />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className={labelClass}>Event Date *</label>
+                <label className={labelClass}>วันที่จัดงาน *</label>
                 <input type="date" required value={eventDate} onChange={(e) => setEventDate(e.target.value)} className={inputClass} />
               </div>
               <div>
-                <label className={labelClass}>Number of Guests</label>
+                <label className={labelClass}>จำนวนแขก</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -214,13 +214,13 @@ export default function CateringQuotationPage() {
           </div>
         </div>
 
-        {/* Items / Services */}
+        {/* รายการสินค้า/บริการ */}
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-foreground">Items & Services</h2>
+            <h2 className="text-sm font-bold text-foreground">รายการสินค้าและบริการ</h2>
             <button type="button" onClick={addItem} className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:brightness-110">
               <Plus className="h-3.5 w-3.5" />
-              Add Item
+              เพิ่มรายการ
             </button>
           </div>
 
@@ -228,12 +228,12 @@ export default function CateringQuotationPage() {
             {items.map((item, index) => (
               <div key={index} className="rounded-xl border border-border bg-background p-3">
                 <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <input type="text" required value={item.name} onChange={(e) => updateItem(index, 'name', e.target.value)} placeholder="Item name" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring" />
-                  <input type="text" value={item.detail} onChange={(e) => updateItem(index, 'detail', e.target.value)} placeholder="Details / description" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring" />
+                  <input type="text" required value={item.name} onChange={(e) => updateItem(index, 'name', e.target.value)} placeholder="ชื่อรายการ" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring" />
+                  <input type="text" value={item.detail} onChange={(e) => updateItem(index, 'detail', e.target.value)} placeholder="รายละเอียด" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Qty</label>
+                    <label className="text-[10px] font-semibold text-muted-foreground">จำนวน</label>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -245,17 +245,17 @@ export default function CateringQuotationPage() {
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Qty Label</label>
+                    <label className="text-[10px] font-semibold text-muted-foreground">ป้ายจำนวน</label>
                     <input
                       type="text"
                       value={item.quantityLabel}
                       onChange={(e) => updateItem(index, 'quantityLabel', e.target.value)}
                       className="w-full rounded-lg border border-input bg-card px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      placeholder="e.g. 50 guests"
+                      placeholder="เช่น 50 คน"
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Unit Price</label>
+                    <label className="text-[10px] font-semibold text-muted-foreground">ราคา/หน่วย</label>
                     <input
                       type="text"
                       inputMode="decimal"
@@ -267,7 +267,7 @@ export default function CateringQuotationPage() {
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Amount</label>
+                    <label className="text-[10px] font-semibold text-muted-foreground">รวม</label>
                     <div className="rounded-lg bg-emerald-50 px-2 py-1.5 text-sm font-semibold text-emerald-700">
                       {formatBaht(toNum(item.quantity) * toNum(item.unitPrice))}
                     </div>
@@ -283,13 +283,13 @@ export default function CateringQuotationPage() {
           </div>
         </div>
 
-        {/* Menu Categories */}
+        {/* หมวดเมนูอาหาร */}
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-foreground">Menu Categories</h2>
+            <h2 className="text-sm font-bold text-foreground">หมวดเมนูอาหาร</h2>
             <button type="button" onClick={addMenuCategory} className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:brightness-110">
               <Plus className="h-3.5 w-3.5" />
-              Add Category
+              เพิ่มหมวด
             </button>
           </div>
 
@@ -297,23 +297,23 @@ export default function CateringQuotationPage() {
             {menuCategories.map((cat, index) => (
               <div key={index} className="flex items-start gap-2 rounded-xl border border-border bg-background p-3">
                 <div className="w-1/3">
-                  <label className="text-[10px] font-semibold text-muted-foreground uppercase">Category</label>
+                  <label className="text-[10px] font-semibold text-muted-foreground">หมวด</label>
                   <input
                     type="text"
                     value={cat.category}
                     onChange={(e) => updateMenuCategory(index, 'category', e.target.value)}
                     className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="e.g. Main Course"
+                    placeholder="เช่น อาหารจานหลัก"
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="text-[10px] font-semibold text-muted-foreground uppercase">Menu Items</label>
+                  <label className="text-[10px] font-semibold text-muted-foreground">รายการเมนู</label>
                   <input
                     type="text"
                     value={cat.items}
                     onChange={(e) => updateMenuCategory(index, 'items', e.target.value)}
                     className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="e.g. Fried Rice, Tom Yum Kung"
+                    placeholder="เช่น ข้าวผัด, ต้มยำกุ้ง"
                   />
                 </div>
                 {menuCategories.length > 1 && (
@@ -326,9 +326,9 @@ export default function CateringQuotationPage() {
           </div>
         </div>
 
-        {/* Summary & Payment Terms */}
+        {/* สรุปราคาและเงื่อนไข */}
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h2 className="mb-4 text-sm font-bold text-foreground">Summary & Payment Terms</h2>
+          <h2 className="mb-4 text-sm font-bold text-foreground">สรุปราคาและเงื่อนไขการชำระเงิน</h2>
 
           {/* VAT toggle */}
           <div className="mb-4 flex items-center gap-3">
@@ -339,14 +339,14 @@ export default function CateringQuotationPage() {
             >
               <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${vatEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
             </button>
-            <span className="text-sm font-medium text-foreground">Include VAT 7%</span>
+            <span className="text-sm font-medium text-foreground">รวม VAT 7%</span>
           </div>
 
           {/* Totals */}
           <div className="mb-5 flex justify-end">
             <div className="w-full max-w-xs">
               <div className="flex items-center justify-between border-t border-border py-2 text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
+                <span className="text-muted-foreground">ราคารวม</span>
                 <span className="text-foreground">{formatBaht(subtotal)}</span>
               </div>
               {vatEnabled && (
@@ -356,16 +356,16 @@ export default function CateringQuotationPage() {
                 </div>
               )}
               <div className="flex items-center justify-between rounded-xl bg-primary/10 px-3 py-2.5 text-base font-bold">
-                <span className="text-primary">Grand Total</span>
+                <span className="text-primary">ยอดรวมสุทธิ</span>
                 <span className="text-primary">{formatBaht(grandTotal)}</span>
               </div>
             </div>
           </div>
 
-          {/* Payment terms */}
+          {/* เงื่อนไขการชำระเงิน */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <label className={labelClass}>Deposit %</label>
+              <label className={labelClass}>มัดจำ %</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -376,7 +376,7 @@ export default function CateringQuotationPage() {
               />
             </div>
             <div>
-              <label className={labelClass}>Min Guests</label>
+              <label className={labelClass}>จำนวนแขกขั้นต่ำ</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -387,13 +387,13 @@ export default function CateringQuotationPage() {
               />
             </div>
             <div>
-              <label className={labelClass}>Additional Notes</label>
-              <input type="text" value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} className={inputClass} placeholder="Other conditions..." />
+              <label className={labelClass}>หมายเหตุเพิ่มเติม</label>
+              <input type="text" value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} className={inputClass} placeholder="เงื่อนไขอื่นๆ..." />
             </div>
           </div>
         </div>
 
-        {/* Submit */}
+        {/* ปุ่มดำเนินการ */}
         <div className="flex gap-3">
           <button
             type="submit"
@@ -401,14 +401,14 @@ export default function CateringQuotationPage() {
             className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-xs font-bold text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:brightness-110 disabled:opacity-50"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {saving ? 'Generating...' : 'Generate Quotation PDF'}
+            {saving ? 'กำลังสร้าง...' : 'สร้างใบเสนอราคา PDF'}
           </button>
           <button
             type="button"
             onClick={resetForm}
             className="rounded-xl border border-border px-4 py-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary"
           >
-            Reset
+            รีเซ็ต
           </button>
         </div>
       </form>
