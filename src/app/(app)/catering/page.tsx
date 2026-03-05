@@ -264,7 +264,7 @@ export default function CateringQuotationPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground">จำนวน</label>
+                    <label className="text-[10px] font-semibold text-muted-foreground">จำนวนคน</label>
                     <input
                       type="text"
                       inputMode="numeric"
