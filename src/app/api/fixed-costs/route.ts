@@ -25,6 +25,35 @@ function mapToReminderCostType(category: string, name: string): string | null {
 }
 
 /**
+ * Ensure a reminder row exists for the given cost type + period.
+ * Uses upsert with ignoreDuplicates so it's safe to call multiple times.
+ */
+async function ensureReminderExists(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  costType: string,
+  periodMonth: number,
+  periodYear: number
+) {
+  const lastDay = new Date(periodYear, periodMonth, 0).getDate()
+  const dueDate = costType === 'EMPLOYEE_FIRST_HALF'
+    ? `${periodYear}-${String(periodMonth).padStart(2, '0')}-16`
+    : `${periodYear}-${String(periodMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+
+  await supabase
+    .from('fixed_cost_reminders')
+    .upsert({
+      cost_type: costType,
+      period_month: periodMonth,
+      period_year: periodYear,
+      due_date: dueDate,
+      amount: 0,
+      paid: false,
+      user_id: userId,
+    }, { onConflict: 'cost_type,period_month,period_year,user_id', ignoreDuplicates: true })
+}
+
+/**
  * Sync a fixed cost payment to the matching fixed_cost_reminders row.
  * Marks the reminder paid and sets its amount.
  */
@@ -98,9 +127,10 @@ export async function POST(request: Request) {
       details: { name, amount: Number(amount), category },
     })
 
-    // Sync to reminder: update the amount on the matching reminder row
+    // Auto-seed the matching reminder row if it doesn't exist, then update amount
     const reminderType = mapToReminderCostType(category, name)
     if (reminderType) {
+      await ensureReminderExists(supabase, user.id, reminderType, periodMonth, periodYear)
       await syncReminderPaid(supabase, user.id, reminderType, periodMonth, periodYear, Number(amount), false)
     }
 
@@ -218,9 +248,10 @@ export async function PATCH(request: Request) {
       details: { name: cost.name, amount: Number(cost.amount) },
     })
 
-    // Sync to reminder table
+    // Ensure reminder exists, then sync paid status
     const reminderType = mapToReminderCostType(cost.category, cost.name)
     if (reminderType) {
+      await ensureReminderExists(supabase, user.id, reminderType, cost.period_month, cost.period_year)
       await syncReminderPaid(
         supabase, user.id, reminderType,
         cost.period_month, cost.period_year,

@@ -338,9 +338,6 @@ export default function FixedCostsPage() {
   };
 
   // Computed
-  const recurringCosts = costs.filter((c) => c.is_recurring);
-  const oneTimeCosts = costs.filter((c) => !c.is_recurring);
-
   const categoryTotals: Record<string, number> = {};
   costs.forEach((c) => {
     const label = CATEGORY_LABELS[c.category] || c.category;
@@ -922,7 +919,7 @@ export default function FixedCostsPage() {
         </div>
       )}
 
-      {/* ── Cost Lists ── */}
+      {/* ── Activities (All Costs) ── */}
       {isLoading ? (
         <div className="flex h-40 items-center justify-center">
           <p className="text-sm text-muted-foreground">Loading...</p>
@@ -936,30 +933,15 @@ export default function FixedCostsPage() {
           </div>
         </div>
       ) : (
-        <>
-          {recurringCosts.length > 0 && (
-            <CostSection
-              title="Activities"
-              subtitle="Monthly recurring payments"
-              icon={<RotateCcw className="h-3.5 w-3.5 text-violet-500" />}
-              costs={recurringCosts}
-              togglePaid={togglePaid}
-              deleteCost={deleteCost}
-              editCost={editCost}
-            />
-          )}
-          {oneTimeCosts.length > 0 && (
-            <CostSection
-              title="One-Time Activities"
-              subtitle="This period only"
-              icon={<CalendarDays className="h-3.5 w-3.5 text-amber-500" />}
-              costs={oneTimeCosts}
-              togglePaid={togglePaid}
-              deleteCost={deleteCost}
-              editCost={editCost}
-            />
-          )}
-        </>
+        <CostSection
+          title="Activities"
+          subtitle={`${new Date(year, month - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })} payments`}
+          icon={<RotateCcw className="h-3.5 w-3.5 text-violet-500" />}
+          costs={costs}
+          togglePaid={togglePaid}
+          deleteCost={deleteCost}
+          editCost={editCost}
+        />
       )}
 
       {/* ── Pie Chart ── */}
@@ -1148,20 +1130,15 @@ function CostRowDesktop({
         <span className={`block text-xs ${cost.is_paid ? "text-muted-foreground/70" : "text-foreground"}`}>
           {new Date(cost.period_year, cost.period_month - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
         </span>
-        {cost.due_day && (
-          <span className="block text-[10px] text-muted-foreground/60 mt-0.5">
-            Due: {cost.due_day}th
-          </span>
-        )}
         {cost.is_paid && cost.paid_date ? (
           <span className="block text-[10px] font-medium text-emerald-600 mt-0.5">
-            Paid: {new Date(cost.paid_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            Paid {new Date(cost.paid_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
           </span>
-        ) : cost.is_paid ? (
-          <span className="block text-[10px] font-medium text-emerald-600 mt-0.5">
-            Paid
+        ) : (
+          <span className="block text-[10px] text-muted-foreground/60 mt-0.5">
+            {cost.is_recurring ? "Recurring" : "One-time"}
           </span>
-        ) : null}
+        )}
       </td>
       <td
         className={`px-5 py-3 capitalize ${
@@ -1183,29 +1160,21 @@ function CostRowDesktop({
         -{formatBaht(Number(cost.amount))}
       </td>
       <td className="px-5 py-3">
-        <div className="flex items-center gap-1">
-          {cost.is_paid && isLinkedToReminder(cost) && (
-            <span className="flex items-center gap-0.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600" title="Reminder auto-cleared">
-              <Check className="h-2.5 w-2.5" />
-              Synced
-            </span>
-          )}
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-            <button
-              onClick={() => editCost(cost)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-secondary hover:text-foreground"
-              aria-label={`Edit ${cost.name}`}
-            >
-              <Edit3 className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={() => deleteCost(cost.id, cost.name)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive"
-              aria-label={`Delete ${cost.name}`}
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+          <button
+            onClick={() => editCost(cost)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-secondary hover:text-foreground"
+            aria-label={`Edit ${cost.name}`}
+          >
+            <Edit3 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => deleteCost(cost.id, cost.name)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/40 transition-all hover:bg-destructive/10 hover:text-destructive"
+            aria-label={`Delete ${cost.name}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       </td>
     </tr>
@@ -1266,15 +1235,11 @@ function CostCardMobile({
           {CATEGORY_LABELS[cost.category] || cost.category} &middot;{" "}
           {cost.payment_method} &middot;{" "}
           {new Date(cost.period_year, cost.period_month - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+          {cost.is_recurring ? "" : " (One-time)"}
         </p>
         {cost.is_paid && cost.paid_date && (
-          <p className="flex items-center gap-1 text-[10px] text-emerald-600">
+          <p className="text-[10px] text-emerald-600">
             Paid {new Date(cost.paid_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-            {isLinkedToReminder(cost) && (
-              <span className="inline-flex items-center gap-0.5 rounded bg-emerald-100 px-1 py-0.5 text-[8px] font-bold text-emerald-600">
-                <Check className="h-2 w-2" />Synced
-              </span>
-            )}
           </p>
         )}
       </div>
