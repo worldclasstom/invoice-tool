@@ -33,6 +33,9 @@ export default function CateringQuotationPage() {
 
   // Customer / event info
   const [customerName, setCustomerName] = useState('')
+  const [customerAddress, setCustomerAddress] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [customerEmail, setCustomerEmail] = useState('')
   const [eventLocation, setEventLocation] = useState('')
   const [eventDate, setEventDate] = useState(today)
   const [guestCount, setGuestCount] = useState('')
@@ -84,6 +87,9 @@ export default function CateringQuotationPage() {
     setShopPhone('')
     setShopContact('')
     setCustomerName('')
+    setCustomerAddress('')
+    setCustomerPhone('')
+    setCustomerEmail('')
     setEventLocation('')
     setEventDate(today)
     setGuestCount('')
@@ -108,6 +114,9 @@ export default function CateringQuotationPage() {
           shopPhone,
           shopContact,
           customerName,
+          customerAddress,
+          customerPhone,
+          customerEmail,
           eventLocation,
           eventDate,
           guestCount: toNum(guestCount),
@@ -197,6 +206,20 @@ export default function CateringQuotationPage() {
             <div>
               <label className={labelClass}>ชื่อลูกค้า / สำนักงาน / บริษัท *</label>
               <input type="text" required value={customerName} onChange={(e) => setCustomerName(e.target.value)} className={inputClass} placeholder="ชื่อลูกค้า / สำนักงาน / บริษัท" />
+            </div>
+            <div>
+              <label className={labelClass}>ที่อยู่ลูกค้า</label>
+              <input type="text" value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} className={inputClass} placeholder="ที่อยู่ลูกค้า / บริษัท" />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className={labelClass}>เบอร์โทรลูกค้า</label>
+                <input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className={inputClass} placeholder="เบอร์โทรศัพท์" />
+              </div>
+              <div>
+                <label className={labelClass}>อีเมลลูกค้า</label>
+                <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} className={inputClass} placeholder="อีเมล" />
+              </div>
             </div>
             <div>
               <label className={labelClass}>สถานที่จัดงาน</label>

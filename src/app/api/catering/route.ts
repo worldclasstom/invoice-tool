@@ -21,8 +21,11 @@ export async function POST(request: Request) {
       shopAddress,
       shopPhone,
       shopContact,
-      customerName,
-      eventLocation,
+    customerName,
+    customerAddress,
+    customerPhone,
+    customerEmail,
+    eventLocation,
       eventDate,
       guestCount,
       items,
@@ -136,11 +139,15 @@ export async function POST(request: Request) {
     if (shopPhone) { page.drawText(`โทร: ${shopPhone}`, { x: leftX, y, size: 8, font, color: midGray }); y -= 13 }
     if (shopContact) { page.drawText(`Line / Email: ${shopContact}`, { x: leftX, y, size: 8, font, color: midGray }); y -= 13 }
 
-    // Customer Info (on the right, reset y to same start)
-    let rightY = y + (shopName ? 13 : 0) + (shopAddress ? 13 : 0) + (shopPhone ? 13 : 0) + (shopContact ? 13 : 0) + 15
+    // Customer Info (on the right, reset y to same start as shop info)
+    const shopLines = [shopName, shopAddress, shopPhone, shopContact].filter(Boolean).length
+    let rightY = y + shopLines * 13 + 15
     page.drawText('ข้อมูลลูกค้า / งาน', { x: rightX, y: rightY, size: 10, font, color: brandGreen })
     rightY -= 15
     if (customerName) { page.drawText(customerName, { x: rightX, y: rightY, size: 9, font, color: darkText }); rightY -= 13 }
+    if (customerAddress) { page.drawText(customerAddress, { x: rightX, y: rightY, size: 8, font, color: midGray }); rightY -= 13 }
+    if (customerPhone) { page.drawText(`โทร: ${customerPhone}`, { x: rightX, y: rightY, size: 8, font, color: midGray }); rightY -= 13 }
+    if (customerEmail) { page.drawText(`อีเมล: ${customerEmail}`, { x: rightX, y: rightY, size: 8, font, color: midGray }); rightY -= 13 }
     if (eventLocation) { page.drawText(`สถานที่: ${eventLocation}`, { x: rightX, y: rightY, size: 8, font, color: midGray }); rightY -= 13 }
     if (eventDate) {
       const d = new Date(eventDate + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
