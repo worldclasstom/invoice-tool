@@ -299,10 +299,10 @@ export default function FixedCostsPage() {
       cost.period_year === bkkYear && cost.period_month === bkkMonth && today >= dueDate;
     const isOverdue = isPastPeriod || isCurrentPeriodOverdue;
 
-    // Format month/year label in Thai short format
-    const periodLabel = new Date(cost.period_year, cost.period_month - 1).toLocaleDateString("th-TH", {
+    // Format month/year label in English
+    const periodLabel = new Date(cost.period_year, cost.period_month - 1).toLocaleDateString("en-US", {
       month: "short",
-      year: "2-digit",
+      year: "numeric",
     });
 
     return {
@@ -374,7 +374,7 @@ export default function FixedCostsPage() {
                   <p className={`truncate text-xs font-semibold ${item.isOverdue ? "text-red-600" : "text-foreground"}`}>
                     {item.name}
                   </p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                     <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${
                       item.isOverdue
                         ? "bg-red-100 text-red-600"
@@ -383,7 +383,7 @@ export default function FixedCostsPage() {
                       {item.periodLabel}
                     </span>
                     <span className={`text-[9px] ${item.isOverdue ? "font-bold text-red-500" : "text-muted-foreground"}`}>
-                      {item.isOverdue ? "Overdue" : `Due ${item.dueDate}th`}
+                      {item.isOverdue ? `Overdue — due ${item.dueDate}th` : `Due by ${item.dueDate}th`}
                     </span>
                   </div>
                 </div>
