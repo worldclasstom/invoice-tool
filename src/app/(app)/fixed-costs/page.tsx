@@ -29,6 +29,7 @@ const CATEGORIES = [
   "utilities",
   "employees",
   "credit_card",
+  "internet",
   "advertising",
   "rent",
   "insurance",
@@ -39,6 +40,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   utilities: "Utilities",
   employees: "Employees",
   credit_card: "Credit Card",
+  internet: "Internet",
   advertising: "Advertising",
   rent: "Rent",
   insurance: "Insurance",
@@ -50,7 +52,11 @@ const CATEGORY_SUGGESTIONS: Record<string, string[]> = {
   utilities: ["Water", "Electricity"],
   credit_card: ["UMB"],
   employees: ["First Half Salary", "Second Half Salary"],
+  internet: ["Internet"],
 };
+
+// Categories that appear in the Fixed Cost Reminder
+const REMINDER_CATEGORIES = ["utilities", "employees", "credit_card", "internet"];
 
 
 
@@ -114,6 +120,11 @@ export default function FixedCostsPage() {
   const [receiptImageUrl, setReceiptImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Form period selection
+  const [periodMode, setPeriodMode] = useState<"this_month" | "custom">("this_month");
+  const [formMonth, setFormMonth] = useState(bkkMonth);
+  const [formYear, setFormYear] = useState(bkkYear);
 
   // Suggestion popup
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -181,20 +192,25 @@ export default function FixedCostsPage() {
     setReceiptImageUrl(null);
     setShowSuggestions(false);
     setSuggestions([]);
+    setPeriodMode("this_month");
+    setFormMonth(bkkMonth);
+    setFormYear(bkkYear);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
+      const selectedMonth = periodMode === "this_month" ? month : formMonth;
+      const selectedYear = periodMode === "this_month" ? year : formYear;
       const payload = {
         name,
         category,
         amount: Number(amount),
         paymentMethod,
         dueDay: dueDay ? Number(dueDay) : null,
-        periodMonth: month,
-        periodYear: year,
+        periodMonth: selectedMonth,
+        periodYear: selectedYear,
         notes: notes || null,
         isRecurring,
         receiptImageUrl: receiptImageUrl || null,
@@ -205,9 +221,12 @@ export default function FixedCostsPage() {
         body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
       });
       if (!res.ok) throw new Error("Failed to save");
+      const sm = periodMode === "this_month" ? month : formMonth;
+      const sy = periodMode === "this_month" ? year : formYear;
       resetForm();
       setShowForm(false);
       mutate(`/api/fixed-costs?month=${month}&year=${year}`);
+      if (sm !== month || sy !== year) mutate(`/api/fixed-costs?month=${sm}&year=${sy}`);
       mutate('/api/fixed-costs?unpaid=true');
     } catch (err) {
       alert("Failed to save fixed cost.");
@@ -226,6 +245,14 @@ export default function FixedCostsPage() {
     setNotes(cost.notes || "");
     setIsRecurring(cost.is_recurring);
     setReceiptImageUrl(cost.receipt_image_url);
+    // Set period
+    if (cost.period_month === bkkMonth && cost.period_year === bkkYear) {
+      setPeriodMode("this_month");
+    } else {
+      setPeriodMode("custom");
+      setFormMonth(cost.period_month);
+      setFormYear(cost.period_year);
+    }
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -286,10 +313,17 @@ export default function FixedCostsPage() {
     year: "numeric",
   });
 
-  // Reminder: all unpaid costs across all months, with overdue detection
+  // Reminder: only unpaid costs in reminder categories (utilities, employees, credit_card, internet)
+  // starting from Feb 2026
   const today = bkkDay;
-  const reminderItems = allUnpaidCosts.map((cost) => {
+  const reminderCosts = allUnpaidCosts.filter(
+    (c) =>
+      REMINDER_CATEGORIES.includes(c.category) &&
+      (c.period_year > 2026 || (c.period_year === 2026 && c.period_month >= 2))
+  );
+  const reminderItems = reminderCosts.map((cost) => {
     const costLastDay = new Date(cost.period_year, cost.period_month, 0).getDate();
+    // Utilities, credit_card, internet = end of month; employees uses due_day or end of month
     const dueDate = cost.due_day || costLastDay;
     // Overdue if: the cost's period is in the past, OR it's the current period and past the due day
     const isPastPeriod =
@@ -337,7 +371,7 @@ export default function FixedCostsPage() {
       <div className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
-          <h2 className="text-sm font-bold text-foreground">Unpaid Fixed Costs</h2>
+          <h2 className="text-sm font-bold text-foreground">Fixed Cost Reminder</h2>
           <span className="ml-auto text-[10px] text-muted-foreground">
             {reminderItems.length} unpaid
           </span>
@@ -445,6 +479,72 @@ export default function FixedCostsPage() {
                   This Month Only
                 </button>
               </div>
+            </div>
+
+            {/* Period */}
+            <div>
+              <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Period
+              </label>
+              <div className="flex gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => { setPeriodMode("this_month"); setFormMonth(bkkMonth); setFormYear(bkkYear); }}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 px-4 py-2.5 text-xs font-semibold transition-all ${
+                    periodMode === "this_month"
+                      ? "border-violet-500 bg-violet-50 text-violet-700"
+                      : "border-border bg-background text-muted-foreground hover:border-violet-300"
+                  }`}
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  This Month ({new Date(bkkYear, bkkMonth - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPeriodMode("custom")}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 px-4 py-2.5 text-xs font-semibold transition-all ${
+                    periodMode === "custom"
+                      ? "border-violet-500 bg-violet-50 text-violet-700"
+                      : "border-border bg-background text-muted-foreground hover:border-violet-300"
+                  }`}
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  Custom
+                </button>
+              </div>
+              {periodMode === "custom" && (
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <select
+                      value={formMonth}
+                      onChange={(e) => setFormMonth(Number(e.target.value))}
+                      className="w-full appearance-none rounded-xl border border-input bg-background px-3.5 py-2.5 pr-8 text-sm text-foreground focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    >
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <option key={i + 1} value={i + 1}>
+                          {new Date(2026, i).toLocaleDateString("en-US", { month: "long" })}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  </div>
+                  <div className="w-28 relative">
+                    <select
+                      value={formYear}
+                      onChange={(e) => setFormYear(Number(e.target.value))}
+                      className="w-full appearance-none rounded-xl border border-input bg-background px-3.5 py-2.5 pr-8 text-sm text-foreground focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    >
+                      {[2025, 2026, 2027].map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  </div>
+                </div>
+              )}
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                Submitted: {new Date().toLocaleDateString("en-US", { timeZone: "Asia/Bangkok", month: "short", day: "numeric", year: "numeric" })}
+              </p>
             </div>
 
             {/* Category */}

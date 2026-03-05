@@ -61,12 +61,13 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
 
-    // Fetch all unpaid fixed costs across all months/years
+    // Fetch all unpaid fixed costs from Feb 2026 onwards
     if (searchParams.get('unpaid') === 'true') {
       const { data: unpaidCosts, error } = await supabase
         .from('fixed_costs')
         .select('*')
         .eq('is_paid', false)
+        .or('period_year.gt.2026,and(period_year.eq.2026,period_month.gte.2)')
         .order('period_year', { ascending: true })
         .order('period_month', { ascending: true })
         .order('name')
