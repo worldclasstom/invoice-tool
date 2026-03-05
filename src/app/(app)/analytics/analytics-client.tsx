@@ -187,7 +187,7 @@ export function AnalyticsClient() {
 
             {/* ══════════ GENERAL INSIGHTS (shown first, in both views) ══════════ */}
 
-            {/* Row: Payment Methods + Service Breakdown + Expense Categories */}
+            {/* Row: Payment Methods + Fixed Costs + Expense Categories */}
             <div className="mb-6 grid gap-4 lg:grid-cols-3">
               {/* Payment Methods Donut */}
               <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -233,14 +233,14 @@ export function AnalyticsClient() {
                 ) : <EmptyChart />}
               </div>
 
-              {/* Service Breakdown Pie (cost distribution by category) */}
+              {/* Fixed Costs Pie (cost distribution by category) */}
               <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                 <div className="mb-4">
                   <div className="flex items-center gap-2">
                     <Wallet className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-bold text-foreground">Service Breakdown</h3>
+                    <h3 className="text-sm font-bold text-foreground">Fixed Costs</h3>
                   </div>
-                  <p className="text-xs text-muted-foreground">Cost distribution across services</p>
+                  <p className="text-xs text-muted-foreground">Cost distribution by category</p>
                 </div>
                 {serviceBreakdownCosts.length > 0 ? (() => {
                   const totalService = serviceBreakdownCosts.reduce((s: number, c: { value: number }) => s + c.value, 0)
