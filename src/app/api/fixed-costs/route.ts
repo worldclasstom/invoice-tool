@@ -47,13 +47,15 @@ async function syncReminderPaid(
   } else {
     updateData.payment_date = null
   }
-  await supabase
+  const result = await supabase
     .from('fixed_cost_reminders')
     .update(updateData)
     .eq('user_id', userId)
     .eq('cost_type', costType)
     .eq('period_month', periodMonth)
     .eq('period_year', periodYear)
+    .select()
+  return result
 }
 
 export async function POST(request: Request) {
@@ -218,12 +220,24 @@ export async function PATCH(request: Request) {
 
     // Sync to reminder table
     const reminderType = mapToReminderCostType(cost.category, cost.name)
+    console.log("[v0] PATCH sync debug:", {
+      category: cost.category,
+      name: cost.name,
+      reminderType,
+      periodMonth: cost.period_month,
+      periodYear: cost.period_year,
+      amount: Number(cost.amount),
+      isPaid,
+    })
     if (reminderType) {
-      await syncReminderPaid(
+      const syncResult = await syncReminderPaid(
         supabase, user.id, reminderType,
         cost.period_month, cost.period_year,
         Number(cost.amount), isPaid
       )
+      console.log("[v0] syncReminderPaid result:", syncResult)
+    } else {
+      console.log("[v0] No matching reminder type found for:", cost.category, cost.name)
     }
 
     return NextResponse.json({ success: true, cost })
