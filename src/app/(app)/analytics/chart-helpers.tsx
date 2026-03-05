@@ -15,11 +15,19 @@ export function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-export type ViewMode = 'monthly' | 'quarterly' | 'yearly'
+export type ViewMode = 'weekly' | 'monthly' | 'quarterly' | 'yearly'
 
 export function getDateRange(mode: ViewMode, ref: string): { from: string; to: string } {
   const d = new Date(ref + 'T12:00:00')
   switch (mode) {
+    case 'weekly': {
+      const dow = d.getDay()
+      const monday = new Date(d)
+      monday.setDate(d.getDate() - ((dow + 6) % 7))
+      const sunday = new Date(monday)
+      sunday.setDate(monday.getDate() + 6)
+      return { from: toDateStr(monday), to: toDateStr(sunday) }
+    }
     case 'monthly': {
       const start = new Date(d.getFullYear(), d.getMonth(), 1)
       const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
@@ -41,6 +49,11 @@ export function getDateRange(mode: ViewMode, ref: string): { from: string; to: s
 
 export function getDateLabel(mode: ViewMode, from: string, to: string): string {
   switch (mode) {
+    case 'weekly': {
+      const fromL = new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short' })
+      const toL = new Date(to + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: 'numeric' })
+      return `${fromL} - ${toL}`
+    }
     case 'monthly':
       return new Date(from + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', month: 'long', year: 'numeric' })
     case 'quarterly': {
@@ -57,7 +70,8 @@ export function getDateLabel(mode: ViewMode, from: string, to: string): string {
 
 export function navigateRange(mode: ViewMode, from: string, direction: number): string {
   const d = new Date(from + 'T12:00:00')
-  if (mode === 'monthly') d.setMonth(d.getMonth() + direction)
+  if (mode === 'weekly') d.setDate(d.getDate() + direction * 7)
+  else if (mode === 'monthly') d.setMonth(d.getMonth() + direction)
   else if (mode === 'quarterly') d.setMonth(d.getMonth() + direction * 3)
   else d.setFullYear(d.getFullYear() + direction)
   return toDateStr(d)

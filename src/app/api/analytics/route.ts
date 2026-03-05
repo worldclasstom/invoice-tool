@@ -282,13 +282,20 @@ export async function GET(request: NextRequest) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 6)
 
-  // ──────────── Service Breakdown (dine-in vs to-go) ────────────
-  const totalTables = (sales ?? []).reduce((s, r) => s + (r.tables_served || 0), 0)
-  const totalTogo = (sales ?? []).reduce((s, r) => s + (r.togo_orders || 0), 0)
-  const serviceBreakdown = [
-    { name: 'Dine-in (Tables)', value: totalTables },
-    { name: 'To-Go Orders', value: totalTogo },
-  ].filter((s) => s.value > 0)
+  // ──────────── Service Breakdown (cost distribution by fixed cost category) ────────────
+  const serviceBreakdownCosts: { name: string; value: number }[] = []
+  const fixedCatMap: Record<string, number> = {}
+  for (const f of filteredFixed) {
+    const cat = f.category || 'other'
+    fixedCatMap[cat] = (fixedCatMap[cat] || 0) + (Number(f.amount) || 0)
+  }
+  for (const [name, value] of Object.entries(fixedCatMap)) {
+    serviceBreakdownCosts.push({
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      value,
+    })
+  }
+  serviceBreakdownCosts.sort((a, b) => b.value - a.value)
 
   // ──────────── Fixed Costs Detail ────────────
   const fixedCostsDetail = filteredFixed.map((f) => ({
@@ -416,7 +423,7 @@ export async function GET(request: NextRequest) {
     paymentMethods,
     topVendors,
     busiestTimes,
-    serviceBreakdown,
+    serviceBreakdownCosts,
     fixedCostsDetail,
     categoryTotals,
     // Ad spend charts
