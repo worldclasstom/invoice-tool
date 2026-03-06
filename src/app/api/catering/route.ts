@@ -16,28 +16,75 @@ function fit(text: string, font: { widthOfTextAtSize: (t: string, s: number) => 
   return t.length < text.length ? t.slice(0, -1) + '...' : t
 }
 
-/* helper: wrap text into multiple lines */
+/* helper: wrap text into multiple lines - split at word boundaries for English, character for Thai */
 function wrapLines(text: string, font: { widthOfTextAtSize: (t: string, s: number) => number }, size: number, maxW: number, maxLines: number = 3): string[] {
   const lines: string[] = []
-  let remaining = text
+  let remaining = text.trim()
+
   while (remaining.length > 0 && lines.length < maxLines) {
     if (font.widthOfTextAtSize(remaining, size) <= maxW) {
       lines.push(remaining)
       break
     }
-    // Find the longest substring that fits
+
+    // Try to find a good break point (space for word boundary)
     let cut = remaining.length
     while (cut > 0 && font.widthOfTextAtSize(remaining.substring(0, cut), size) > maxW) cut--
-    if (cut === 0) cut = 1 // At least 1 character
-    lines.push(remaining.substring(0, cut))
-    remaining = remaining.substring(cut)
+    if (cut === 0) cut = 1
+
+    // Look backwards for a space to avoid splitting words (for English text)
+    let breakAt = cut
+    for (let i = cut; i > Math.max(0, cut - 30); i--) {
+      if (remaining[i] === ' ') {
+        breakAt = i
+        break
+      }
+    }
+
+    // Only use word break if it's reasonable (not too far back)
+    if (breakAt < cut - 30 || breakAt === 0) breakAt = cut
+
+    lines.push(remaining.substring(0, breakAt).trim())
+    remaining = remaining.substring(breakAt).trim()
   }
-  // If there's still remaining text after maxLines, truncate last line
+
+  // If there's remaining text after maxLines, truncate last line
   if (remaining.length > 0 && lines.length === maxLines) {
     const lastIdx = lines.length - 1
-    lines[lastIdx] = fit(lines[lastIdx] + remaining, font, size, maxW)
+    lines[lastIdx] = fit(lines[lastIdx] + ' ' + remaining, font, size, maxW)
   }
   return lines
+}
+
+/* Generate quotation number: QT-YYYY-MM-NNN */
+async function generateQuotationNumber(supabase: Awaited<ReturnType<typeof createClient>>, userId: string): Promise<string> {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() + 1
+
+  // Get the highest sequence for this year/month
+  const { data: existing } = await supabase
+    .from('catering_quotation_numbers')
+    .select('sequence')
+    .eq('user_id', userId)
+    .eq('year', year)
+    .eq('month', month)
+    .order('sequence', { ascending: false })
+    .limit(1)
+
+  const nextSeq = (existing && existing.length > 0) ? existing[0].sequence + 1 : 1
+  const quotationNumber = `QT-${year}-${String(month).padStart(2, '0')}-${String(nextSeq).padStart(3, '0')}`
+
+  // Insert the new quotation number
+  await supabase.from('catering_quotation_numbers').insert({
+    user_id: userId,
+    quotation_number: quotationNumber,
+    year,
+    month,
+    sequence: nextSeq,
+  })
+
+  return quotationNumber
 }
 
 export async function POST(request: Request) {
@@ -48,12 +95,15 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const {
-      shopName, shopAddress, shopPhone, shopContact,
+      shopName, quoterName, shopAddress, shopPhone, shopEmail,
       customerName, customerAddress, customerPhone, customerEmail,
       eventLocation, eventDate, guestCount,
       items, menuCategories,
       vatPercent, depositPercent, minGuests, paymentNotes,
     } = body
+
+    // Generate quotation number
+    const quotationNumber = await generateQuotationNumber(supabase, user.id)
 
     const subtotal = (items ?? []).reduce(
       (s: number, i: { quantity: number; unitPrice: number }) => s + i.quantity * i.unitPrice, 0,
@@ -105,41 +155,47 @@ export async function POST(request: Request) {
     page.drawText('Madre Cafe & Restaurant', { x: nameX, y: y, size: 12, font: bold, color: green })
     page.drawText('ร้านอาหาร ตำราแม่', { x: nameX, y: y - 15, size: 9, font, color: mid })
 
-    // Title right-aligned
+    // Title section - right-aligned
     const title = 'ใบเสนอราคา'
     const tw = bold.widthOfTextAtSize(title, 15)
     page.drawText(title, { x: RightEdge - tw, y: y, size: 15, font: bold, color: green })
 
     const sub1 = 'Catering Quotation'
     const sw1 = font.widthOfTextAtSize(sub1, 8)
-    page.drawText(sub1, { x: RightEdge - sw1, y: y - 15, size: 8, font, color: light })
+    page.drawText(sub1, { x: RightEdge - sw1, y: y - 14, size: 8, font, color: light })
 
+    // Quotation number - right aligned
+    const qnStr = `เลขที่ : ${quotationNumber}`
+    const qnw = font.widthOfTextAtSize(qnStr, 8)
+    page.drawText(qnStr, { x: RightEdge - qnw, y: y - 26, size: 8, font, color: mid })
+
+    // Date - right aligned
     const today = new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
     const dateStr = `วันที่ : ${today}`
     const dw = font.widthOfTextAtSize(dateStr, 8)
-    page.drawText(dateStr, { x: RightEdge - dw, y: y - 27, size: 8, font, color: light })
+    page.drawText(dateStr, { x: RightEdge - dw, y: y - 38, size: 8, font, color: light })
 
-    y -= Math.max(logoH, 45) + 12
+    y -= Math.max(logoH, 50) + 12
 
     // Green divider
     page.drawRectangle({ x: M, y, width: contentW, height: 1.5, color: green })
     y -= 20
 
     // ════════════════════ TWO-COLUMN INFO ════════════════════
-    // Split page into two halves with clear separation
-    const halfW = (contentW - 20) / 2  // 20px gap between columns
+    const halfW = (contentW - 20) / 2
     const LX = M
     const RX = M + halfW + 20
     const maxLeftW = halfW - 5
     const maxRightW = halfW - 5
     const infoY = y
-    const lh = 13 // line height
+    const lh = 13
 
     // -- LEFT: Shop info --
     let ly = infoY
     page.drawText('ข้อมูลร้านค้า', { x: LX, y: ly, size: 9, font: bold, color: green })
     ly -= lh + 3
     if (shopName) { page.drawText(fit(shopName, font, 8.5, maxLeftW), { x: LX, y: ly, size: 8.5, font, color: dark }); ly -= lh }
+    if (quoterName) { page.drawText(fit(`ผู้เสนอราคา: ${quoterName}`, font, 8, maxLeftW), { x: LX, y: ly, size: 8, font, color: mid }); ly -= lh }
     if (shopAddress) {
       const addrLines = wrapLines(shopAddress, font, 8, maxLeftW, 3)
       for (const line of addrLines) {
@@ -147,7 +203,7 @@ export async function POST(request: Request) {
       }
     }
     if (shopPhone) { page.drawText(fit(`โทร: ${shopPhone}`, font, 8, maxLeftW), { x: LX, y: ly, size: 8, font, color: mid }); ly -= lh }
-    if (shopContact) { page.drawText(fit(`Line/Email: ${shopContact}`, font, 8, maxLeftW), { x: LX, y: ly, size: 8, font, color: mid }); ly -= lh }
+    if (shopEmail) { page.drawText(fit(`อีเมล: ${shopEmail}`, font, 8, maxLeftW), { x: LX, y: ly, size: 8, font, color: mid }); ly -= lh }
 
     // -- RIGHT: Customer info --
     let ry = infoY
@@ -174,18 +230,16 @@ export async function POST(request: Request) {
     }
     if (guestCount) { page.drawText(`จำนวนคน: ${guestCount} คน`, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lh }
 
-    // Move y below whichever column is taller
     y = Math.min(ly, ry) - 16
 
     // ════════════════════ ITEMS TABLE ════════════════════
     const rowH = 18
-    // Column x-positions (absolute)
     const colNo  = M
     const colName = M + 25
     const colDetail = M + 175
     const colQty = M + 300
     const colPrice = M + 370
-    const colTotal = M + 440
+    // const colTotal = M + 440
 
     // Header
     page.drawRectangle({ x: M, y: y - 3, width: contentW, height: rowH + 2, color: green })
@@ -234,19 +288,11 @@ export async function POST(request: Request) {
       for (const cat of menuCategories) {
         if (!cat.category && !cat.items) continue
         page.drawText(fit(String(cat.category ?? ''), font, 8, 118), { x: M + 6, y: y + 2, size: 8, font, color: dark })
-        const txt = String(cat.items ?? '')
-        const menuMaxW = contentW - 136
-        if (font.widthOfTextAtSize(txt, 8) > menuMaxW) {
-          // wrap to 2 lines
-          let cut = txt.length
-          while (cut > 0 && font.widthOfTextAtSize(txt.substring(0, cut), 8) > menuMaxW) cut--
-          page.drawText(txt.substring(0, cut), { x: M + 130, y: y + 2, size: 8, font, color: mid })
-          y -= 13
-          page.drawText(fit(txt.substring(cut), font, 8, menuMaxW), { x: M + 130, y: y + 2, size: 8, font, color: mid })
-        } else {
-          page.drawText(txt, { x: M + 130, y: y + 2, size: 8, font, color: mid })
+        const menuLines = wrapLines(String(cat.items ?? ''), font, 8, contentW - 136, 2)
+        for (let mi = 0; mi < menuLines.length; mi++) {
+          page.drawText(menuLines[mi], { x: M + 130, y: y + 2 - (mi * 13), size: 8, font, color: mid })
         }
-        y -= 15
+        y -= 15 + ((menuLines.length - 1) * 13)
         page.drawLine({ start: { x: M, y: y + 11 }, end: { x: RightEdge, y: y + 11 }, thickness: 0.3, color: lineCl })
       }
       y -= 10
@@ -294,7 +340,7 @@ export async function POST(request: Request) {
     if (paymentNotes) bullets.push(paymentNotes)
 
     for (const b of bullets) {
-      page.drawText(`  - ${b}`, { x: M + 4, y, size: 8, font, color: mid })
+      page.drawText(`- ${b}`, { x: M + 4, y, size: 8, font, color: mid })
       y -= 14
     }
     y -= 22
@@ -319,6 +365,7 @@ export async function POST(request: Request) {
     const pdfBytes = await pdfDoc.save()
     return NextResponse.json({
       pdf: Buffer.from(pdfBytes).toString('base64'),
+      quotationNumber,
       quotation: { subtotal, vat, grandTotal },
     })
   } catch (error) {

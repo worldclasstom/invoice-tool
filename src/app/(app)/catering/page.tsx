@@ -27,9 +27,10 @@ const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' 
 export default function CateringQuotationPage() {
   // Shop info
   const [shopName, setShopName] = useState('')
+  const [quoterName, setQuoterName] = useState('')
   const [shopAddress, setShopAddress] = useState('')
   const [shopPhone, setShopPhone] = useState('')
-  const [shopContact, setShopContact] = useState('')
+  const [shopEmail, setShopEmail] = useState('')
 
   // Customer / event info
   const [customerName, setCustomerName] = useState('')
@@ -83,9 +84,10 @@ export default function CateringQuotationPage() {
 
   const resetForm = () => {
     setShopName('')
+    setQuoterName('')
     setShopAddress('')
     setShopPhone('')
-    setShopContact('')
+    setShopEmail('')
     setCustomerName('')
     setCustomerAddress('')
     setCustomerPhone('')
@@ -108,11 +110,12 @@ export default function CateringQuotationPage() {
       const res = await fetch('/api/catering', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shopName,
-          shopAddress,
-          shopPhone,
-          shopContact,
+body: JSON.stringify({
+  shopName,
+  quoterName,
+  shopAddress,
+  shopPhone,
+  shopEmail,
           customerName,
           customerAddress,
           customerPhone,
@@ -183,6 +186,10 @@ export default function CateringQuotationPage() {
               <input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} className={inputClass} placeholder="ชื่อร้านอาหาร / ร้านค้า" />
             </div>
             <div>
+              <label className={labelClass}>ชื่อผู้เสนอราคา</label>
+              <input type="text" value={quoterName} onChange={(e) => setQuoterName(e.target.value)} className={inputClass} placeholder="ชื่อผู้เสนอราคา" />
+            </div>
+            <div>
               <label className={labelClass}>ที่อยู่</label>
               <input type="text" value={shopAddress} onChange={(e) => setShopAddress(e.target.value)} className={inputClass} placeholder="ที่อยู่ร้านค้า" />
             </div>
@@ -192,8 +199,8 @@ export default function CateringQuotationPage() {
                 <input type="tel" value={shopPhone} onChange={(e) => setShopPhone(e.target.value)} className={inputClass} placeholder="เบอร์โทรศัพท์" />
               </div>
               <div>
-                <label className={labelClass}>Line / อีเมล</label>
-                <input type="text" value={shopContact} onChange={(e) => setShopContact(e.target.value)} className={inputClass} placeholder="ช่องทางติดต่อ" />
+                <label className={labelClass}>อีเมล</label>
+                <input type="email" value={shopEmail} onChange={(e) => setShopEmail(e.target.value)} className={inputClass} placeholder="อีเมล" />
               </div>
             </div>
           </div>
