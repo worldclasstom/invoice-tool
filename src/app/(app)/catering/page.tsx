@@ -28,6 +28,7 @@ export default function CateringQuotationPage() {
   // Shop info
   const [shopName, setShopName] = useState('')
   const [quoterName, setQuoterName] = useState('')
+  const [taxId, setTaxId] = useState('')
   const [shopAddress, setShopAddress] = useState('')
   const [shopPhone, setShopPhone] = useState('')
   const [shopEmail, setShopEmail] = useState('')
@@ -85,6 +86,7 @@ export default function CateringQuotationPage() {
   const resetForm = () => {
     setShopName('')
     setQuoterName('')
+    setTaxId('')
     setShopAddress('')
     setShopPhone('')
     setShopEmail('')
@@ -113,6 +115,7 @@ export default function CateringQuotationPage() {
 body: JSON.stringify({
   shopName,
   quoterName,
+  taxId,
   shopAddress,
   shopPhone,
   shopEmail,
@@ -159,10 +162,11 @@ body: JSON.stringify({
   const generateExample = async () => {
     setSaving(true)
     try {
-      const exampleData = {
-        shopName: 'ร้านอาหาร ตำราแม่ Madre Cafe & Restaurant',
-        quoterName: 'คุณสมชาย ใจดี',
-        shopAddress: '4001 ทางหลวงชนบท Phatthalung Phatthalung, Thailand, Phatthalung 93000',
+const exampleData = {
+  shopName: 'ร้านอาหาร ตำราแม่ Madre Cafe & Restaurant',
+  quoterName: 'คุณสมชาย ใจดี',
+  taxId: '1234567890123',
+  shopAddress: '4001 ทางหลวงชนบท Phatthalung Phatthalung, Thailand, Phatthalung 93000',
         shopPhone: '096-823-9758',
         shopEmail: 'harrysattrawut.madrecafe@gmail.com',
         customerName: 'Phatthalung Hospital',
@@ -252,12 +256,18 @@ body: JSON.stringify({
               <label className={labelClass}>ชื่อร้าน</label>
               <input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} className={inputClass} placeholder="ชื่อร้านอาหาร / ร้านค้า" />
             </div>
-            <div>
-              <label className={labelClass}>ชื่อผู้เสนอราคา</label>
-              <input type="text" value={quoterName} onChange={(e) => setQuoterName(e.target.value)} className={inputClass} placeholder="ชื่อผู้เสนอราคา" />
-            </div>
-            <div>
-              <label className={labelClass}>ที่อยู่</label>
+  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div>
+      <label className={labelClass}>ชื่อผู้เสนอราคา</label>
+      <input type="text" value={quoterName} onChange={(e) => setQuoterName(e.target.value)} className={inputClass} placeholder="ชื่อผู้เสนอราคา" />
+    </div>
+    <div>
+      <label className={labelClass}>เลขประจำตัวผู้เสียภาษี</label>
+      <input type="text" value={taxId} onChange={(e) => setTaxId(e.target.value)} className={inputClass} placeholder="เลขประจำตัวผู้เสียภาษี (ถ้ามี)" />
+    </div>
+  </div>
+  <div>
+  <label className={labelClass}>ที่อยู่</label>
               <input type="text" value={shopAddress} onChange={(e) => setShopAddress(e.target.value)} className={inputClass} placeholder="ที่อยู่ร้านค้า" />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -334,7 +344,7 @@ body: JSON.stringify({
               <div key={index} className="rounded-xl border border-border bg-background p-3">
                 <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <input type="text" required value={item.name} onChange={(e) => updateItem(index, 'name', e.target.value)} placeholder="ชื่อรายการ" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring" />
-                  <input type="text" value={item.detail} onChange={(e) => updateItem(index, 'detail', e.target.value)} placeholder="รายละเอียด" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring" />
+                  <input type="text" value={item.detail} onChange={(e) => updateItem(index, 'detail', e.target.value)} placeholder="รา���ละเอียด" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2">
                   <div>

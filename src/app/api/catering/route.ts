@@ -42,6 +42,7 @@ function generateHTML(data: {
   quotationNumber: string
   shopName: string
   quoterName: string
+  taxId: string
   shopAddress: string
   shopPhone: string
   shopEmail: string
@@ -302,7 +303,7 @@ function generateHTML(data: {
 <body>
   <div class="header">
   <div class="logo-section">
-  <img src="${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/images/madre-logo.png" alt="Madre Logo" style="width: 70px; height: auto;">
+  <img src="${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/images/madre-logo.png" alt="Madre Logo" style="width: 85px; height: auto;">
   <div>
   <div class="brand-name">Madre Cafe & Restaurant</div>
   <div class="brand-sub">ร้านอาหาร ตำราแม่</div>
@@ -320,8 +321,9 @@ function generateHTML(data: {
     <div class="info-section">
       <h3>ข้อมูลร้านค้า</h3>
       ${data.shopName ? `<div class="info-row info-name">${data.shopName}</div>` : ''}
-      ${data.quoterName ? `<div class="info-row">ผู้เสนอราคา: ${data.quoterName}</div>` : ''}
-      ${data.shopAddress ? `<div class="info-row">${data.shopAddress}</div>` : ''}
+${data.quoterName ? `<div class="info-row">ผู้เสนอราคา: ${data.quoterName}</div>` : ''}
+  ${data.taxId ? `<div class="info-row">เลขประจำตัวผู้เสียภาษี: ${data.taxId}</div>` : ''}
+  ${data.shopAddress ? `<div class="info-row">${data.shopAddress}</div>` : ''}
       ${data.shopPhone ? `<div class="info-row">โทร: ${data.shopPhone}</div>` : ''}
       ${data.shopEmail ? `<div class="info-row">อีเมล: ${data.shopEmail}</div>` : ''}
     </div>
@@ -428,7 +430,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const {
-      shopName, quoterName, shopAddress, shopPhone, shopEmail,
+      shopName, quoterName, taxId, shopAddress, shopPhone, shopEmail,
       customerName, customerAddress, customerPhone, customerEmail,
       eventLocation, eventDate, guestCount,
       items, menuCategories,
@@ -453,10 +455,11 @@ export async function POST(request: NextRequest) {
 
     // Generate HTML
     const html = generateHTML({
-      quotationNumber,
-      shopName: shopName || '',
-      quoterName: quoterName || '',
-      shopAddress: shopAddress || '',
+  quotationNumber,
+  shopName: shopName || '',
+  quoterName: quoterName || '',
+  taxId: taxId || '',
+  shopAddress: shopAddress || '',
       shopPhone: shopPhone || '',
       shopEmail: shopEmail || '',
       customerName: customerName || '',
