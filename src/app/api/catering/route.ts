@@ -9,27 +9,34 @@ function fmtBaht(v: number): string {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)
 }
 
+/* Normalize Thai text to NFC and clean up any stray combining marks */
+function normalizeThai(text: string): string {
+  return text.normalize('NFC')
+}
+
 /* helper: truncate text to fit width - only cut at space boundaries */
 function fit(text: string, font: { widthOfTextAtSize: (t: string, s: number) => number }, size: number, maxW: number): string {
-  if (font.widthOfTextAtSize(text, size) <= maxW) return text
+  const t = normalizeThai(text)
+  if (font.widthOfTextAtSize(t, size) <= maxW) return t
   
   // Find the last space that fits
-  const words = text.split(' ')
+  const words = t.split(' ')
   let result = ''
   for (const word of words) {
     const test = result ? result + ' ' + word : word
     if (font.widthOfTextAtSize(test + '...', size) > maxW) break
     result = test
   }
-  return result ? result + '...' : text.substring(0, 10) + '...'
+  return result ? result + '...' : t.substring(0, 10) + '...'
 }
 
 /* helper: wrap text into multiple lines - ONLY break at spaces, never mid-word */
 function wrapLines(text: string, font: { widthOfTextAtSize: (t: string, s: number) => number }, size: number, maxW: number, maxLines: number = 3): string[] {
   const lines: string[] = []
   
-  // Split by spaces - this preserves both Thai and English words
-  const words = text.trim().split(/\s+/)
+  // Normalize Thai text first, then split by spaces
+  const normalizedText = normalizeThai(text.trim())
+  const words = normalizedText.split(/\s+/)
   let currentLine = ''
 
   for (const word of words) {
@@ -124,10 +131,10 @@ export async function POST(request: Request) {
     const vat = vatRate > 0 ? Math.round(subtotal * (vatRate / 100) * 100) / 100 : 0
     const grandTotal = subtotal + vat
 
-    // ─── Fonts (Sarabun for clean Thai rendering) ───
+    // ─── Fonts (Kanit for clean Thai rendering) ───
     const fontDir = path.join(process.cwd(), 'public/fonts')
-    const regBytes = fs.readFileSync(path.join(fontDir, 'Sarabun-Regular.ttf'))
-    const boldBytes = fs.readFileSync(path.join(fontDir, 'Sarabun-SemiBold.ttf'))
+    const regBytes = fs.readFileSync(path.join(fontDir, 'Kanit-Regular.ttf'))
+    const boldBytes = fs.readFileSync(path.join(fontDir, 'Kanit-Medium.ttf'))
 
     const pdfDoc = await PDFDocument.create()
     pdfDoc.registerFontkit(fontkit)
@@ -165,10 +172,10 @@ export async function POST(request: Request) {
 
     const nameX = M + logoW + 10
     page.drawText('Madre Cafe & Restaurant', { x: nameX, y: y, size: 12, font: bold, color: green })
-    page.drawText('ร้านอาหาร ตำราแม่', { x: nameX, y: y - 15, size: 9, font, color: mid })
+    page.drawText(normalizeThai('ร้านอาหาร ตำราแม่'), { x: nameX, y: y - 15, size: 9, font, color: mid })
 
     // Title section - right-aligned
-    const title = 'ใบเสนอราคา'
+    const title = normalizeThai('ใบเสนอราคา')
     const tw = bold.widthOfTextAtSize(title, 15)
     page.drawText(title, { x: RightEdge - tw, y: y, size: 15, font: bold, color: green })
 
@@ -177,13 +184,13 @@ export async function POST(request: Request) {
     page.drawText(sub1, { x: RightEdge - sw1, y: y - 14, size: 8, font, color: light })
 
     // Quotation number - right aligned
-    const qnStr = `เลขที่ : ${quotationNumber}`
+    const qnStr = normalizeThai(`เลขที่ : ${quotationNumber}`)
     const qnw = font.widthOfTextAtSize(qnStr, 8)
     page.drawText(qnStr, { x: RightEdge - qnw, y: y - 26, size: 8, font, color: mid })
 
     // Date - right aligned
     const today = new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
-    const dateStr = `วันที่ : ${today}`
+    const dateStr = normalizeThai(`วันที่ : ${today}`)
     const dw = font.widthOfTextAtSize(dateStr, 8)
     page.drawText(dateStr, { x: RightEdge - dw, y: y - 38, size: 8, font, color: light })
 
@@ -193,7 +200,7 @@ export async function POST(request: Request) {
     page.drawRectangle({ x: M, y, width: contentW, height: 1.5, color: green })
     y -= 20
 
-    // ════════════════════ TWO-COLUMN INFO ════════════════════
+    // ════════════════════ TWO-COLUMN INFO ���═══════════════════
     const halfW = (contentW - 20) / 2
     const LX = M
     const RX = M + halfW + 20
@@ -204,7 +211,7 @@ export async function POST(request: Request) {
 
     // -- LEFT: Shop info --
     let ly = infoY
-    page.drawText('ข้อมูลร้านค้า', { x: LX, y: ly, size: 9, font: bold, color: green })
+    page.drawText(normalizeThai('ข้อมูลร้านค้า'), { x: LX, y: ly, size: 9, font: bold, color: green })
     ly -= lh + 3
     if (shopName) { page.drawText(fit(shopName, font, 8.5, maxLeftW), { x: LX, y: ly, size: 8.5, font, color: dark }); ly -= lh }
     if (quoterName) { page.drawText(fit(`ผู้เสนอราคา: ${quoterName}`, font, 8, maxLeftW), { x: LX, y: ly, size: 8, font, color: mid }); ly -= lh }
@@ -219,7 +226,7 @@ export async function POST(request: Request) {
 
     // -- RIGHT: Customer info --
     let ry = infoY
-    page.drawText('ข้อมูลลูกค้า / งาน', { x: RX, y: ry, size: 9, font: bold, color: green })
+    page.drawText(normalizeThai('ข้อมูลลูกค้า / งาน'), { x: RX, y: ry, size: 9, font: bold, color: green })
     ry -= lh + 3
     if (customerName) { page.drawText(fit(customerName, font, 8.5, maxRightW), { x: RX, y: ry, size: 8.5, font, color: dark }); ry -= lh }
     if (customerAddress) {
@@ -257,11 +264,11 @@ export async function POST(request: Request) {
     page.drawRectangle({ x: M, y: y - 3, width: contentW, height: rowH + 2, color: green })
     const hy = y + 1
     page.drawText('#',         { x: colNo + 6,  y: hy, size: 8, font: bold, color: white })
-    page.drawText('รายการ',    { x: colName + 3, y: hy, size: 8, font: bold, color: white })
-    page.drawText('รายละเอียด', { x: colDetail + 3, y: hy, size: 8, font: bold, color: white })
-    page.drawText('จำนวน',     { x: colQty + 3,  y: hy, size: 8, font: bold, color: white })
-    page.drawText('ราคา/หน่วย', { x: colPrice + 3, y: hy, size: 8, font: bold, color: white })
-    const totalHdr = 'รวม (บาท)'
+    page.drawText(normalizeThai('รายการ'),    { x: colName + 3, y: hy, size: 8, font: bold, color: white })
+    page.drawText(normalizeThai('รายละเอียด'), { x: colDetail + 3, y: hy, size: 8, font: bold, color: white })
+    page.drawText(normalizeThai('จำนวน'),     { x: colQty + 3,  y: hy, size: 8, font: bold, color: white })
+    page.drawText(normalizeThai('ราคา/หน่วย'), { x: colPrice + 3, y: hy, size: 8, font: bold, color: white })
+    const totalHdr = normalizeThai('รวม (บาท)')
     page.drawText(totalHdr, { x: RightEdge - bold.widthOfTextAtSize(totalHdr, 8) - 4, y: hy, size: 8, font: bold, color: white })
     y -= rowH + 3
 
@@ -289,12 +296,12 @@ export async function POST(request: Request) {
     // ════════════════════ MENU CATEGORIES ════════════════════
     const hasMenu = menuCategories?.length > 0 && menuCategories.some((c: { category: string; items: string }) => c.category || c.items)
     if (hasMenu) {
-      page.drawText('รายการเมนูอาหาร', { x: M, y, size: 10, font: bold, color: green })
+      page.drawText(normalizeThai('รายการเมนูอาหาร'), { x: M, y, size: 10, font: bold, color: green })
       y -= 16
 
       page.drawRectangle({ x: M, y: y - 3, width: contentW, height: rowH, color: boxBg })
-      page.drawText('หมวด', { x: M + 6, y: y + 2, size: 8, font: bold, color: green })
-      page.drawText('รายการเมนู', { x: M + 130, y: y + 2, size: 8, font: bold, color: green })
+      page.drawText(normalizeThai('หมวด'), { x: M + 6, y: y + 2, size: 8, font: bold, color: green })
+      page.drawText(normalizeThai('รายการเมนู'), { x: M + 130, y: y + 2, size: 8, font: bold, color: green })
       y -= rowH
 
       for (const cat of menuCategories) {
@@ -317,39 +324,39 @@ export async function POST(request: Request) {
     const boxH = numRows * 20 + 14
     page.drawRectangle({ x: boxX - 8, y: y - boxH + 12, width: boxW + 10, height: boxH, color: boxBg, borderColor: lineCl, borderWidth: 0.5 })
 
-    page.drawText('ราคารวม', { x: boxX, y, size: 9, font, color: mid })
-    const stStr = `${fmtBaht(subtotal)} บาท`
+    page.drawText(normalizeThai('ราคารวม'), { x: boxX, y, size: 9, font, color: mid })
+    const stStr = normalizeThai(`${fmtBaht(subtotal)} บาท`)
     page.drawText(stStr, { x: boxX + boxW - font.widthOfTextAtSize(stStr, 9) - 6, y, size: 9, font, color: dark })
     y -= 20
 
     if (vatRate > 0) {
       page.drawText(`VAT ${vatRate}%`, { x: boxX, y, size: 9, font, color: mid })
-      const vs = `${fmtBaht(vat)} บาท`
+      const vs = normalizeThai(`${fmtBaht(vat)} บาท`)
       page.drawText(vs, { x: boxX + boxW - font.widthOfTextAtSize(vs, 9) - 6, y, size: 9, font, color: dark })
       y -= 20
     }
 
     page.drawLine({ start: { x: boxX, y: y + 16 }, end: { x: boxX + boxW - 6, y: y + 16 }, thickness: 1.2, color: green })
-    page.drawText('ยอดรวมสุทธิ', { x: boxX, y, size: 11, font: bold, color: green })
-    const gs = `${fmtBaht(grandTotal)} บาท`
+    page.drawText(normalizeThai('ยอดรวมสุทธิ'), { x: boxX, y, size: 11, font: bold, color: green })
+    const gs = normalizeThai(`${fmtBaht(grandTotal)} บาท`)
     page.drawText(gs, { x: boxX + boxW - bold.widthOfTextAtSize(gs, 11) - 6, y, size: 11, font: bold, color: green })
     y -= 30
 
     // ════════════════════ PAYMENT TERMS ════════════════════
-    page.drawText('เงื่อนไขการชำระเงิน', { x: M, y, size: 10, font: bold, color: green })
+    page.drawText(normalizeThai('เงื่อนไขการชำระเงิน'), { x: M, y, size: 10, font: bold, color: green })
     y -= 15
     const bullets: string[] = []
     if (depositPercent) {
       const depRate = Number(depositPercent) || 0
       const depAmount = Math.round(grandTotal * (depRate / 100) * 100) / 100
       const remaining = Math.round((grandTotal - depAmount) * 100) / 100
-      bullets.push(`มัดจำ ${depositPercent}% : ${fmtBaht(depAmount)} บาท ก่อนวันงาน`)
-      bullets.push(`ชำระเงินส่วนที่เหลือ ${fmtBaht(remaining)} บาท ในวันจัดงาน`)
+      bullets.push(normalizeThai(`มัดจำ ${depositPercent}% : ${fmtBaht(depAmount)} บาท ก่อนวันงาน`))
+      bullets.push(normalizeThai(`ชำระเงินส่วนที่เหลือ ${fmtBaht(remaining)} บาท ในวันจัดงาน`))
     } else {
-      bullets.push('ชำระเงินในวันจัดงาน')
+      bullets.push(normalizeThai('ชำระเงินในวันจัดงาน'))
     }
-    if (minGuests) bullets.push(`ราคานี้สำหรับขั้นต่ำ ${minGuests} คน`)
-    if (paymentNotes) bullets.push(paymentNotes)
+    if (minGuests) bullets.push(normalizeThai(`ราคานี้สำหรับขั้นต่ำ ${minGuests} คน`))
+    if (paymentNotes) bullets.push(normalizeThai(paymentNotes))
 
     for (const b of bullets) {
       page.drawText(`- ${b}`, { x: M + 4, y, size: 8, font, color: mid })
@@ -364,14 +371,14 @@ export async function POST(request: Request) {
     page.drawLine({ start: { x: sLX, y }, end: { x: sLX + sigW, y }, thickness: 0.8, color: lineCl })
     page.drawLine({ start: { x: sRX, y }, end: { x: sRX + sigW, y }, thickness: 0.8, color: lineCl })
     y -= 13
-    const l1 = 'ผู้เสนอราคา (ร้านอาหาร)'
-    const l2 = 'ผู้อนุมัติ (ลูกค้า)'
+    const l1 = normalizeThai('ผู้เสนอราคา (ร้านอาหาร)')
+    const l2 = normalizeThai('ผู้อนุมัติ (ลูกค้า)')
     page.drawText(l1, { x: sLX + (sigW - font.widthOfTextAtSize(l1, 8)) / 2, y, size: 8, font, color: light })
     page.drawText(l2, { x: sRX + (sigW - font.widthOfTextAtSize(l2, 8)) / 2, y, size: 8, font, color: light })
 
     // ─── Footer ───
     page.drawLine({ start: { x: M, y: 40 }, end: { x: RightEdge, y: 40 }, thickness: 0.5, color: lineCl })
-    const fTxt = 'Madre Cafe & Restaurant  |  ร้านอาหาร ตำราแม่'
+    const fTxt = normalizeThai('Madre Cafe & Restaurant  |  ร้านอาหาร ตำราแม่')
     page.drawText(fTxt, { x: (W - font.widthOfTextAtSize(fTxt, 7)) / 2, y: 28, size: 7, font, color: light })
 
     const pdfBytes = await pdfDoc.save()
