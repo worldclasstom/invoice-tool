@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import puppeteer from 'puppeteer-core'
-import chromium from '@sparticuz/chromium'
+import { PDFDocument, rgb } from 'pdf-lib'
+import fs from 'fs'
+import path from 'path'
+import fontkit from '@pdf-lib/fontkit'
 
 /* ──────────────────────────────────────────────────────────────
    Generate quotation number: QT-YYYY-MM-NNN
@@ -34,11 +36,27 @@ async function generateQuotationNumber(supabase: Awaited<ReturnType<typeof creat
   return quotationNumber
 }
 
-/* ──────────────────────────────────────────────────────────────
-   HTML template generator
-   ────────────────────────────────────────────────────────────── */
 function fmtNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// Colors
+const primaryColor = rgb(74/255, 124/255, 89/255) // #4a7c59
+const grayColor = rgb(107/255, 114/255, 128/255) // #6b7280
+const darkColor = rgb(31/255, 41/255, 55/255) // #1f2937
+const lightGrayColor = rgb(229/255, 231/255, 235/255) // #e5e7eb
+
+interface QuotationItem {
+  name: string
+  detail: string
+  quantity: number
+  quantityLabel: string
+  unitPrice: number
+}
+
+interface MenuCategory {
+  category: string
+  items: string
 }
 
 interface QuotationData {
@@ -56,8 +74,8 @@ interface QuotationData {
   eventLocation: string
   eventDate: string
   guestCount: number
-  items: Array<{ name: string; detail: string; quantity: number; quantityLabel: string; unitPrice: number }>
-  menuCategories: Array<{ category: string; items: string }>
+  items: QuotationItem[]
+  menuCategories: MenuCategory[]
   subtotal: number
   vat: number
   vatRate: number
@@ -67,178 +85,452 @@ interface QuotationData {
   paymentNotes: string
 }
 
-function buildHTML(data: QuotationData): string {
+async function generatePDF(data: QuotationData): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.create()
+  pdfDoc.registerFontkit(fontkit)
+
+  // Load Thai font
+  const fontPath = path.join(process.cwd(), 'public/fonts/Sarabun-Regular.ttf')
+  const fontBoldPath = path.join(process.cwd(), 'public/fonts/Sarabun-SemiBold.ttf')
+  
+  const fontBytes = fs.readFileSync(fontPath)
+  const fontBoldBytes = fs.readFileSync(fontBoldPath)
+  const thaiFont = await pdfDoc.embedFont(fontBytes)
+  const thaiFontBold = await pdfDoc.embedFont(fontBoldBytes)
+
+  const page = pdfDoc.addPage([595.28, 841.89]) // A4
+  const { width, height } = page.getSize()
+  const margin = 40
+  let y = height - margin
+
   const today = new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
+
+  // ─── HEADER ───
+  // Brand name on left
+  page.drawText('Madre Cafe & Restaurant', {
+    x: margin,
+    y: y - 5,
+    size: 16,
+    font: thaiFontBold,
+    color: primaryColor,
+  })
+  page.drawText('ร้านอาหาร ตำราแม่', {
+    x: margin,
+    y: y - 22,
+    size: 10,
+    font: thaiFont,
+    color: grayColor,
+  })
+
+  // Title on right
+  page.drawText('ใบเสนอราคา', {
+    x: width - margin - 100,
+    y: y - 5,
+    size: 22,
+    font: thaiFontBold,
+    color: primaryColor,
+  })
+  page.drawText('Catering Quotation', {
+    x: width - margin - 100,
+    y: y - 22,
+    size: 9,
+    font: thaiFont,
+    color: grayColor,
+  })
+  page.drawText(`เลขที่: ${data.quotationNumber}`, {
+    x: width - margin - 100,
+    y: y - 36,
+    size: 9,
+    font: thaiFont,
+    color: grayColor,
+  })
+  page.drawText(`วันที่: ${today}`, {
+    x: width - margin - 100,
+    y: y - 50,
+    size: 9,
+    font: thaiFont,
+    color: grayColor,
+  })
+
+  // Header line
+  y -= 65
+  page.drawLine({
+    start: { x: margin, y },
+    end: { x: width - margin, y },
+    thickness: 1,
+    color: primaryColor,
+  })
+
+  // ─── INFO SECTION ───
+  y -= 25
+  const colMid = width / 2
+
+  // Shop info (left)
+  page.drawText('ข้อมูลร้านค้า', {
+    x: margin,
+    y,
+    size: 11,
+    font: thaiFontBold,
+    color: primaryColor,
+  })
+
+  // Customer info (right)
+  page.drawText('ข้อมูลลูกค้า / งาน', {
+    x: colMid + 10,
+    y,
+    size: 11,
+    font: thaiFontBold,
+    color: primaryColor,
+  })
+
+  y -= 5
+  page.drawLine({
+    start: { x: margin, y },
+    end: { x: colMid - 10, y },
+    thickness: 0.5,
+    color: lightGrayColor,
+  })
+  page.drawLine({
+    start: { x: colMid + 10, y },
+    end: { x: width - margin, y },
+    thickness: 0.5,
+    color: lightGrayColor,
+  })
+
+  y -= 14
+  const infoSize = 9
+  const lineHeight = 13
+
+  // Shop details
+  let shopY = y
+  if (data.shopName) {
+    page.drawText(data.shopName, { x: margin, y: shopY, size: infoSize, font: thaiFontBold, color: darkColor })
+    shopY -= lineHeight
+  }
+  if (data.quoterName) {
+    page.drawText(`ผู้เสนอราคา: ${data.quoterName}`, { x: margin, y: shopY, size: infoSize, font: thaiFont, color: darkColor })
+    shopY -= lineHeight
+  }
+  if (data.taxId) {
+    page.drawText(`เลขประจำตัวผู้เสียภาษี: ${data.taxId}`, { x: margin, y: shopY, size: infoSize, font: thaiFont, color: darkColor })
+    shopY -= lineHeight
+  }
+  if (data.shopAddress) {
+    page.drawText(data.shopAddress, { x: margin, y: shopY, size: infoSize, font: thaiFont, color: darkColor })
+    shopY -= lineHeight
+  }
+  if (data.shopPhone) {
+    page.drawText(`โทร: ${data.shopPhone}`, { x: margin, y: shopY, size: infoSize, font: thaiFont, color: darkColor })
+    shopY -= lineHeight
+  }
+  if (data.shopEmail) {
+    page.drawText(`อีเมล: ${data.shopEmail}`, { x: margin, y: shopY, size: infoSize, font: thaiFont, color: darkColor })
+  }
+
+  // Customer details
+  let custY = y
+  if (data.customerName) {
+    page.drawText(data.customerName, { x: colMid + 10, y: custY, size: infoSize, font: thaiFontBold, color: darkColor })
+    custY -= lineHeight
+  }
+  if (data.customerAddress) {
+    page.drawText(data.customerAddress, { x: colMid + 10, y: custY, size: infoSize, font: thaiFont, color: darkColor })
+    custY -= lineHeight
+  }
+  if (data.customerPhone) {
+    page.drawText(`โทร: ${data.customerPhone}`, { x: colMid + 10, y: custY, size: infoSize, font: thaiFont, color: darkColor })
+    custY -= lineHeight
+  }
+  if (data.customerEmail) {
+    page.drawText(`อีเมล: ${data.customerEmail}`, { x: colMid + 10, y: custY, size: infoSize, font: thaiFont, color: darkColor })
+    custY -= lineHeight
+  }
+  if (data.eventLocation) {
+    page.drawText(`สถานที่จัดงาน: ${data.eventLocation}`, { x: colMid + 10, y: custY, size: infoSize, font: thaiFont, color: darkColor })
+    custY -= lineHeight
+  }
+  if (data.eventDate) {
+    page.drawText(`วันที่จัดงาน: ${data.eventDate}`, { x: colMid + 10, y: custY, size: infoSize, font: thaiFont, color: darkColor })
+    custY -= lineHeight
+  }
+  if (data.guestCount) {
+    page.drawText(`จำนวนคน: ${data.guestCount} คน`, { x: colMid + 10, y: custY, size: infoSize, font: thaiFont, color: darkColor })
+  }
+
+  // ─── ITEMS TABLE ───
+  y = Math.min(shopY, custY) - 25
+
+  // Table header
+  const tableX = margin
+  const tableWidth = width - margin * 2
+  const colWidths = [30, 100, 140, 60, 70, 70] // #, รายการ, รายละเอียด, จำนวน, ราคา/หน่วย, รวม
+  const headerHeight = 22
+
+  page.drawRectangle({
+    x: tableX,
+    y: y - headerHeight,
+    width: tableWidth,
+    height: headerHeight,
+    color: primaryColor,
+  })
+
+  const headerY = y - 15
+  let colX = tableX + 5
+  const headers = ['#', 'รายการ', 'รายละเอียด', 'จำนวน', 'ราคา/หน่วย', 'รวม (บาท)']
+  headers.forEach((h, i) => {
+    page.drawText(h, {
+      x: colX,
+      y: headerY,
+      size: 9,
+      font: thaiFontBold,
+      color: rgb(1, 1, 1),
+    })
+    colX += colWidths[i]
+  })
+
+  // Table rows
+  y -= headerHeight
+  const rowHeight = 20
+  data.items.forEach((item, idx) => {
+    const rowY = y - rowHeight
+    
+    // Alternating row background
+    if (idx % 2 === 1) {
+      page.drawRectangle({
+        x: tableX,
+        y: rowY,
+        width: tableWidth,
+        height: rowHeight,
+        color: rgb(248/255, 250/255, 248/255),
+      })
+    }
+
+    // Row border
+    page.drawLine({
+      start: { x: tableX, y: rowY },
+      end: { x: tableX + tableWidth, y: rowY },
+      thickness: 0.5,
+      color: lightGrayColor,
+    })
+
+    const textY = rowY + 6
+    let cx = tableX + 5
+    
+    page.drawText(String(idx + 1), { x: cx + 10, y: textY, size: 9, font: thaiFont, color: darkColor })
+    cx += colWidths[0]
+    
+    page.drawText(item.name || '', { x: cx, y: textY, size: 9, font: thaiFont, color: darkColor })
+    cx += colWidths[1]
+    
+    page.drawText(item.detail || '', { x: cx, y: textY, size: 9, font: thaiFont, color: darkColor })
+    cx += colWidths[2]
+    
+    page.drawText(item.quantityLabel || String(item.quantity), { x: cx, y: textY, size: 9, font: thaiFont, color: darkColor })
+    cx += colWidths[3]
+    
+    page.drawText(fmtNum(item.unitPrice), { x: cx, y: textY, size: 9, font: thaiFont, color: darkColor })
+    cx += colWidths[4]
+    
+    page.drawText(fmtNum(item.quantity * item.unitPrice), { x: cx, y: textY, size: 9, font: thaiFont, color: darkColor })
+
+    y -= rowHeight
+  })
+
+  // ─── MENU CATEGORIES ───
+  const hasMenus = data.menuCategories && data.menuCategories.some(c => c.category || c.items)
+  if (hasMenus) {
+    y -= 20
+    page.drawText('รายการเมนูอาหาร', {
+      x: margin,
+      y,
+      size: 11,
+      font: thaiFontBold,
+      color: primaryColor,
+    })
+    y -= 5
+    page.drawLine({
+      start: { x: margin, y },
+      end: { x: width - margin, y },
+      thickness: 0.5,
+      color: lightGrayColor,
+    })
+
+    // Menu header
+    y -= 18
+    page.drawRectangle({
+      x: margin,
+      y: y - 4,
+      width: tableWidth,
+      height: 18,
+      color: rgb(240/255, 244/255, 240/255),
+    })
+    page.drawText('หมวด', { x: margin + 5, y, size: 9, font: thaiFontBold, color: primaryColor })
+    page.drawText('รายการเมนู', { x: margin + 120, y, size: 9, font: thaiFontBold, color: primaryColor })
+
+    y -= 18
+    data.menuCategories.filter(c => c.category || c.items).forEach(cat => {
+      page.drawLine({
+        start: { x: margin, y: y + 4 },
+        end: { x: width - margin, y: y + 4 },
+        thickness: 0.5,
+        color: lightGrayColor,
+      })
+      page.drawText(cat.category || '', { x: margin + 5, y, size: 9, font: thaiFont, color: darkColor })
+      page.drawText(cat.items || '', { x: margin + 120, y, size: 9, font: thaiFont, color: darkColor })
+      y -= 16
+    })
+  }
+
+  // ─── BOTTOM SECTION ───
+  y -= 20
+
+  // Payment terms (left)
+  page.drawText('เงื่อนไขการชำระเงิน', {
+    x: margin,
+    y,
+    size: 11,
+    font: thaiFontBold,
+    color: primaryColor,
+  })
+  y -= 5
+  page.drawLine({
+    start: { x: margin, y },
+    end: { x: colMid - 30, y },
+    thickness: 0.5,
+    color: lightGrayColor,
+  })
+
+  y -= 14
   const depositAmount = data.depositPercent ? Math.round(data.grandTotal * (data.depositPercent / 100) * 100) / 100 : 0
   const remainingAmount = data.grandTotal - depositAmount
 
-  const itemsHTML = data.items.map((it, i) => `
-    <tr class="${i % 2 === 0 ? '' : 'alt'}">
-      <td class="center">${i + 1}</td>
-      <td>${it.name || ''}</td>
-      <td>${it.detail || ''}</td>
-      <td class="center">${it.quantityLabel || it.quantity}</td>
-      <td class="right">${fmtNum(it.unitPrice)}</td>
-      <td class="right">${fmtNum(it.quantity * it.unitPrice)}</td>
-    </tr>
-  `).join('')
+  if (data.depositPercent > 0) {
+    page.drawText(`• มัดจำ ${data.depositPercent}% : ${fmtNum(depositAmount)} บาท ก่อนวันงาน`, {
+      x: margin,
+      y,
+      size: 9,
+      font: thaiFont,
+      color: darkColor,
+    })
+    y -= lineHeight
+    page.drawText(`• ชำระเงินส่วนที่เหลือ ${fmtNum(remainingAmount)} บาท ในวันจัดงาน`, {
+      x: margin,
+      y,
+      size: 9,
+      font: thaiFont,
+      color: darkColor,
+    })
+    y -= lineHeight
+  } else {
+    page.drawText('• ชำระเงินในวันจัดงาน', {
+      x: margin,
+      y,
+      size: 9,
+      font: thaiFont,
+      color: darkColor,
+    })
+    y -= lineHeight
+  }
 
-  const menuHTML = data.menuCategories?.filter(c => c.category || c.items).map(c => `
-    <tr>
-      <td style="width:25%; font-weight:600; color:#4a7c59;">${c.category || ''}</td>
-      <td>${c.items || ''}</td>
-    </tr>
-  `).join('') || ''
+  if (data.minGuests > 0) {
+    page.drawText(`• ราคานี้สำหรับขั้นต่ำ ${data.minGuests} คน`, {
+      x: margin,
+      y,
+      size: 9,
+      font: thaiFont,
+      color: darkColor,
+    })
+    y -= lineHeight
+  }
 
-  return `<!DOCTYPE html>
-<html lang="th">
-<head>
-  <meta charset="UTF-8">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Sarabun', sans-serif; font-size: 11px; color: #1f2937; background: #fff; padding: 30px 40px; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #4a7c59; padding-bottom: 15px; margin-bottom: 20px; }
-    .header-left { display: flex; align-items: center; gap: 12px; }
-    .logo { width: 55px; height: 55px; object-fit: contain; }
-    .brand-name { font-size: 16px; font-weight: 700; color: #4a7c59; }
-    .brand-name-th { font-size: 11px; color: #6b7280; }
-    .header-right { text-align: right; }
-    .title { font-size: 22px; font-weight: 700; color: #4a7c59; }
-    .subtitle { font-size: 10px; color: #6b7280; margin-top: 2px; }
-    .info-row { display: flex; gap: 30px; margin-bottom: 20px; }
-    .info-col { flex: 1; }
-    .section-title { font-size: 12px; font-weight: 700; color: #4a7c59; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; margin-bottom: 8px; }
-    .info-text { font-size: 10px; color: #374151; margin-bottom: 3px; }
-    .info-bold { font-weight: 600; color: #1f2937; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    th { background: #4a7c59; color: #fff; font-weight: 600; font-size: 10px; padding: 8px 6px; text-align: left; }
-    td { padding: 6px; font-size: 10px; border-bottom: 1px solid #e5e7eb; }
-    tr.alt { background: #f8faf8; }
-    .center { text-align: center; }
-    .right { text-align: right; }
-    .menu-table th { background: #f0f4f0; color: #4a7c59; }
-    .bottom-row { display: flex; gap: 30px; margin-bottom: 25px; }
-    .payment-terms { flex: 1; }
-    .summary-box { width: 200px; border: 1px solid #d1d5db; border-radius: 6px; padding: 12px; background: #fafafa; }
-    .summary-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 10px; }
-    .summary-divider { border-top: 2px solid #4a7c59; margin: 8px 0; }
-    .summary-total { font-weight: 700; color: #4a7c59; font-size: 12px; }
-    .signatures { display: flex; justify-content: space-around; margin: 40px 0 30px 0; }
-    .sig-block { text-align: center; }
-    .sig-line { width: 140px; border-bottom: 1px solid #9ca3af; margin-bottom: 8px; height: 50px; }
-    .sig-label { font-size: 10px; color: #6b7280; }
-    .footer { border-top: 1px solid #e5e7eb; padding-top: 12px; text-align: center; font-size: 9px; color: #9ca3af; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div class="header-left">
-      <img src="https://invoice-tool-eta.vercel.app/images/madre-logo.png" class="logo" alt="Logo" />
-      <div>
-        <div class="brand-name">Madre Cafe & Restaurant</div>
-        <div class="brand-name-th">ร้านอาหาร ตำราแม่</div>
-      </div>
-    </div>
-    <div class="header-right">
-      <div class="title">ใบเสนอราคา</div>
-      <div class="subtitle">Catering Quotation</div>
-      <div class="subtitle">เลขที่: ${data.quotationNumber}</div>
-      <div class="subtitle">วันที่: ${today}</div>
-    </div>
-  </div>
+  if (data.paymentNotes) {
+    page.drawText(`• ${data.paymentNotes}`, {
+      x: margin,
+      y,
+      size: 9,
+      font: thaiFont,
+      color: darkColor,
+    })
+  }
 
-  <div class="info-row">
-    <div class="info-col">
-      <div class="section-title">ข้อมูลร้านค้า</div>
-      ${data.shopName ? `<div class="info-text info-bold">${data.shopName}</div>` : ''}
-      ${data.quoterName ? `<div class="info-text">ผู้เสนอราคา: ${data.quoterName}</div>` : ''}
-      ${data.taxId ? `<div class="info-text">เลขประจำตัวผู้เสียภาษี: ${data.taxId}</div>` : ''}
-      ${data.shopAddress ? `<div class="info-text">${data.shopAddress}</div>` : ''}
-      ${data.shopPhone ? `<div class="info-text">โทร: ${data.shopPhone}</div>` : ''}
-      ${data.shopEmail ? `<div class="info-text">อีเมล: ${data.shopEmail}</div>` : ''}
-    </div>
-    <div class="info-col">
-      <div class="section-title">ข้อมูลลูกค้า / งาน</div>
-      ${data.customerName ? `<div class="info-text info-bold">${data.customerName}</div>` : ''}
-      ${data.customerAddress ? `<div class="info-text">${data.customerAddress}</div>` : ''}
-      ${data.customerPhone ? `<div class="info-text">โทร: ${data.customerPhone}</div>` : ''}
-      ${data.customerEmail ? `<div class="info-text">อีเมล: ${data.customerEmail}</div>` : ''}
-      ${data.eventLocation ? `<div class="info-text">สถานที่จัดงาน: ${data.eventLocation}</div>` : ''}
-      ${data.eventDate ? `<div class="info-text">วันที่จัดงาน: ${data.eventDate}</div>` : ''}
-      ${data.guestCount ? `<div class="info-text">จำนวนคน: ${data.guestCount} คน</div>` : ''}
-    </div>
-  </div>
+  // Summary box (right)
+  const summaryX = colMid + 50
+  const summaryWidth = width - margin - summaryX
+  const summaryY = y + 60
+  const summaryHeight = 70
 
-  <table>
-    <thead>
-      <tr>
-        <th class="center" style="width:6%">#</th>
-        <th style="width:22%">รายการ</th>
-        <th style="width:30%">รายละเอียด</th>
-        <th class="center" style="width:12%">จำนวน</th>
-        <th class="right" style="width:15%">ราคา/หน่วย</th>
-        <th class="right" style="width:15%">รวม (บาท)</th>
-      </tr>
-    </thead>
-    <tbody>${itemsHTML}</tbody>
-  </table>
-
-  ${menuHTML ? `
-  <div class="section-title">รายการเมนูอาหาร</div>
-  <table class="menu-table">
-    <thead><tr><th>หมวด</th><th>รายการเมนู</th></tr></thead>
-    <tbody>${menuHTML}</tbody>
-  </table>
-  ` : ''}
-
-  <div class="bottom-row">
-    <div class="payment-terms">
-      <div class="section-title">เงื่อนไขการชำระเงิน</div>
-      ${data.depositPercent > 0 ? `<div class="info-text">- มัดจำ ${data.depositPercent}% : ${fmtNum(depositAmount)} บาท ก่อนวันงาน</div>` : ''}
-      ${data.depositPercent > 0 ? `<div class="info-text">- ชำระเงินส่วนที่เหลือ ${fmtNum(remainingAmount)} บาท ในวันจัดงาน</div>` : ''}
-      ${data.depositPercent === 0 ? `<div class="info-text">- ชำระเงินในวันจัดงาน</div>` : ''}
-      ${data.minGuests > 0 ? `<div class="info-text">- ราคานี้สำหรับขั้นต่ำ ${data.minGuests} คน</div>` : ''}
-      ${data.paymentNotes ? `<div class="info-text">- ${data.paymentNotes}</div>` : ''}
-    </div>
-    <div class="summary-box">
-      <div class="summary-row"><span>ราคารวม</span><span>${fmtNum(data.subtotal)} บาท</span></div>
-      ${data.vatRate > 0 ? `<div class="summary-row"><span>VAT ${data.vatRate}%</span><span>${fmtNum(data.vat)} บาท</span></div>` : ''}
-      <div class="summary-divider"></div>
-      <div class="summary-row summary-total"><span>ยอดรวมสุทธิ</span><span>${fmtNum(data.grandTotal)} บาท</span></div>
-    </div>
-  </div>
-
-  <div class="signatures">
-    <div class="sig-block"><div class="sig-line"></div><div class="sig-label">ผู้เสนอราคา (ร้านอาหาร)</div></div>
-    <div class="sig-block"><div class="sig-line"></div><div class="sig-label">ผู้อนุมัติ (ลูกค้า)</div></div>
-  </div>
-
-  <div class="footer">Madre Cafe & Restaurant | ร้านอาหาร ตำราแม่</div>
-</body>
-</html>`
-}
-
-/* ──────────────────────────────────────────────────────────────
-   PDF generation via Puppeteer
-   ────────────────────────────────────────────────────────────── */
-async function generatePDF(html: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath(),
-    headless: true,
+  page.drawRectangle({
+    x: summaryX,
+    y: summaryY - summaryHeight,
+    width: summaryWidth,
+    height: summaryHeight,
+    borderColor: lightGrayColor,
+    borderWidth: 0.5,
+    color: rgb(250/255, 250/255, 250/255),
   })
-  const page = await browser.newPage()
-  await page.setContent(html, { waitUntil: 'networkidle0' })
-  const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true })
-  await browser.close()
-  return Buffer.from(pdfBuffer)
+
+  let sy = summaryY - 15
+  page.drawText('ราคารวม', { x: summaryX + 10, y: sy, size: 9, font: thaiFont, color: darkColor })
+  page.drawText(`${fmtNum(data.subtotal)} บาท`, { x: summaryX + summaryWidth - 80, y: sy, size: 9, font: thaiFont, color: darkColor })
+
+  if (data.vatRate > 0) {
+    sy -= 14
+    page.drawText(`VAT ${data.vatRate}%`, { x: summaryX + 10, y: sy, size: 9, font: thaiFont, color: darkColor })
+    page.drawText(`${fmtNum(data.vat)} บาท`, { x: summaryX + summaryWidth - 80, y: sy, size: 9, font: thaiFont, color: darkColor })
+  }
+
+  sy -= 10
+  page.drawLine({
+    start: { x: summaryX + 10, y: sy },
+    end: { x: summaryX + summaryWidth - 10, y: sy },
+    thickness: 1,
+    color: primaryColor,
+  })
+
+  sy -= 14
+  page.drawText('ยอดรวมสุทธิ', { x: summaryX + 10, y: sy, size: 10, font: thaiFontBold, color: primaryColor })
+  page.drawText(`${fmtNum(data.grandTotal)} บาท`, { x: summaryX + summaryWidth - 80, y: sy, size: 10, font: thaiFontBold, color: primaryColor })
+
+  // ─── SIGNATURES ───
+  const sigY = y - 60
+  const sig1X = margin + 80
+  const sig2X = width - margin - 180
+
+  page.drawLine({
+    start: { x: sig1X, y: sigY },
+    end: { x: sig1X + 100, y: sigY },
+    thickness: 0.5,
+    color: grayColor,
+  })
+  page.drawText('ผู้เสนอราคา (ร้านอาหาร)', { x: sig1X + 5, y: sigY - 12, size: 9, font: thaiFont, color: grayColor })
+
+  page.drawLine({
+    start: { x: sig2X, y: sigY },
+    end: { x: sig2X + 100, y: sigY },
+    thickness: 0.5,
+    color: grayColor,
+  })
+  page.drawText('ผู้อนุมัติ (ลูกค้า)', { x: sig2X + 15, y: sigY - 12, size: 9, font: thaiFont, color: grayColor })
+
+  // ─── FOOTER ───
+  const footerY = margin
+  page.drawLine({
+    start: { x: margin, y: footerY + 15 },
+    end: { x: width - margin, y: footerY + 15 },
+    thickness: 0.5,
+    color: lightGrayColor,
+  })
+  page.drawText('Madre Cafe & Restaurant | ร้านอาหาร ตำราแม่', {
+    x: width / 2 - 80,
+    y: footerY,
+    size: 8,
+    font: thaiFont,
+    color: grayColor,
+  })
+
+  return pdfDoc.save()
 }
 
-/* ──────────────────────────────────────────────────────────────
-   POST handler
-   ────────────────────────────────────────────────────────────── */
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -266,14 +558,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate totals
-    const subtotal = items.reduce((sum: number, it: { quantity: number; unitPrice: number }) =>
+    const subtotal = items.reduce((sum: number, it: { quantity: number; unitPrice: number }) => 
       sum + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0)
     const vatRate = Number(vatPercent) || 0
     const vat = Math.round(subtotal * (vatRate / 100) * 100) / 100
     const grandTotal = subtotal + vat
 
-    // Build HTML and generate PDF
-    const html = buildHTML({
+    // Generate PDF
+    const pdfBytes = await generatePDF({
       quotationNumber,
       shopName: shopName || '',
       quoterName: quoterName || '',
@@ -299,9 +591,7 @@ export async function POST(request: NextRequest) {
       paymentNotes: paymentNotes || '',
     })
 
-    const pdfBuffer = await generatePDF(html)
-    const base64Pdf = pdfBuffer.toString('base64')
-
+    const base64Pdf = Buffer.from(pdfBytes).toString('base64')
     return NextResponse.json({ pdf: base64Pdf, quotationNumber })
 
   } catch (error) {
