@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { jsPDF } from 'jspdf'
+import React from 'react'
+import { renderToBuffer, Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer'
+import path from 'path'
+import fs from 'fs'
+
+// Register Thai fonts
+const fontPath = path.join(process.cwd(), 'public', 'fonts')
+Font.register({
+  family: 'Sarabun',
+  fonts: [
+    { src: path.join(fontPath, 'Sarabun-Regular.ttf'), fontWeight: 'normal' },
+    { src: path.join(fontPath, 'Sarabun-SemiBold.ttf'), fontWeight: 'bold' },
+  ],
+})
 
 /* ──────────────────────────────────────────────────────────────
    Generate quotation number: QT-YYYY-MM-NNN
@@ -37,6 +50,224 @@ function fmtNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+// Styles
+const styles = StyleSheet.create({
+  page: {
+    fontFamily: 'Sarabun',
+    fontSize: 10,
+    padding: 40,
+    backgroundColor: '#ffffff',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#4a7c59',
+  },
+  logo: {
+    width: 50,
+    height: 50,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandInfo: {
+    marginLeft: 10,
+  },
+  brandName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#4a7c59',
+  },
+  brandNameThai: {
+    fontSize: 10,
+    color: '#6b7280',
+  },
+  headerRight: {
+    textAlign: 'right',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#4a7c59',
+  },
+  subtitle: {
+    fontSize: 9,
+    color: '#6b7280',
+  },
+  infoSection: {
+    flexDirection: 'row',
+    marginBottom: 15,
+  },
+  infoColumn: {
+    flex: 1,
+    paddingRight: 15,
+  },
+  infoColumnRight: {
+    flex: 1,
+    paddingLeft: 15,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#4a7c59',
+    marginBottom: 5,
+    paddingBottom: 3,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#d1d5db',
+  },
+  infoText: {
+    fontSize: 9,
+    color: '#374151',
+    marginBottom: 2,
+  },
+  infoBold: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  table: {
+    marginBottom: 15,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#4a7c59',
+    padding: 6,
+  },
+  tableHeaderText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#e5e7eb',
+    padding: 5,
+  },
+  tableRowAlt: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#e5e7eb',
+    padding: 5,
+    backgroundColor: '#f8faf8',
+  },
+  col1: { width: '6%', textAlign: 'center' },
+  col2: { width: '24%' },
+  col3: { width: '28%' },
+  col4: { width: '12%', textAlign: 'center' },
+  col5: { width: '15%', textAlign: 'right' },
+  col6: { width: '15%', textAlign: 'right' },
+  cellText: {
+    fontSize: 9,
+    color: '#1f2937',
+  },
+  menuSection: {
+    marginBottom: 15,
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#f0f4f0',
+    padding: 5,
+  },
+  menuHeaderText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#4a7c59',
+  },
+  menuRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#e5e7eb',
+    padding: 5,
+  },
+  menuCol1: { width: '25%' },
+  menuCol2: { width: '75%' },
+  bottomSection: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  paymentTerms: {
+    flex: 1,
+    paddingRight: 20,
+  },
+  summaryBox: {
+    width: 180,
+    padding: 10,
+    borderWidth: 0.5,
+    borderColor: '#d1d5db',
+    borderRadius: 4,
+    backgroundColor: '#fafafa',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  summaryLabel: {
+    fontSize: 9,
+    color: '#374151',
+  },
+  summaryValue: {
+    fontSize: 9,
+    color: '#374151',
+  },
+  summaryDivider: {
+    borderTopWidth: 1,
+    borderTopColor: '#4a7c59',
+    marginVertical: 5,
+  },
+  summaryTotal: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  summaryTotalLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#4a7c59',
+  },
+  summaryTotalValue: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#4a7c59',
+  },
+  signatures: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 30,
+    marginBottom: 20,
+  },
+  signatureBlock: {
+    alignItems: 'center',
+    width: 150,
+  },
+  signatureLine: {
+    width: 120,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#9ca3af',
+    marginBottom: 5,
+    marginTop: 40,
+  },
+  signatureLabel: {
+    fontSize: 9,
+    color: '#6b7280',
+  },
+  footer: {
+    borderTopWidth: 0.5,
+    borderTopColor: '#e5e7eb',
+    paddingTop: 10,
+    textAlign: 'center',
+  },
+  footerText: {
+    fontSize: 8,
+    color: '#9ca3af',
+  },
+})
+
 interface QuotationData {
   quotationNumber: string
   shopName: string
@@ -63,388 +294,152 @@ interface QuotationData {
   paymentNotes: string
 }
 
-async function generatePDF(data: QuotationData): Promise<Buffer> {
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4',
-  })
-
-  // Load Thai font
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'
-  const fontUrl = `${baseUrl}/fonts/Sarabun-Regular.ttf`
-  const fontBoldUrl = `${baseUrl}/fonts/Sarabun-SemiBold.ttf`
-  
-  try {
-    const [fontResponse, fontBoldResponse] = await Promise.all([
-      fetch(fontUrl),
-      fetch(fontBoldUrl)
-    ])
-    
-    if (fontResponse.ok && fontBoldResponse.ok) {
-      const fontBuffer = await fontResponse.arrayBuffer()
-      const fontBoldBuffer = await fontBoldResponse.arrayBuffer()
-      const fontBase64 = Buffer.from(fontBuffer).toString('base64')
-      const fontBoldBase64 = Buffer.from(fontBoldBuffer).toString('base64')
-      
-      doc.addFileToVFS('Sarabun-Regular.ttf', fontBase64)
-      doc.addFont('Sarabun-Regular.ttf', 'Sarabun', 'normal')
-      doc.addFileToVFS('Sarabun-Bold.ttf', fontBoldBase64)
-      doc.addFont('Sarabun-Bold.ttf', 'Sarabun', 'bold')
-      doc.setFont('Sarabun')
-    }
-  } catch (e) {
-    console.error('Font loading error:', e)
-    // Continue with default font
-  }
-
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const margin = 15
-  const contentWidth = pageWidth - margin * 2
-  const green = [74, 124, 89] as [number, number, number]
-  const gray = [107, 114, 128] as [number, number, number]
-  const darkGray = [31, 41, 55] as [number, number, number]
-  
-  let y = margin
+function QuotationPDF({ data }: { data: QuotationData }) {
   const today = new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
-
-  // Header - Logo and Title
-  // Try to load logo
-  try {
-    const logoUrl = `${baseUrl}/images/madre-logo.png`
-    const logoResponse = await fetch(logoUrl)
-    if (logoResponse.ok) {
-      const logoBuffer = await logoResponse.arrayBuffer()
-      const logoBase64 = Buffer.from(logoBuffer).toString('base64')
-      doc.addImage(`data:image/png;base64,${logoBase64}`, 'PNG', margin, y, 25, 25)
-    }
-  } catch (e) {
-    console.error('Logo loading error:', e)
-  }
-
-  // Brand name
-  doc.setFontSize(14)
-  doc.setFont('Sarabun', 'bold')
-  doc.setTextColor(...green)
-  doc.text('Madre Cafe & Restaurant', margin + 30, y + 8)
-  
-  doc.setFontSize(10)
-  doc.setFont('Sarabun', 'normal')
-  doc.setTextColor(...gray)
-  doc.text('ร้านอาหาร ตำราแม่', margin + 30, y + 14)
-
-  // Title on right
-  doc.setFontSize(20)
-  doc.setFont('Sarabun', 'bold')
-  doc.setTextColor(...green)
-  doc.text('ใบเสนอราคา', pageWidth - margin, y + 5, { align: 'right' })
-  
-  doc.setFontSize(9)
-  doc.setFont('Sarabun', 'normal')
-  doc.setTextColor(...gray)
-  doc.text('Catering Quotation', pageWidth - margin, y + 11, { align: 'right' })
-  doc.text(`เลขที่: ${data.quotationNumber}`, pageWidth - margin, y + 17, { align: 'right' })
-  doc.text(`วันที่: ${today}`, pageWidth - margin, y + 23, { align: 'right' })
-
-  y += 30
-  
-  // Green line under header
-  doc.setDrawColor(...green)
-  doc.setLineWidth(0.5)
-  doc.line(margin, y, pageWidth - margin, y)
-  y += 8
-
-  // Info sections - Shop and Customer side by side
-  const colWidth = (contentWidth - 10) / 2
-  
-  // Shop info
-  doc.setFontSize(11)
-  doc.setFont('Sarabun', 'bold')
-  doc.setTextColor(...green)
-  doc.text('ข้อมูลร้านค้า', margin, y)
-  
-  // Customer info header
-  doc.text('ข้อมูลลูกค้า / งาน', margin + colWidth + 10, y)
-  
-  y += 2
-  doc.setDrawColor(209, 213, 219)
-  doc.setLineWidth(0.2)
-  doc.line(margin, y, margin + colWidth, y)
-  doc.line(margin + colWidth + 10, y, pageWidth - margin, y)
-  y += 5
-
-  doc.setFontSize(9)
-  doc.setFont('Sarabun', 'normal')
-  doc.setTextColor(...darkGray)
-
-  // Shop details
-  let shopY = y
-  if (data.shopName) {
-    doc.setFont('Sarabun', 'bold')
-    doc.text(data.shopName, margin, shopY)
-    doc.setFont('Sarabun', 'normal')
-    shopY += 4
-  }
-  if (data.quoterName) {
-    doc.setTextColor(...gray)
-    doc.text(`ผู้เสนอราคา: ${data.quoterName}`, margin, shopY)
-    shopY += 4
-  }
-  if (data.taxId) {
-    doc.text(`เลขประจำตัวผู้เสียภาษี: ${data.taxId}`, margin, shopY)
-    shopY += 4
-  }
-  if (data.shopAddress) {
-    const addressLines = doc.splitTextToSize(data.shopAddress, colWidth - 5)
-    doc.text(addressLines, margin, shopY)
-    shopY += addressLines.length * 4
-  }
-  if (data.shopPhone) {
-    doc.text(`โทร: ${data.shopPhone}`, margin, shopY)
-    shopY += 4
-  }
-  if (data.shopEmail) {
-    doc.text(`อีเมล: ${data.shopEmail}`, margin, shopY)
-    shopY += 4
-  }
-
-  // Customer details
-  let custY = y
-  const custX = margin + colWidth + 10
-  doc.setTextColor(...darkGray)
-  if (data.customerName) {
-    doc.setFont('Sarabun', 'bold')
-    doc.text(data.customerName, custX, custY)
-    doc.setFont('Sarabun', 'normal')
-    custY += 4
-  }
-  doc.setTextColor(...gray)
-  if (data.customerAddress) {
-    const addressLines = doc.splitTextToSize(data.customerAddress, colWidth - 5)
-    doc.text(addressLines, custX, custY)
-    custY += addressLines.length * 4
-  }
-  if (data.customerPhone) {
-    doc.text(`โทร: ${data.customerPhone}`, custX, custY)
-    custY += 4
-  }
-  if (data.customerEmail) {
-    doc.text(`อีเมล: ${data.customerEmail}`, custX, custY)
-    custY += 4
-  }
-  if (data.eventLocation) {
-    doc.text(`สถานที่จัดงาน: ${data.eventLocation}`, custX, custY)
-    custY += 4
-  }
-  if (data.eventDate) {
-    doc.text(`วันที่จัดงาน: ${data.eventDate}`, custX, custY)
-    custY += 4
-  }
-  if (data.guestCount) {
-    doc.text(`จำนวนคน: ${data.guestCount} คน`, custX, custY)
-    custY += 4
-  }
-
-  y = Math.max(shopY, custY) + 8
-
-  // Items table
-  const colWidths = [10, 40, 45, 20, 25, 30]
-  const headers = ['#', 'รายการ', 'รายละเอียด', 'จำนวน', 'ราคา/หน่วย', 'รวม (บาท)']
-  
-  // Table header
-  doc.setFillColor(...green)
-  doc.rect(margin, y, contentWidth, 7, 'F')
-  
-  doc.setFontSize(9)
-  doc.setFont('Sarabun', 'bold')
-  doc.setTextColor(255, 255, 255)
-  
-  let xPos = margin + 2
-  headers.forEach((header, i) => {
-    const align = i === 0 ? 'center' : (i >= 4 ? 'right' : 'left')
-    const textX = align === 'center' ? xPos + colWidths[i] / 2 : (align === 'right' ? xPos + colWidths[i] - 2 : xPos)
-    doc.text(header, textX, y + 5, { align: align as 'left' | 'center' | 'right' })
-    xPos += colWidths[i]
-  })
-  
-  y += 7
-
-  // Table rows
-  doc.setFont('Sarabun', 'normal')
-  data.items.forEach((item, i) => {
-    const rowHeight = 7
-    const bgColor = i % 2 === 0 ? [255, 255, 255] : [248, 250, 248]
-    doc.setFillColor(bgColor[0], bgColor[1], bgColor[2])
-    doc.rect(margin, y, contentWidth, rowHeight, 'F')
-    
-    doc.setTextColor(...darkGray)
-    xPos = margin + 2
-    
-    // Row number
-    doc.text(String(i + 1), xPos + colWidths[0] / 2, y + 5, { align: 'center' })
-    xPos += colWidths[0]
-    
-    // Name
-    doc.text(item.name || '', xPos, y + 5)
-    xPos += colWidths[1]
-    
-    // Detail
-    doc.text(item.detail || '', xPos, y + 5)
-    xPos += colWidths[2]
-    
-    // Quantity
-    doc.text(item.quantityLabel || String(item.quantity), xPos + colWidths[3] / 2, y + 5, { align: 'center' })
-    xPos += colWidths[3]
-    
-    // Unit price
-    doc.text(fmtNum(item.unitPrice), xPos + colWidths[4] - 2, y + 5, { align: 'right' })
-    xPos += colWidths[4]
-    
-    // Total
-    doc.text(fmtNum(item.quantity * item.unitPrice), xPos + colWidths[5] - 2, y + 5, { align: 'right' })
-    
-    // Bottom border
-    doc.setDrawColor(229, 231, 235)
-    doc.line(margin, y + rowHeight, pageWidth - margin, y + rowHeight)
-    
-    y += rowHeight
-  })
-
-  y += 5
-
-  // Menu categories section
-  if (data.menuCategories && data.menuCategories.some(c => c.category || c.items)) {
-    doc.setFontSize(11)
-    doc.setFont('Sarabun', 'bold')
-    doc.setTextColor(...green)
-    doc.text('รายการเมนูอาหาร', margin, y)
-    y += 6
-    
-    // Menu table header
-    doc.setFillColor(240, 244, 240)
-    doc.rect(margin, y, contentWidth, 6, 'F')
-    doc.setFontSize(9)
-    doc.setTextColor(...green)
-    doc.text('หมวด', margin + 2, y + 4)
-    doc.text('รายการเมนู', margin + 42, y + 4)
-    y += 6
-    
-    // Menu rows
-    doc.setFont('Sarabun', 'normal')
-    doc.setTextColor(...darkGray)
-    data.menuCategories.filter(c => c.category || c.items).forEach(cat => {
-      doc.text(cat.category || '', margin + 2, y + 4)
-      const menuLines = doc.splitTextToSize(cat.items || '', contentWidth - 45)
-      doc.text(menuLines, margin + 42, y + 4)
-      const rowH = Math.max(6, menuLines.length * 4 + 2)
-      doc.setDrawColor(229, 231, 235)
-      doc.line(margin, y + rowH, pageWidth - margin, y + rowH)
-      y += rowH
-    })
-    y += 5
-  }
-
-  // Payment and Summary section
-  const summaryBoxWidth = 70
-  const summaryX = pageWidth - margin - summaryBoxWidth
-  
-  // Payment terms on left
-  doc.setFontSize(10)
-  doc.setFont('Sarabun', 'bold')
-  doc.setTextColor(...green)
-  doc.text('เงื่อนไขการชำระเงิน', margin, y)
-  y += 5
-  
-  doc.setFontSize(9)
-  doc.setFont('Sarabun', 'normal')
-  doc.setTextColor(...gray)
-  
   const depositAmount = data.depositPercent ? Math.round(data.grandTotal * (data.depositPercent / 100) * 100) / 100 : 0
   const remainingAmount = data.grandTotal - depositAmount
-  
-  let paymentY = y
-  if (data.depositPercent) {
-    doc.text(`- มัดจำ ${data.depositPercent}% : ${fmtNum(depositAmount)} บาท ก่อนวันงาน`, margin, paymentY)
-    paymentY += 4
-    doc.text(`- ชำระเงินส่วนที่เหลือ ${fmtNum(remainingAmount)} บาท ในวันจัดงาน`, margin, paymentY)
-    paymentY += 4
-  } else {
-    doc.text('- ชำระเงินในวันจัดงาน', margin, paymentY)
-    paymentY += 4
-  }
-  if (data.minGuests) {
-    doc.text(`- ราคานี้สำหรับขั้นต่ำ ${data.minGuests} คน`, margin, paymentY)
-    paymentY += 4
-  }
-  if (data.paymentNotes) {
-    doc.text(`- ${data.paymentNotes}`, margin, paymentY)
-    paymentY += 4
-  }
 
-  // Summary box on right
-  const boxY = y - 5
-  doc.setDrawColor(209, 213, 219)
-  doc.setFillColor(250, 250, 250)
-  doc.roundedRect(summaryX, boxY, summaryBoxWidth, 35, 2, 2, 'FD')
-  
-  let sumY = boxY + 8
-  doc.setTextColor(...darkGray)
-  doc.text('ราคารวม', summaryX + 5, sumY)
-  doc.text(`${fmtNum(data.subtotal)} บาท`, summaryX + summaryBoxWidth - 5, sumY, { align: 'right' })
-  sumY += 6
-  
-  if (data.vatRate > 0) {
-    doc.text(`VAT ${data.vatRate}%`, summaryX + 5, sumY)
-    doc.text(`${fmtNum(data.vat)} บาท`, summaryX + summaryBoxWidth - 5, sumY, { align: 'right' })
-    sumY += 6
-  }
-  
-  // Total line
-  doc.setDrawColor(...green)
-  doc.setLineWidth(0.5)
-  doc.line(summaryX + 5, sumY, summaryX + summaryBoxWidth - 5, sumY)
-  sumY += 6
-  
-  doc.setFont('Sarabun', 'bold')
-  doc.setTextColor(...green)
-  doc.text('ยอดรวมสุทธิ', summaryX + 5, sumY)
-  doc.text(`${fmtNum(data.grandTotal)} บาท`, summaryX + summaryBoxWidth - 5, sumY, { align: 'right' })
+  // Check if logo exists
+  const logoPath = path.join(process.cwd(), 'public', 'images', 'madre-logo.png')
+  const logoExists = fs.existsSync(logoPath)
 
-  y = Math.max(paymentY, boxY + 40) + 15
+  return React.createElement(Document, {},
+    React.createElement(Page, { size: 'A4', style: styles.page },
+      // Header
+      React.createElement(View, { style: styles.header },
+        React.createElement(View, { style: styles.headerLeft },
+          logoExists && React.createElement(Image, { style: styles.logo, src: logoPath }),
+          React.createElement(View, { style: styles.brandInfo },
+            React.createElement(Text, { style: styles.brandName }, 'Madre Cafe & Restaurant'),
+            React.createElement(Text, { style: styles.brandNameThai }, 'ร้านอาหาร ตำราแม่')
+          )
+        ),
+        React.createElement(View, { style: styles.headerRight },
+          React.createElement(Text, { style: styles.title }, 'ใบเสนอราคา'),
+          React.createElement(Text, { style: styles.subtitle }, 'Catering Quotation'),
+          React.createElement(Text, { style: styles.subtitle }, `เลขที่: ${data.quotationNumber}`),
+          React.createElement(Text, { style: styles.subtitle }, `วันที่: ${today}`)
+        )
+      ),
 
-  // Signatures
-  const sigWidth = 60
-  const sigGap = 40
-  const sig1X = margin + 20
-  const sig2X = pageWidth - margin - sigWidth - 20
+      // Info Section
+      React.createElement(View, { style: styles.infoSection },
+        // Shop Info
+        React.createElement(View, { style: styles.infoColumn },
+          React.createElement(Text, { style: styles.sectionTitle }, 'ข้อมูลร้านค้า'),
+          data.shopName && React.createElement(Text, { style: styles.infoBold }, data.shopName),
+          data.quoterName && React.createElement(Text, { style: styles.infoText }, `ผู้เสนอราคา: ${data.quoterName}`),
+          data.taxId && React.createElement(Text, { style: styles.infoText }, `เลขประจำตัวผู้เสียภาษี: ${data.taxId}`),
+          data.shopAddress && React.createElement(Text, { style: styles.infoText }, data.shopAddress),
+          data.shopPhone && React.createElement(Text, { style: styles.infoText }, `โทร: ${data.shopPhone}`),
+          data.shopEmail && React.createElement(Text, { style: styles.infoText }, `อีเมล: ${data.shopEmail}`)
+        ),
+        // Customer Info
+        React.createElement(View, { style: styles.infoColumnRight },
+          React.createElement(Text, { style: styles.sectionTitle }, 'ข้อมูลลูกค้า / งาน'),
+          data.customerName && React.createElement(Text, { style: styles.infoBold }, data.customerName),
+          data.customerAddress && React.createElement(Text, { style: styles.infoText }, data.customerAddress),
+          data.customerPhone && React.createElement(Text, { style: styles.infoText }, `โทร: ${data.customerPhone}`),
+          data.customerEmail && React.createElement(Text, { style: styles.infoText }, `อีเมล: ${data.customerEmail}`),
+          data.eventLocation && React.createElement(Text, { style: styles.infoText }, `สถานที่จัดงาน: ${data.eventLocation}`),
+          data.eventDate && React.createElement(Text, { style: styles.infoText }, `วันที่จัดงาน: ${data.eventDate}`),
+          data.guestCount && React.createElement(Text, { style: styles.infoText }, `จำนวนคน: ${data.guestCount} คน`)
+        )
+      ),
 
-  doc.setDrawColor(156, 163, 175)
-  doc.setLineWidth(0.3)
-  
-  // Signature lines
-  doc.line(sig1X, y + 25, sig1X + sigWidth, y + 25)
-  doc.line(sig2X, y + 25, sig2X + sigWidth, y + 25)
-  
-  doc.setFontSize(9)
-  doc.setFont('Sarabun', 'normal')
-  doc.setTextColor(...gray)
-  doc.text('ผู้เสนอราคา (ร้านอาหาร)', sig1X + sigWidth / 2, y + 30, { align: 'center' })
-  doc.text('ผู้อนุมัติ (ลูกค้า)', sig2X + sigWidth / 2, y + 30, { align: 'center' })
+      // Items Table
+      React.createElement(View, { style: styles.table },
+        // Table Header
+        React.createElement(View, { style: styles.tableHeader },
+          React.createElement(Text, { style: [styles.tableHeaderText, styles.col1] }, '#'),
+          React.createElement(Text, { style: [styles.tableHeaderText, styles.col2] }, 'รายการ'),
+          React.createElement(Text, { style: [styles.tableHeaderText, styles.col3] }, 'รายละเอียด'),
+          React.createElement(Text, { style: [styles.tableHeaderText, styles.col4] }, 'จำนวน'),
+          React.createElement(Text, { style: [styles.tableHeaderText, styles.col5] }, 'ราคา/หน่วย'),
+          React.createElement(Text, { style: [styles.tableHeaderText, styles.col6] }, 'รวม (บาท)')
+        ),
+        // Table Rows
+        ...data.items.map((item, i) =>
+          React.createElement(View, { key: i, style: i % 2 === 0 ? styles.tableRow : styles.tableRowAlt },
+            React.createElement(Text, { style: [styles.cellText, styles.col1] }, String(i + 1)),
+            React.createElement(Text, { style: [styles.cellText, styles.col2] }, item.name || ''),
+            React.createElement(Text, { style: [styles.cellText, styles.col3] }, item.detail || ''),
+            React.createElement(Text, { style: [styles.cellText, styles.col4] }, item.quantityLabel || String(item.quantity)),
+            React.createElement(Text, { style: [styles.cellText, styles.col5] }, fmtNum(item.unitPrice)),
+            React.createElement(Text, { style: [styles.cellText, styles.col6] }, fmtNum(item.quantity * item.unitPrice))
+          )
+        )
+      ),
 
-  y += 40
+      // Menu Categories
+      data.menuCategories && data.menuCategories.some(c => c.category || c.items) &&
+        React.createElement(View, { style: styles.menuSection },
+          React.createElement(Text, { style: styles.sectionTitle }, 'รายการเมนูอาหาร'),
+          React.createElement(View, { style: styles.menuHeader },
+            React.createElement(Text, { style: [styles.menuHeaderText, styles.menuCol1] }, 'หมวด'),
+            React.createElement(Text, { style: [styles.menuHeaderText, styles.menuCol2] }, 'รายการเมนู')
+          ),
+          ...data.menuCategories.filter(c => c.category || c.items).map((cat, i) =>
+            React.createElement(View, { key: i, style: styles.menuRow },
+              React.createElement(Text, { style: [styles.cellText, styles.menuCol1] }, cat.category || ''),
+              React.createElement(Text, { style: [styles.cellText, styles.menuCol2] }, cat.items || '')
+            )
+          )
+        ),
 
-  // Footer
-  doc.setDrawColor(229, 231, 235)
-  doc.setLineWidth(0.2)
-  doc.line(margin, y, pageWidth - margin, y)
-  
-  doc.setFontSize(8)
-  doc.setTextColor(156, 163, 175)
-  doc.text('Madre Cafe & Restaurant | ร้านอาหาร ตำราแม่', pageWidth / 2, y + 5, { align: 'center' })
+      // Bottom Section - Payment Terms & Summary
+      React.createElement(View, { style: styles.bottomSection },
+        // Payment Terms
+        React.createElement(View, { style: styles.paymentTerms },
+          React.createElement(Text, { style: styles.sectionTitle }, 'เงื่อนไขการชำระเงิน'),
+          data.depositPercent > 0 && React.createElement(Text, { style: styles.infoText }, `- มัดจำ ${data.depositPercent}% : ${fmtNum(depositAmount)} บาท ก่อนวันงาน`),
+          data.depositPercent > 0 && React.createElement(Text, { style: styles.infoText }, `- ชำระเงินส่วนที่เหลือ ${fmtNum(remainingAmount)} บาท ในวันจัดงาน`),
+          data.depositPercent === 0 && React.createElement(Text, { style: styles.infoText }, '- ชำระเงินในวันจัดงาน'),
+          data.minGuests > 0 && React.createElement(Text, { style: styles.infoText }, `- ราคานี้สำหรับขั้นต่ำ ${data.minGuests} คน`),
+          data.paymentNotes && React.createElement(Text, { style: styles.infoText }, `- ${data.paymentNotes}`)
+        ),
+        // Summary Box
+        React.createElement(View, { style: styles.summaryBox },
+          React.createElement(View, { style: styles.summaryRow },
+            React.createElement(Text, { style: styles.summaryLabel }, 'ราคารวม'),
+            React.createElement(Text, { style: styles.summaryValue }, `${fmtNum(data.subtotal)} บาท`)
+          ),
+          data.vatRate > 0 && React.createElement(View, { style: styles.summaryRow },
+            React.createElement(Text, { style: styles.summaryLabel }, `VAT ${data.vatRate}%`),
+            React.createElement(Text, { style: styles.summaryValue }, `${fmtNum(data.vat)} บาท`)
+          ),
+          React.createElement(View, { style: styles.summaryDivider }),
+          React.createElement(View, { style: styles.summaryTotal },
+            React.createElement(Text, { style: styles.summaryTotalLabel }, 'ยอดรวมสุทธิ'),
+            React.createElement(Text, { style: styles.summaryTotalValue }, `${fmtNum(data.grandTotal)} บาท`)
+          )
+        )
+      ),
 
-  // Return buffer
-  const pdfOutput = doc.output('arraybuffer')
-  return Buffer.from(pdfOutput)
+      // Signatures
+      React.createElement(View, { style: styles.signatures },
+        React.createElement(View, { style: styles.signatureBlock },
+          React.createElement(View, { style: styles.signatureLine }),
+          React.createElement(Text, { style: styles.signatureLabel }, 'ผู้เสนอราคา (ร้านอาหาร)')
+        ),
+        React.createElement(View, { style: styles.signatureBlock },
+          React.createElement(View, { style: styles.signatureLine }),
+          React.createElement(Text, { style: styles.signatureLabel }, 'ผู้อนุมัติ (ลูกค้า)')
+        )
+      ),
+
+      // Footer
+      React.createElement(View, { style: styles.footer },
+        React.createElement(Text, { style: styles.footerText }, 'Madre Cafe & Restaurant | ร้านอาหาร ตำราแม่')
+      )
+    )
+  )
+}
+
+async function generatePDF(data: QuotationData): Promise<Buffer> {
+  const element = React.createElement(QuotationPDF, { data })
+  const buffer = await renderToBuffer(element)
+  return Buffer.from(buffer)
 }
 
 export async function POST(request: NextRequest) {
