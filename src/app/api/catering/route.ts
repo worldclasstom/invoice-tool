@@ -272,7 +272,7 @@ function generateHTML(data: {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 80px;
-      margin-top: 50px;
+      margin-top: 25px;
       padding: 0 30px;
     }
     .sig-box {
@@ -281,8 +281,8 @@ function generateHTML(data: {
     .sig-line {
       border-top: 1px solid #9ca3af;
       width: 200px;
-      margin: 0 auto 10px;
-      padding-top: 50px;
+      margin: 0 auto 5px;
+      padding-top: 40px;
     }
     .sig-label {
       color: #9ca3af;
@@ -291,8 +291,8 @@ function generateHTML(data: {
     
     .footer {
       text-align: center;
-      margin-top: 40px;
-      padding-top: 15px;
+      margin-top: 15px;
+      padding-top: 10px;
       border-top: 1px solid #e5e7eb;
       color: #9ca3af;
       font-size: 10px;
