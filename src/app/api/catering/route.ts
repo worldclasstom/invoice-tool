@@ -215,13 +215,30 @@ function generateHTML(data: {
       text-align: left;
     }
     
-    .summary-section {
+    .summary-payment-row {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: flex-start;
       margin-bottom: 25px;
+      gap: 30px;
+    }
+    .payment-section {
+      flex: 1;
+    }
+    .payment-section h3 {
+      color: #4a7c59;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .payment-item {
+      margin-bottom: 5px;
+      font-size: 11px;
+      color: #4b5563;
     }
     .summary-box {
       width: 260px;
+      flex-shrink: 0;
       border: 1px solid #d1d5db;
       border-radius: 8px;
       padding: 15px;
@@ -249,21 +266,6 @@ function generateHTML(data: {
       color: #4a7c59;
       font-size: 14px;
       font-weight: 700;
-    }
-    
-    .payment-section {
-      margin-bottom: 30px;
-    }
-    .payment-section h3 {
-      color: #4a7c59;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 10px;
-    }
-    .payment-item {
-      margin-bottom: 5px;
-      font-size: 11px;
-      color: #4b5563;
     }
     
     .signatures {
@@ -368,7 +370,18 @@ function generateHTML(data: {
   </div>
   ` : ''}
 
-  <div class="summary-section">
+  <div class="summary-payment-row">
+    <div class="payment-section">
+      <h3>เงื่อนไขการชำระเงิน</h3>
+      ${data.depositPercent ? `
+      <div class="payment-item">- มัดจำ ${data.depositPercent}% : ${fmtNum(depositAmount)} บาท ก่อนวันงาน</div>
+      <div class="payment-item">- ชำระเงินส่วนที่เหลือ ${fmtNum(remainingAmount)} บาท ในวันจัดงาน</div>
+      ` : `
+      <div class="payment-item">- ชำระเงินในวันจัดงาน</div>
+      `}
+      ${data.minGuests ? `<div class="payment-item">- ราคานี้สำหรับขั้นต่ำ ${data.minGuests} คน</div>` : ''}
+      ${data.paymentNotes ? `<div class="payment-item">- ${data.paymentNotes}</div>` : ''}
+    </div>
     <div class="summary-box">
       <div class="summary-row">
         <span>ราคารวม</span>
@@ -385,18 +398,6 @@ function generateHTML(data: {
         <span class="value">${fmtNum(data.grandTotal)} บาท</span>
       </div>
     </div>
-  </div>
-
-  <div class="payment-section">
-    <h3>เงื่อนไขการชำระเงิน</h3>
-    ${data.depositPercent ? `
-    <div class="payment-item">- มัดจำ ${data.depositPercent}% : ${fmtNum(depositAmount)} บาท ก่อนวันงาน</div>
-    <div class="payment-item">- ชำระเงินส่วนที่เหลือ ${fmtNum(remainingAmount)} บาท ในวันจัดงาน</div>
-    ` : `
-    <div class="payment-item">- ชำระเงินในวันจัดงาน</div>
-    `}
-    ${data.minGuests ? `<div class="payment-item">- ราคานี้สำหรับขั้นต่ำ ${data.minGuests} คน</div>` : ''}
-    ${data.paymentNotes ? `<div class="payment-item">- ${data.paymentNotes}</div>` : ''}
   </div>
 
   <div class="signatures">
