@@ -437,7 +437,8 @@ function QuotationPDF({ data }: { data: QuotationData }) {
 }
 
 async function generatePDF(data: QuotationData): Promise<Buffer> {
-  const element = React.createElement(QuotationPDF, { data })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const element = React.createElement(QuotationPDF, { data }) as any
   const buffer = await renderToBuffer(element)
   return Buffer.from(buffer)
 }
