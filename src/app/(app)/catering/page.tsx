@@ -141,8 +141,11 @@ body: JSON.stringify({
         }),
       })
 
-      if (!res.ok) throw new Error('Failed to generate quotation')
       const data = await res.json()
+      if (!res.ok) {
+        console.error('[v0] API error:', data)
+        throw new Error(data.details || data.error || 'Failed to generate quotation')
+      }
 
       const byteCharacters = atob(data.pdf)
       const byteNumbers = new Array(byteCharacters.length)
@@ -159,8 +162,9 @@ body: JSON.stringify({
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (err) {
-      console.error('Error:', err)
-      alert('ไม่สามารถสร้างใบเสนอราคาได้ กรุณาลองใหม่อีกครั้ง')
+      console.error('[v0] Error generating quotation PDF:', err)
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      alert(`ไม่สามารถสร้างใบเสนอราคาได้: ${message}`)
     }
     setSaving(false)
   }
@@ -205,8 +209,11 @@ const exampleData = {
         body: JSON.stringify(exampleData),
       })
 
-      if (!res.ok) throw new Error('Failed to generate example')
       const data = await res.json()
+      if (!res.ok) {
+        console.error('[v0] API error:', data)
+        throw new Error(data.details || data.error || 'Failed to generate example')
+      }
 
       const byteCharacters = atob(data.pdf)
       const byteNumbers = new Array(byteCharacters.length)
@@ -223,8 +230,9 @@ const exampleData = {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (err) {
-      console.error('Error:', err)
-      alert('ไม่สามารถสร้างตัวอย่าง PDF ได้')
+      console.error('[v0] Error generating example PDF:', err)
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      alert(`ไม่สามารถสร้างตัวอย่าง PDF ได้: ${message}`)
     }
     setSaving(false)
   }
