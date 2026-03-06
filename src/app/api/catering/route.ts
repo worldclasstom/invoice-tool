@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import React from 'react'
-import { renderToBuffer, Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer'
-import path from 'path'
-import fs from 'fs'
-
-// Register Thai fonts
-const fontPath = path.join(process.cwd(), 'public', 'fonts')
-Font.register({
-  family: 'Sarabun',
-  fonts: [
-    { src: path.join(fontPath, 'Sarabun-Regular.ttf'), fontWeight: 'normal' },
-    { src: path.join(fontPath, 'Sarabun-SemiBold.ttf'), fontWeight: 'bold' },
-  ],
-})
+import puppeteer from 'puppeteer-core'
+import chromium from '@sparticuz/chromium'
 
 /* ──────────────────────────────────────────────────────────────
    Generate quotation number: QT-YYYY-MM-NNN
@@ -46,227 +34,12 @@ async function generateQuotationNumber(supabase: Awaited<ReturnType<typeof creat
   return quotationNumber
 }
 
+/* ──────────────────────────────────────────────────────────────
+   HTML template generator
+   ────────────────────────────────────────────────────────────── */
 function fmtNum(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
-
-// Styles
-const styles = StyleSheet.create({
-  page: {
-    fontFamily: 'Sarabun',
-    fontSize: 10,
-    padding: 40,
-    backgroundColor: '#ffffff',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#4a7c59',
-  },
-  logo: {
-    width: 50,
-    height: 50,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  brandInfo: {
-    marginLeft: 10,
-  },
-  brandName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#4a7c59',
-  },
-  brandNameThai: {
-    fontSize: 10,
-    color: '#6b7280',
-  },
-  headerRight: {
-    textAlign: 'right',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#4a7c59',
-  },
-  subtitle: {
-    fontSize: 9,
-    color: '#6b7280',
-  },
-  infoSection: {
-    flexDirection: 'row',
-    marginBottom: 15,
-  },
-  infoColumn: {
-    flex: 1,
-    paddingRight: 15,
-  },
-  infoColumnRight: {
-    flex: 1,
-    paddingLeft: 15,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#4a7c59',
-    marginBottom: 5,
-    paddingBottom: 3,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#d1d5db',
-  },
-  infoText: {
-    fontSize: 9,
-    color: '#374151',
-    marginBottom: 2,
-  },
-  infoBold: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 2,
-  },
-  table: {
-    marginBottom: 15,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#4a7c59',
-    padding: 6,
-  },
-  tableHeaderText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#e5e7eb',
-    padding: 5,
-  },
-  tableRowAlt: {
-    flexDirection: 'row',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#e5e7eb',
-    padding: 5,
-    backgroundColor: '#f8faf8',
-  },
-  col1: { width: '6%', textAlign: 'center' },
-  col2: { width: '24%' },
-  col3: { width: '28%' },
-  col4: { width: '12%', textAlign: 'center' },
-  col5: { width: '15%', textAlign: 'right' },
-  col6: { width: '15%', textAlign: 'right' },
-  cellText: {
-    fontSize: 9,
-    color: '#1f2937',
-  },
-  menuSection: {
-    marginBottom: 15,
-  },
-  menuHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#f0f4f0',
-    padding: 5,
-  },
-  menuHeaderText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#4a7c59',
-  },
-  menuRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#e5e7eb',
-    padding: 5,
-  },
-  menuCol1: { width: '25%' },
-  menuCol2: { width: '75%' },
-  bottomSection: {
-    flexDirection: 'row',
-    marginBottom: 20,
-  },
-  paymentTerms: {
-    flex: 1,
-    paddingRight: 20,
-  },
-  summaryBox: {
-    width: 180,
-    padding: 10,
-    borderWidth: 0.5,
-    borderColor: '#d1d5db',
-    borderRadius: 4,
-    backgroundColor: '#fafafa',
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 5,
-  },
-  summaryLabel: {
-    fontSize: 9,
-    color: '#374151',
-  },
-  summaryValue: {
-    fontSize: 9,
-    color: '#374151',
-  },
-  summaryDivider: {
-    borderTopWidth: 1,
-    borderTopColor: '#4a7c59',
-    marginVertical: 5,
-  },
-  summaryTotal: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  summaryTotalLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#4a7c59',
-  },
-  summaryTotalValue: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#4a7c59',
-  },
-  signatures: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 30,
-    marginBottom: 20,
-  },
-  signatureBlock: {
-    alignItems: 'center',
-    width: 150,
-  },
-  signatureLine: {
-    width: 120,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#9ca3af',
-    marginBottom: 5,
-    marginTop: 40,
-  },
-  signatureLabel: {
-    fontSize: 9,
-    color: '#6b7280',
-  },
-  footer: {
-    borderTopWidth: 0.5,
-    borderTopColor: '#e5e7eb',
-    paddingTop: 10,
-    textAlign: 'center',
-  },
-  footerText: {
-    fontSize: 8,
-    color: '#9ca3af',
-  },
-})
 
 interface QuotationData {
   quotationNumber: string
@@ -294,155 +67,178 @@ interface QuotationData {
   paymentNotes: string
 }
 
-function QuotationPDF({ data }: { data: QuotationData }) {
+function buildHTML(data: QuotationData): string {
   const today = new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
   const depositAmount = data.depositPercent ? Math.round(data.grandTotal * (data.depositPercent / 100) * 100) / 100 : 0
   const remainingAmount = data.grandTotal - depositAmount
 
-  // Check if logo exists
-  const logoPath = path.join(process.cwd(), 'public', 'images', 'madre-logo.png')
-  const logoExists = fs.existsSync(logoPath)
+  const itemsHTML = data.items.map((it, i) => `
+    <tr class="${i % 2 === 0 ? '' : 'alt'}">
+      <td class="center">${i + 1}</td>
+      <td>${it.name || ''}</td>
+      <td>${it.detail || ''}</td>
+      <td class="center">${it.quantityLabel || it.quantity}</td>
+      <td class="right">${fmtNum(it.unitPrice)}</td>
+      <td class="right">${fmtNum(it.quantity * it.unitPrice)}</td>
+    </tr>
+  `).join('')
 
-  return React.createElement(Document, {},
-    React.createElement(Page, { size: 'A4', style: styles.page },
-      // Header
-      React.createElement(View, { style: styles.header },
-        React.createElement(View, { style: styles.headerLeft },
-          logoExists && React.createElement(Image, { style: styles.logo, src: logoPath }),
-          React.createElement(View, { style: styles.brandInfo },
-            React.createElement(Text, { style: styles.brandName }, 'Madre Cafe & Restaurant'),
-            React.createElement(Text, { style: styles.brandNameThai }, 'ร้านอาหาร ตำราแม่')
-          )
-        ),
-        React.createElement(View, { style: styles.headerRight },
-          React.createElement(Text, { style: styles.title }, 'ใบเสนอราคา'),
-          React.createElement(Text, { style: styles.subtitle }, 'Catering Quotation'),
-          React.createElement(Text, { style: styles.subtitle }, `เลขที่: ${data.quotationNumber}`),
-          React.createElement(Text, { style: styles.subtitle }, `วันที่: ${today}`)
-        )
-      ),
+  const menuHTML = data.menuCategories?.filter(c => c.category || c.items).map(c => `
+    <tr>
+      <td style="width:25%; font-weight:600; color:#4a7c59;">${c.category || ''}</td>
+      <td>${c.items || ''}</td>
+    </tr>
+  `).join('') || ''
 
-      // Info Section
-      React.createElement(View, { style: styles.infoSection },
-        // Shop Info
-        React.createElement(View, { style: styles.infoColumn },
-          React.createElement(Text, { style: styles.sectionTitle }, 'ข้อมูลร้านค้า'),
-          data.shopName && React.createElement(Text, { style: styles.infoBold }, data.shopName),
-          data.quoterName && React.createElement(Text, { style: styles.infoText }, `ผู้เสนอราคา: ${data.quoterName}`),
-          data.taxId && React.createElement(Text, { style: styles.infoText }, `เลขประจำตัวผู้เสียภาษี: ${data.taxId}`),
-          data.shopAddress && React.createElement(Text, { style: styles.infoText }, data.shopAddress),
-          data.shopPhone && React.createElement(Text, { style: styles.infoText }, `โทร: ${data.shopPhone}`),
-          data.shopEmail && React.createElement(Text, { style: styles.infoText }, `อีเมล: ${data.shopEmail}`)
-        ),
-        // Customer Info
-        React.createElement(View, { style: styles.infoColumnRight },
-          React.createElement(Text, { style: styles.sectionTitle }, 'ข้อมูลลูกค้า / งาน'),
-          data.customerName && React.createElement(Text, { style: styles.infoBold }, data.customerName),
-          data.customerAddress && React.createElement(Text, { style: styles.infoText }, data.customerAddress),
-          data.customerPhone && React.createElement(Text, { style: styles.infoText }, `โทร: ${data.customerPhone}`),
-          data.customerEmail && React.createElement(Text, { style: styles.infoText }, `อีเมล: ${data.customerEmail}`),
-          data.eventLocation && React.createElement(Text, { style: styles.infoText }, `สถานที่จัดงาน: ${data.eventLocation}`),
-          data.eventDate && React.createElement(Text, { style: styles.infoText }, `วันที่จัดงาน: ${data.eventDate}`),
-          data.guestCount && React.createElement(Text, { style: styles.infoText }, `จำนวนคน: ${data.guestCount} คน`)
-        )
-      ),
+  return `<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Sarabun', sans-serif; font-size: 11px; color: #1f2937; background: #fff; padding: 30px 40px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #4a7c59; padding-bottom: 15px; margin-bottom: 20px; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .logo { width: 55px; height: 55px; object-fit: contain; }
+    .brand-name { font-size: 16px; font-weight: 700; color: #4a7c59; }
+    .brand-name-th { font-size: 11px; color: #6b7280; }
+    .header-right { text-align: right; }
+    .title { font-size: 22px; font-weight: 700; color: #4a7c59; }
+    .subtitle { font-size: 10px; color: #6b7280; margin-top: 2px; }
+    .info-row { display: flex; gap: 30px; margin-bottom: 20px; }
+    .info-col { flex: 1; }
+    .section-title { font-size: 12px; font-weight: 700; color: #4a7c59; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; margin-bottom: 8px; }
+    .info-text { font-size: 10px; color: #374151; margin-bottom: 3px; }
+    .info-bold { font-weight: 600; color: #1f2937; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th { background: #4a7c59; color: #fff; font-weight: 600; font-size: 10px; padding: 8px 6px; text-align: left; }
+    td { padding: 6px; font-size: 10px; border-bottom: 1px solid #e5e7eb; }
+    tr.alt { background: #f8faf8; }
+    .center { text-align: center; }
+    .right { text-align: right; }
+    .menu-table th { background: #f0f4f0; color: #4a7c59; }
+    .bottom-row { display: flex; gap: 30px; margin-bottom: 25px; }
+    .payment-terms { flex: 1; }
+    .summary-box { width: 200px; border: 1px solid #d1d5db; border-radius: 6px; padding: 12px; background: #fafafa; }
+    .summary-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 10px; }
+    .summary-divider { border-top: 2px solid #4a7c59; margin: 8px 0; }
+    .summary-total { font-weight: 700; color: #4a7c59; font-size: 12px; }
+    .signatures { display: flex; justify-content: space-around; margin: 40px 0 30px 0; }
+    .sig-block { text-align: center; }
+    .sig-line { width: 140px; border-bottom: 1px solid #9ca3af; margin-bottom: 8px; height: 50px; }
+    .sig-label { font-size: 10px; color: #6b7280; }
+    .footer { border-top: 1px solid #e5e7eb; padding-top: 12px; text-align: center; font-size: 9px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <img src="https://invoice-tool-eta.vercel.app/images/madre-logo.png" class="logo" alt="Logo" />
+      <div>
+        <div class="brand-name">Madre Cafe & Restaurant</div>
+        <div class="brand-name-th">ร้านอาหาร ตำราแม่</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="title">ใบเสนอราคา</div>
+      <div class="subtitle">Catering Quotation</div>
+      <div class="subtitle">เลขที่: ${data.quotationNumber}</div>
+      <div class="subtitle">วันที่: ${today}</div>
+    </div>
+  </div>
 
-      // Items Table
-      React.createElement(View, { style: styles.table },
-        // Table Header
-        React.createElement(View, { style: styles.tableHeader },
-          React.createElement(Text, { style: [styles.tableHeaderText, styles.col1] }, '#'),
-          React.createElement(Text, { style: [styles.tableHeaderText, styles.col2] }, 'รายการ'),
-          React.createElement(Text, { style: [styles.tableHeaderText, styles.col3] }, 'รายละเอียด'),
-          React.createElement(Text, { style: [styles.tableHeaderText, styles.col4] }, 'จำนวน'),
-          React.createElement(Text, { style: [styles.tableHeaderText, styles.col5] }, 'ราคา/หน่วย'),
-          React.createElement(Text, { style: [styles.tableHeaderText, styles.col6] }, 'รวม (บาท)')
-        ),
-        // Table Rows
-        ...data.items.map((item, i) =>
-          React.createElement(View, { key: i, style: i % 2 === 0 ? styles.tableRow : styles.tableRowAlt },
-            React.createElement(Text, { style: [styles.cellText, styles.col1] }, String(i + 1)),
-            React.createElement(Text, { style: [styles.cellText, styles.col2] }, item.name || ''),
-            React.createElement(Text, { style: [styles.cellText, styles.col3] }, item.detail || ''),
-            React.createElement(Text, { style: [styles.cellText, styles.col4] }, item.quantityLabel || String(item.quantity)),
-            React.createElement(Text, { style: [styles.cellText, styles.col5] }, fmtNum(item.unitPrice)),
-            React.createElement(Text, { style: [styles.cellText, styles.col6] }, fmtNum(item.quantity * item.unitPrice))
-          )
-        )
-      ),
+  <div class="info-row">
+    <div class="info-col">
+      <div class="section-title">ข้อมูลร้านค้า</div>
+      ${data.shopName ? `<div class="info-text info-bold">${data.shopName}</div>` : ''}
+      ${data.quoterName ? `<div class="info-text">ผู้เสนอราคา: ${data.quoterName}</div>` : ''}
+      ${data.taxId ? `<div class="info-text">เลขประจำตัวผู้เสียภาษี: ${data.taxId}</div>` : ''}
+      ${data.shopAddress ? `<div class="info-text">${data.shopAddress}</div>` : ''}
+      ${data.shopPhone ? `<div class="info-text">โทร: ${data.shopPhone}</div>` : ''}
+      ${data.shopEmail ? `<div class="info-text">อีเมล: ${data.shopEmail}</div>` : ''}
+    </div>
+    <div class="info-col">
+      <div class="section-title">ข้อมูลลูกค้า / งาน</div>
+      ${data.customerName ? `<div class="info-text info-bold">${data.customerName}</div>` : ''}
+      ${data.customerAddress ? `<div class="info-text">${data.customerAddress}</div>` : ''}
+      ${data.customerPhone ? `<div class="info-text">โทร: ${data.customerPhone}</div>` : ''}
+      ${data.customerEmail ? `<div class="info-text">อีเมล: ${data.customerEmail}</div>` : ''}
+      ${data.eventLocation ? `<div class="info-text">สถานที่จัดงาน: ${data.eventLocation}</div>` : ''}
+      ${data.eventDate ? `<div class="info-text">วันที่จัดงาน: ${data.eventDate}</div>` : ''}
+      ${data.guestCount ? `<div class="info-text">จำนวนคน: ${data.guestCount} คน</div>` : ''}
+    </div>
+  </div>
 
-      // Menu Categories
-      data.menuCategories && data.menuCategories.some(c => c.category || c.items) &&
-        React.createElement(View, { style: styles.menuSection },
-          React.createElement(Text, { style: styles.sectionTitle }, 'รายการเมนูอาหาร'),
-          React.createElement(View, { style: styles.menuHeader },
-            React.createElement(Text, { style: [styles.menuHeaderText, styles.menuCol1] }, 'หมวด'),
-            React.createElement(Text, { style: [styles.menuHeaderText, styles.menuCol2] }, 'รายการเมนู')
-          ),
-          ...data.menuCategories.filter(c => c.category || c.items).map((cat, i) =>
-            React.createElement(View, { key: i, style: styles.menuRow },
-              React.createElement(Text, { style: [styles.cellText, styles.menuCol1] }, cat.category || ''),
-              React.createElement(Text, { style: [styles.cellText, styles.menuCol2] }, cat.items || '')
-            )
-          )
-        ),
+  <table>
+    <thead>
+      <tr>
+        <th class="center" style="width:6%">#</th>
+        <th style="width:22%">รายการ</th>
+        <th style="width:30%">รายละเอียด</th>
+        <th class="center" style="width:12%">จำนวน</th>
+        <th class="right" style="width:15%">ราคา/หน่วย</th>
+        <th class="right" style="width:15%">รวม (บาท)</th>
+      </tr>
+    </thead>
+    <tbody>${itemsHTML}</tbody>
+  </table>
 
-      // Bottom Section - Payment Terms & Summary
-      React.createElement(View, { style: styles.bottomSection },
-        // Payment Terms
-        React.createElement(View, { style: styles.paymentTerms },
-          React.createElement(Text, { style: styles.sectionTitle }, 'เงื่อนไขการชำระเงิน'),
-          data.depositPercent > 0 && React.createElement(Text, { style: styles.infoText }, `- มัดจำ ${data.depositPercent}% : ${fmtNum(depositAmount)} บาท ก่อนวันงาน`),
-          data.depositPercent > 0 && React.createElement(Text, { style: styles.infoText }, `- ชำระเงินส่วนที่เหลือ ${fmtNum(remainingAmount)} บาท ในวันจัดงาน`),
-          data.depositPercent === 0 && React.createElement(Text, { style: styles.infoText }, '- ชำระเงินในวันจัดงาน'),
-          data.minGuests > 0 && React.createElement(Text, { style: styles.infoText }, `- ราคานี้สำหรับขั้นต่ำ ${data.minGuests} คน`),
-          data.paymentNotes && React.createElement(Text, { style: styles.infoText }, `- ${data.paymentNotes}`)
-        ),
-        // Summary Box
-        React.createElement(View, { style: styles.summaryBox },
-          React.createElement(View, { style: styles.summaryRow },
-            React.createElement(Text, { style: styles.summaryLabel }, 'ราคารวม'),
-            React.createElement(Text, { style: styles.summaryValue }, `${fmtNum(data.subtotal)} บาท`)
-          ),
-          data.vatRate > 0 && React.createElement(View, { style: styles.summaryRow },
-            React.createElement(Text, { style: styles.summaryLabel }, `VAT ${data.vatRate}%`),
-            React.createElement(Text, { style: styles.summaryValue }, `${fmtNum(data.vat)} บาท`)
-          ),
-          React.createElement(View, { style: styles.summaryDivider }),
-          React.createElement(View, { style: styles.summaryTotal },
-            React.createElement(Text, { style: styles.summaryTotalLabel }, 'ยอดรวมสุทธิ'),
-            React.createElement(Text, { style: styles.summaryTotalValue }, `${fmtNum(data.grandTotal)} บาท`)
-          )
-        )
-      ),
+  ${menuHTML ? `
+  <div class="section-title">รายการเมนูอาหาร</div>
+  <table class="menu-table">
+    <thead><tr><th>หมวด</th><th>รายการเมนู</th></tr></thead>
+    <tbody>${menuHTML}</tbody>
+  </table>
+  ` : ''}
 
-      // Signatures
-      React.createElement(View, { style: styles.signatures },
-        React.createElement(View, { style: styles.signatureBlock },
-          React.createElement(View, { style: styles.signatureLine }),
-          React.createElement(Text, { style: styles.signatureLabel }, 'ผู้เสนอราคา (ร้านอาหาร)')
-        ),
-        React.createElement(View, { style: styles.signatureBlock },
-          React.createElement(View, { style: styles.signatureLine }),
-          React.createElement(Text, { style: styles.signatureLabel }, 'ผู้อนุมัติ (ลูกค้า)')
-        )
-      ),
+  <div class="bottom-row">
+    <div class="payment-terms">
+      <div class="section-title">เงื่อนไขการชำระเงิน</div>
+      ${data.depositPercent > 0 ? `<div class="info-text">- มัดจำ ${data.depositPercent}% : ${fmtNum(depositAmount)} บาท ก่อนวันงาน</div>` : ''}
+      ${data.depositPercent > 0 ? `<div class="info-text">- ชำระเงินส่วนที่เหลือ ${fmtNum(remainingAmount)} บาท ในวันจัดงาน</div>` : ''}
+      ${data.depositPercent === 0 ? `<div class="info-text">- ชำระเงินในวันจัดงาน</div>` : ''}
+      ${data.minGuests > 0 ? `<div class="info-text">- ราคานี้สำหรับขั้นต่ำ ${data.minGuests} คน</div>` : ''}
+      ${data.paymentNotes ? `<div class="info-text">- ${data.paymentNotes}</div>` : ''}
+    </div>
+    <div class="summary-box">
+      <div class="summary-row"><span>ราคารวม</span><span>${fmtNum(data.subtotal)} บาท</span></div>
+      ${data.vatRate > 0 ? `<div class="summary-row"><span>VAT ${data.vatRate}%</span><span>${fmtNum(data.vat)} บาท</span></div>` : ''}
+      <div class="summary-divider"></div>
+      <div class="summary-row summary-total"><span>ยอดรวมสุทธิ</span><span>${fmtNum(data.grandTotal)} บาท</span></div>
+    </div>
+  </div>
 
-      // Footer
-      React.createElement(View, { style: styles.footer },
-        React.createElement(Text, { style: styles.footerText }, 'Madre Cafe & Restaurant | ร้านอาหาร ตำราแม่')
-      )
-    )
-  )
+  <div class="signatures">
+    <div class="sig-block"><div class="sig-line"></div><div class="sig-label">ผู้เสนอราคา (ร้านอาหาร)</div></div>
+    <div class="sig-block"><div class="sig-line"></div><div class="sig-label">ผู้อนุมัติ (ลูกค้า)</div></div>
+  </div>
+
+  <div class="footer">Madre Cafe & Restaurant | ร้านอาหาร ตำราแม่</div>
+</body>
+</html>`
 }
 
-async function generatePDF(data: QuotationData): Promise<Buffer> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const element = React.createElement(QuotationPDF, { data }) as any
-  const buffer = await renderToBuffer(element)
-  return Buffer.from(buffer)
+/* ──────────────────────────────────────────────────────────────
+   PDF generation via Puppeteer
+   ────────────────────────────────────────────────────────────── */
+async function generatePDF(html: string): Promise<Buffer> {
+  const browser = await puppeteer.launch({
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath: await chromium.executablePath(),
+    headless: true,
+  })
+  const page = await browser.newPage()
+  await page.setContent(html, { waitUntil: 'networkidle0' })
+  const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true })
+  await browser.close()
+  return Buffer.from(pdfBuffer)
 }
 
+/* ──────────────────────────────────────────────────────────────
+   POST handler
+   ────────────────────────────────────────────────────────────── */
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -470,14 +266,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate totals
-    const subtotal = items.reduce((sum: number, it: { quantity: number; unitPrice: number }) => 
+    const subtotal = items.reduce((sum: number, it: { quantity: number; unitPrice: number }) =>
       sum + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0)
     const vatRate = Number(vatPercent) || 0
     const vat = Math.round(subtotal * (vatRate / 100) * 100) / 100
     const grandTotal = subtotal + vat
 
-    // Generate PDF
-    const pdfBuffer = await generatePDF({
+    // Build HTML and generate PDF
+    const html = buildHTML({
       quotationNumber,
       shopName: shopName || '',
       quoterName: quoterName || '',
@@ -503,7 +299,9 @@ export async function POST(request: NextRequest) {
       paymentNotes: paymentNotes || '',
     })
 
+    const pdfBuffer = await generatePDF(html)
     const base64Pdf = pdfBuffer.toString('base64')
+
     return NextResponse.json({ pdf: base64Pdf, quotationNumber })
 
   } catch (error) {
