@@ -150,7 +150,14 @@ body: JSON.stringify({
         byteNumbers[i] = byteCharacters.charCodeAt(i)
       }
       const pdfBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' })
-      window.open(URL.createObjectURL(pdfBlob), '_blank')
+      const url = URL.createObjectURL(pdfBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `ใบเสนอราคา-${customerName || 'catering'}-${eventDate}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Error:', err)
       alert('ไม่สามารถสร้างใบเสนอราคาได้ กรุณาลองใหม่อีกครั้ง')
@@ -207,7 +214,14 @@ const exampleData = {
         byteNumbers[i] = byteCharacters.charCodeAt(i)
       }
       const pdfBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' })
-      window.open(URL.createObjectURL(pdfBlob), '_blank')
+      const url = URL.createObjectURL(pdfBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `ใบเสนอราคา-ตัวอย่าง-${today}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Error:', err)
       alert('ไม่สามารถสร้างตัวอย่าง PDF ได้')
