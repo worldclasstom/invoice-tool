@@ -24,6 +24,8 @@
     "lucide-react": "^0.468.0",
     "next": "15.3.8",
     "pdf-lib": "^1.17.1",
+    "@sparticuz/chromium": "^131.0.0",
+    "puppeteer-core": "^24.0.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "recharts": "^2.15.3",

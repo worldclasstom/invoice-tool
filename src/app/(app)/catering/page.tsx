@@ -27,9 +27,11 @@ const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' 
 export default function CateringQuotationPage() {
   // Shop info
   const [shopName, setShopName] = useState('')
+  const [quoterName, setQuoterName] = useState('')
+  const [taxId, setTaxId] = useState('')
   const [shopAddress, setShopAddress] = useState('')
   const [shopPhone, setShopPhone] = useState('')
-  const [shopContact, setShopContact] = useState('')
+  const [shopEmail, setShopEmail] = useState('')
 
   // Customer / event info
   const [customerName, setCustomerName] = useState('')
@@ -83,9 +85,11 @@ export default function CateringQuotationPage() {
 
   const resetForm = () => {
     setShopName('')
+    setQuoterName('')
+    setTaxId('')
     setShopAddress('')
     setShopPhone('')
-    setShopContact('')
+    setShopEmail('')
     setCustomerName('')
     setCustomerAddress('')
     setCustomerPhone('')
@@ -108,11 +112,13 @@ export default function CateringQuotationPage() {
       const res = await fetch('/api/catering', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shopName,
-          shopAddress,
-          shopPhone,
-          shopContact,
+body: JSON.stringify({
+  shopName,
+  quoterName,
+  taxId,
+  shopAddress,
+  shopPhone,
+  shopEmail,
           customerName,
           customerAddress,
           customerPhone,
@@ -152,25 +158,93 @@ export default function CateringQuotationPage() {
     setSaving(false)
   }
 
+  // Generate example PDF with dummy data
+  const generateExample = async () => {
+    setSaving(true)
+    try {
+const exampleData = {
+  shopName: 'ร้านอาหาร ตำราแม่ Madre Cafe & Restaurant',
+  quoterName: 'คุณสมชาย ใจดี',
+  taxId: '1234567890123',
+  shopAddress: '4001 ทางหลวงชนบท Phatthalung Phatthalung, Thailand, Phatthalung 93000',
+        shopPhone: '096-823-9758',
+        shopEmail: 'harrysattrawut.madrecafe@gmail.com',
+        customerName: 'Phatthalung Hospital',
+        customerAddress: '4001 ทางหลวงชนบท Phatthalung Phatthalung, Thailand, Phatthalung 93000',
+        customerPhone: '074-611139',
+        customerEmail: 'PhatthalungHospital@gmail.com',
+        eventLocation: 'Phatthalung Halls',
+        eventDate: today,
+        guestCount: 70,
+        items: [
+          { name: 'เมนูอาหารหลัก', detail: '2 อย่าง', quantity: 70, quantityLabel: '70 คน', unitPrice: 80 },
+          { name: 'อาหารว่าง', detail: 'ขนมครก', quantity: 70, quantityLabel: '70 คน', unitPrice: 20 },
+          { name: 'น้ำส้มคั้น', detail: '', quantity: 70, quantityLabel: '70 แก้ว', unitPrice: 25 },
+        ],
+        menuCategories: [
+          { category: 'เมนูอาหารหลัก', items: 'ผัดไทยกุ้ง' },
+          { category: 'กับข้าว', items: 'แกงส้มปลากะพง' },
+        ],
+        vatPercent: 8,
+        depositPercent: 50,
+        minGuests: 70,
+        paymentNotes: '',
+        isExample: true,
+      }
+
+      const res = await fetch('/api/catering', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(exampleData),
+      })
+
+      if (!res.ok) throw new Error('Failed to generate example')
+      const data = await res.json()
+
+      const byteCharacters = atob(data.pdf)
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+      const pdfBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' })
+      window.open(URL.createObjectURL(pdfBlob), '_blank')
+    } catch (err) {
+      console.error('Error:', err)
+      alert('ไม่สามารถสร้างตัวอย่าง PDF ได้')
+    }
+    setSaving(false)
+  }
+
   const inputClass = 'w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary'
   const labelClass = 'mb-1 block text-xs font-semibold text-muted-foreground tracking-wide'
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-3xl px-4 sm:px-0">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">ใบเสนอราคาจัดเลี้ยง</h1>
           <p className="text-xs text-muted-foreground">สร้างใบเสนอราคาสำหรับงานจัดเลี้ยง</p>
         </div>
-        <button
-          type="button"
-          onClick={resetForm}
-          className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition-all hover:brightness-110"
-        >
-          <UtensilsCrossed className="h-4 w-4" />
-          ใบเสนอราคาใหม่
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={generateExample}
+            disabled={saving}
+            className="flex items-center gap-1.5 rounded-xl border border-primary bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-all hover:bg-primary/20 disabled:opacity-50 sm:px-4 sm:py-2.5"
+          >
+            ดูตัวอย่าง PDF
+          </button>
+          <button
+            type="button"
+            onClick={resetForm}
+            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition-all hover:brightness-110 sm:px-4 sm:py-2.5"
+          >
+            <UtensilsCrossed className="h-4 w-4" />
+            <span className="hidden sm:inline">ใบเสนอราคาใหม่</span>
+            <span className="sm:hidden">ใหม่</span>
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -182,8 +256,18 @@ export default function CateringQuotationPage() {
               <label className={labelClass}>ชื่อร้าน</label>
               <input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} className={inputClass} placeholder="ชื่อร้านอาหาร / ร้านค้า" />
             </div>
-            <div>
-              <label className={labelClass}>ที่อยู่</label>
+  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div>
+      <label className={labelClass}>ชื่อผู้เสนอราคา</label>
+      <input type="text" value={quoterName} onChange={(e) => setQuoterName(e.target.value)} className={inputClass} placeholder="ชื่อผู้เสนอราคา" />
+    </div>
+    <div>
+      <label className={labelClass}>เลขประจำตัวผู้เสียภาษี</label>
+      <input type="text" value={taxId} onChange={(e) => setTaxId(e.target.value)} className={inputClass} placeholder="เลขประจำตัวผู้เสียภาษี (ถ้ามี)" />
+    </div>
+  </div>
+  <div>
+  <label className={labelClass}>ที่อยู่</label>
               <input type="text" value={shopAddress} onChange={(e) => setShopAddress(e.target.value)} className={inputClass} placeholder="ที่อยู่ร้านค้า" />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -192,8 +276,8 @@ export default function CateringQuotationPage() {
                 <input type="tel" value={shopPhone} onChange={(e) => setShopPhone(e.target.value)} className={inputClass} placeholder="เบอร์โทรศัพท์" />
               </div>
               <div>
-                <label className={labelClass}>Line / อีเมล</label>
-                <input type="text" value={shopContact} onChange={(e) => setShopContact(e.target.value)} className={inputClass} placeholder="ช่องทางติดต่อ" />
+                <label className={labelClass}>อีเมล</label>
+                <input type="email" value={shopEmail} onChange={(e) => setShopEmail(e.target.value)} className={inputClass} placeholder="อีเมล" />
               </div>
             </div>
           </div>
@@ -260,10 +344,10 @@ export default function CateringQuotationPage() {
               <div key={index} className="rounded-xl border border-border bg-background p-3">
                 <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <input type="text" required value={item.name} onChange={(e) => updateItem(index, 'name', e.target.value)} placeholder="ชื่อรายการ" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring" />
-                  <input type="text" value={item.detail} onChange={(e) => updateItem(index, 'detail', e.target.value)} placeholder="รายละเอียด" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring" />
+                  <input type="text" value={item.detail} onChange={(e) => updateItem(index, 'detail', e.target.value)} placeholder="รา���ละเอียด" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2">
+                  <div>
                     <label className="text-[10px] font-semibold text-muted-foreground">จำนวนคน</label>
                     <input
                       type="text"
@@ -275,17 +359,17 @@ export default function CateringQuotationPage() {
                       placeholder="1"
                     />
                   </div>
-                  <div className="flex-1">
+                  <div>
                     <label className="text-[10px] font-semibold text-muted-foreground">หน่วย</label>
                     <input
                       type="text"
                       value={item.quantityLabel}
                       onChange={(e) => updateItem(index, 'quantityLabel', e.target.value)}
                       className="w-full rounded-lg border border-input bg-card px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      placeholder="เช่น จาน, ถาด, ชุด"
+                      placeholder="เช่น จาน, ถาด"
                     />
                   </div>
-                  <div className="flex-1">
+                  <div>
                     <label className="text-[10px] font-semibold text-muted-foreground">ราคา/หน่วย</label>
                     <input
                       type="text"
@@ -297,17 +381,19 @@ export default function CateringQuotationPage() {
                       placeholder="0"
                     />
                   </div>
-                  <div className="flex-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground">รวม</label>
-                    <div className="rounded-lg bg-emerald-50 px-2 py-1.5 text-sm font-semibold text-emerald-700">
-                      {formatBaht(toNum(item.quantity) * toNum(item.unitPrice))}
+                  <div className="flex items-end gap-1">
+                    <div className="flex-1">
+                      <label className="text-[10px] font-semibold text-muted-foreground">รวม</label>
+                      <div className="rounded-lg bg-emerald-50 px-2 py-1.5 text-sm font-semibold text-emerald-700">
+                        {formatBaht(toNum(item.quantity) * toNum(item.unitPrice))}
+                      </div>
                     </div>
+                    {items.length > 1 && (
+                      <button type="button" onClick={() => removeItem(index)} className="mb-0.5 rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
-                  {items.length > 1 && (
-                    <button type="button" onClick={() => removeItem(index)} className="mt-3 rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
                 </div>
               </div>
             ))}
