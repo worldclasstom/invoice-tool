@@ -9,50 +9,55 @@ function fmtBaht(v: number): string {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)
 }
 
-/* helper: truncate text to fit a given width */
+/* helper: truncate text to fit width - only cut at space boundaries */
 function fit(text: string, font: { widthOfTextAtSize: (t: string, s: number) => number }, size: number, maxW: number): string {
-  let t = text
-  while (t.length > 0 && font.widthOfTextAtSize(t, size) > maxW) t = t.slice(0, -1)
-  return t.length < text.length ? t.slice(0, -1) + '...' : t
+  if (font.widthOfTextAtSize(text, size) <= maxW) return text
+  
+  // Find the last space that fits
+  const words = text.split(' ')
+  let result = ''
+  for (const word of words) {
+    const test = result ? result + ' ' + word : word
+    if (font.widthOfTextAtSize(test + '...', size) > maxW) break
+    result = test
+  }
+  return result ? result + '...' : text.substring(0, 10) + '...'
 }
 
-/* helper: wrap text into multiple lines - split at word boundaries for English, character for Thai */
+/* helper: wrap text into multiple lines - ONLY break at spaces, never mid-word */
 function wrapLines(text: string, font: { widthOfTextAtSize: (t: string, s: number) => number }, size: number, maxW: number, maxLines: number = 3): string[] {
   const lines: string[] = []
-  let remaining = text.trim()
+  
+  // Split by spaces - this preserves both Thai and English words
+  const words = text.trim().split(/\s+/)
+  let currentLine = ''
 
-  while (remaining.length > 0 && lines.length < maxLines) {
-    if (font.widthOfTextAtSize(remaining, size) <= maxW) {
-      lines.push(remaining)
-      break
-    }
-
-    // Try to find a good break point (space for word boundary)
-    let cut = remaining.length
-    while (cut > 0 && font.widthOfTextAtSize(remaining.substring(0, cut), size) > maxW) cut--
-    if (cut === 0) cut = 1
-
-    // Look backwards for a space to avoid splitting words (for English text)
-    let breakAt = cut
-    for (let i = cut; i > Math.max(0, cut - 30); i--) {
-      if (remaining[i] === ' ') {
-        breakAt = i
-        break
+  for (const word of words) {
+    const testLine = currentLine ? currentLine + ' ' + word : word
+    
+    if (font.widthOfTextAtSize(testLine, size) <= maxW) {
+      currentLine = testLine
+    } else {
+      // Current line is full, push it and start new line
+      if (currentLine) {
+        lines.push(currentLine)
+        if (lines.length >= maxLines) {
+          // Truncate remaining content
+          const remaining = [word, ...words.slice(words.indexOf(word) + 1)].join(' ')
+          lines[lines.length - 1] = fit(lines[lines.length - 1] + ' ' + remaining, font, size, maxW)
+          return lines
+        }
+        currentLine = word
+      } else {
+        // Single word is too long - just use it as is (don't break mid-word)
+        lines.push(word)
+        if (lines.length >= maxLines) return lines
+        currentLine = ''
       }
     }
-
-    // Only use word break if it's reasonable (not too far back)
-    if (breakAt < cut - 30 || breakAt === 0) breakAt = cut
-
-    lines.push(remaining.substring(0, breakAt).trim())
-    remaining = remaining.substring(breakAt).trim()
   }
-
-  // If there's remaining text after maxLines, truncate last line
-  if (remaining.length > 0 && lines.length === maxLines) {
-    const lastIdx = lines.length - 1
-    lines[lastIdx] = fit(lines[lastIdx] + ' ' + remaining, font, size, maxW)
-  }
+  
+  if (currentLine) lines.push(currentLine)
   return lines
 }
 

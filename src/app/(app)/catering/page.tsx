@@ -336,8 +336,8 @@ body: JSON.stringify({
                   <input type="text" required value={item.name} onChange={(e) => updateItem(index, 'name', e.target.value)} placeholder="ชื่อรายการ" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring" />
                   <input type="text" value={item.detail} onChange={(e) => updateItem(index, 'detail', e.target.value)} placeholder="รายละเอียด" className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2">
+                  <div>
                     <label className="text-[10px] font-semibold text-muted-foreground">จำนวนคน</label>
                     <input
                       type="text"
@@ -349,17 +349,17 @@ body: JSON.stringify({
                       placeholder="1"
                     />
                   </div>
-                  <div className="flex-1">
+                  <div>
                     <label className="text-[10px] font-semibold text-muted-foreground">หน่วย</label>
                     <input
                       type="text"
                       value={item.quantityLabel}
                       onChange={(e) => updateItem(index, 'quantityLabel', e.target.value)}
                       className="w-full rounded-lg border border-input bg-card px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      placeholder="เช่น จาน, ถาด, ชุด"
+                      placeholder="เช่น จาน, ถาด"
                     />
                   </div>
-                  <div className="flex-1">
+                  <div>
                     <label className="text-[10px] font-semibold text-muted-foreground">ราคา/หน่วย</label>
                     <input
                       type="text"
@@ -371,17 +371,19 @@ body: JSON.stringify({
                       placeholder="0"
                     />
                   </div>
-                  <div className="flex-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground">รวม</label>
-                    <div className="rounded-lg bg-emerald-50 px-2 py-1.5 text-sm font-semibold text-emerald-700">
-                      {formatBaht(toNum(item.quantity) * toNum(item.unitPrice))}
+                  <div className="flex items-end gap-1">
+                    <div className="flex-1">
+                      <label className="text-[10px] font-semibold text-muted-foreground">รวม</label>
+                      <div className="rounded-lg bg-emerald-50 px-2 py-1.5 text-sm font-semibold text-emerald-700">
+                        {formatBaht(toNum(item.quantity) * toNum(item.unitPrice))}
+                      </div>
                     </div>
+                    {items.length > 1 && (
+                      <button type="button" onClick={() => removeItem(index)} className="mb-0.5 rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
-                  {items.length > 1 && (
-                    <button type="button" onClick={() => removeItem(index)} className="mt-3 rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
                 </div>
               </div>
             ))}
