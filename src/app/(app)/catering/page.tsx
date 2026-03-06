@@ -153,14 +153,7 @@ body: JSON.stringify({
         byteNumbers[i] = byteCharacters.charCodeAt(i)
       }
       const pdfBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' })
-      const url = URL.createObjectURL(pdfBlob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `ใบเสนอราคา-${customerName || 'catering'}-${eventDate}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      window.open(URL.createObjectURL(pdfBlob), '_blank')
     } catch (err) {
       console.error('[v0] Error generating quotation PDF:', err)
       const message = err instanceof Error ? err.message : 'Unknown error'
@@ -221,14 +214,7 @@ const exampleData = {
         byteNumbers[i] = byteCharacters.charCodeAt(i)
       }
       const pdfBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' })
-      const url = URL.createObjectURL(pdfBlob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `ใบเสนอราคา-ตัวอย่าง-${today}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      window.open(URL.createObjectURL(pdfBlob), '_blank')
     } catch (err) {
       console.error('[v0] Error generating example PDF:', err)
       const message = err instanceof Error ? err.message : 'Unknown error'
