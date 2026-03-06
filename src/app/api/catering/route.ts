@@ -299,12 +299,13 @@ function generateHTML(data: {
 </head>
 <body>
   <div class="header">
-    <div class="logo-section">
-      <div>
-        <div class="brand-name">Madre Cafe & Restaurant</div>
-        <div class="brand-sub">ร้านอาหาร ตำราแม่</div>
-      </div>
-    </div>
+  <div class="logo-section">
+  <img src="${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/images/madre-logo.png" alt="Madre Logo" style="width: 70px; height: auto;">
+  <div>
+  <div class="brand-name">Madre Cafe & Restaurant</div>
+  <div class="brand-sub">ร้านอาหาร ตำราแม่</div>
+  </div>
+  </div>
     <div class="title-section">
       <div class="title">ใบเสนอราคา</div>
       <div class="title-en">Catering Quotation</div>
@@ -489,7 +490,7 @@ export async function POST(request: NextRequest) {
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '12.7mm', right: '12.7mm', bottom: '6.35mm', left: '12.7mm' },
+      margin: { top: '6.35mm', right: '12.7mm', bottom: '6.35mm', left: '12.7mm' },
     })
 
     await browser.close()
