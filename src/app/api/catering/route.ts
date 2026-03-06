@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import React from 'react'
-import ReactPDF, { renderToBuffer, Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer'
+import { renderToBuffer, Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer'
 import path from 'path'
 import fs from 'fs'
 
@@ -437,7 +437,8 @@ function QuotationPDF({ data }: { data: QuotationData }) {
 }
 
 async function generatePDF(data: QuotationData): Promise<Buffer> {
-  const element = React.createElement(QuotationPDF, { data }) as React.ReactElement<ReactPDF.DocumentProps>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const element = React.createElement(QuotationPDF, { data }) as any
   const buffer = await renderToBuffer(element)
   return Buffer.from(buffer)
 }
