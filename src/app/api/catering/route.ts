@@ -16,6 +16,30 @@ function fit(text: string, font: { widthOfTextAtSize: (t: string, s: number) => 
   return t.length < text.length ? t.slice(0, -1) + '...' : t
 }
 
+/* helper: wrap text into multiple lines */
+function wrapLines(text: string, font: { widthOfTextAtSize: (t: string, s: number) => number }, size: number, maxW: number, maxLines: number = 3): string[] {
+  const lines: string[] = []
+  let remaining = text
+  while (remaining.length > 0 && lines.length < maxLines) {
+    if (font.widthOfTextAtSize(remaining, size) <= maxW) {
+      lines.push(remaining)
+      break
+    }
+    // Find the longest substring that fits
+    let cut = remaining.length
+    while (cut > 0 && font.widthOfTextAtSize(remaining.substring(0, cut), size) > maxW) cut--
+    if (cut === 0) cut = 1 // At least 1 character
+    lines.push(remaining.substring(0, cut))
+    remaining = remaining.substring(cut)
+  }
+  // If there's still remaining text after maxLines, truncate last line
+  if (remaining.length > 0 && lines.length === maxLines) {
+    const lastIdx = lines.length - 1
+    lines[lastIdx] = fit(lines[lastIdx] + remaining, font, size, maxW)
+  }
+  return lines
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
@@ -82,7 +106,7 @@ export async function POST(request: Request) {
     page.drawText('ร้านอาหาร ตำราแม่', { x: nameX, y: y - 15, size: 9, font, color: mid })
 
     // Title right-aligned
-    const title = 'ใบเสนอราคาจัดเลี้ยง'
+    const title = 'ใบเสนอราคา'
     const tw = bold.widthOfTextAtSize(title, 15)
     page.drawText(title, { x: RightEdge - tw, y: y, size: 15, font: bold, color: green })
 
@@ -116,7 +140,12 @@ export async function POST(request: Request) {
     page.drawText('ข้อมูลร้านค้า', { x: LX, y: ly, size: 9, font: bold, color: green })
     ly -= lh + 3
     if (shopName) { page.drawText(fit(shopName, font, 8.5, maxLeftW), { x: LX, y: ly, size: 8.5, font, color: dark }); ly -= lh }
-    if (shopAddress) { page.drawText(fit(shopAddress, font, 8, maxLeftW), { x: LX, y: ly, size: 8, font, color: mid }); ly -= lh }
+    if (shopAddress) {
+      const addrLines = wrapLines(shopAddress, font, 8, maxLeftW, 3)
+      for (const line of addrLines) {
+        page.drawText(line, { x: LX, y: ly, size: 8, font, color: mid }); ly -= lh
+      }
+    }
     if (shopPhone) { page.drawText(fit(`โทร: ${shopPhone}`, font, 8, maxLeftW), { x: LX, y: ly, size: 8, font, color: mid }); ly -= lh }
     if (shopContact) { page.drawText(fit(`Line/Email: ${shopContact}`, font, 8, maxLeftW), { x: LX, y: ly, size: 8, font, color: mid }); ly -= lh }
 
@@ -125,10 +154,20 @@ export async function POST(request: Request) {
     page.drawText('ข้อมูลลูกค้า / งาน', { x: RX, y: ry, size: 9, font: bold, color: green })
     ry -= lh + 3
     if (customerName) { page.drawText(fit(customerName, font, 8.5, maxRightW), { x: RX, y: ry, size: 8.5, font, color: dark }); ry -= lh }
-    if (customerAddress) { page.drawText(fit(customerAddress, font, 8, maxRightW), { x: RX, y: ry, size: 8, font, color: mid }); ry -= lh }
+    if (customerAddress) {
+      const custAddrLines = wrapLines(customerAddress, font, 8, maxRightW, 3)
+      for (const line of custAddrLines) {
+        page.drawText(line, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lh
+      }
+    }
     if (customerPhone) { page.drawText(fit(`โทร: ${customerPhone}`, font, 8, maxRightW), { x: RX, y: ry, size: 8, font, color: mid }); ry -= lh }
     if (customerEmail) { page.drawText(fit(`อีเมล: ${customerEmail}`, font, 8, maxRightW), { x: RX, y: ry, size: 8, font, color: mid }); ry -= lh }
-    if (eventLocation) { page.drawText(fit(`สถานที่จัดงาน: ${eventLocation}`, font, 8, maxRightW), { x: RX, y: ry, size: 8, font, color: mid }); ry -= lh }
+    if (eventLocation) {
+      const locLines = wrapLines(`สถานที่จัดงาน: ${eventLocation}`, font, 8, maxRightW, 2)
+      for (const line of locLines) {
+        page.drawText(line, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lh
+      }
+    }
     if (eventDate) {
       const d = new Date(eventDate + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
       page.drawText(fit(`วันที่จัดงาน: ${d}`, font, 8, maxRightW), { x: RX, y: ry, size: 8, font, color: mid }); ry -= lh
