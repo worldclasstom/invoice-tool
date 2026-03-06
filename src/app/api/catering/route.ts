@@ -100,10 +100,17 @@ export async function POST(request: Request) {
       eventLocation, eventDate, guestCount,
       items, menuCategories,
       vatPercent, depositPercent, minGuests, paymentNotes,
+      isExample = false,
     } = body
 
-    // Generate quotation number
-    const quotationNumber = await generateQuotationNumber(supabase, user.id)
+    // Generate quotation number (skip saving for example PDFs)
+    let quotationNumber: string
+    if (isExample) {
+      // For examples, generate a sample number without saving
+      quotationNumber = 'QT-ตัวอย่าง'
+    } else {
+      quotationNumber = await generateQuotationNumber(supabase, user.id)
+    }
 
     const subtotal = (items ?? []).reduce(
       (s: number, i: { quantity: number; unitPrice: number }) => s + i.quantity * i.unitPrice, 0,

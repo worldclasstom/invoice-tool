@@ -155,25 +155,92 @@ body: JSON.stringify({
     setSaving(false)
   }
 
+  // Generate example PDF with dummy data
+  const generateExample = async () => {
+    setSaving(true)
+    try {
+      const exampleData = {
+        shopName: 'ร้านอาหาร ตำราแม่ Madre Cafe & Restaurant',
+        quoterName: 'คุณสมชาย ใจดี',
+        shopAddress: '4001 ทางหลวงชนบท Phatthalung Phatthalung, Thailand, Phatthalung 93000',
+        shopPhone: '096-823-9758',
+        shopEmail: 'harrysattrawut.madrecafe@gmail.com',
+        customerName: 'Phatthalung Hospital',
+        customerAddress: '4001 ทางหลวงชนบท Phatthalung Phatthalung, Thailand, Phatthalung 93000',
+        customerPhone: '074-611139',
+        customerEmail: 'PhatthalungHospital@gmail.com',
+        eventLocation: 'Phatthalung Halls',
+        eventDate: today,
+        guestCount: 70,
+        items: [
+          { name: 'เมนูอาหารหลัก', detail: '2 อย่าง', quantity: 70, quantityLabel: '70 คน', unitPrice: 80 },
+          { name: 'อาหารว่าง', detail: 'ขนมครก', quantity: 70, quantityLabel: '70 คน', unitPrice: 20 },
+          { name: 'น้ำส้มคั้น', detail: '', quantity: 70, quantityLabel: '70 แก้ว', unitPrice: 25 },
+        ],
+        menuCategories: [
+          { category: 'เมนูอาหารหลัก', items: 'ผัดไทยกุ้ง' },
+          { category: 'กับข้าว', items: 'แกงส้มปลากะพง' },
+        ],
+        vatPercent: 8,
+        depositPercent: 50,
+        minGuests: 70,
+        paymentNotes: '',
+        isExample: true,
+      }
+
+      const res = await fetch('/api/catering', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(exampleData),
+      })
+
+      if (!res.ok) throw new Error('Failed to generate example')
+      const data = await res.json()
+
+      const byteCharacters = atob(data.pdf)
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+      const pdfBlob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' })
+      window.open(URL.createObjectURL(pdfBlob), '_blank')
+    } catch (err) {
+      console.error('Error:', err)
+      alert('ไม่สามารถสร้างตัวอย่าง PDF ได้')
+    }
+    setSaving(false)
+  }
+
   const inputClass = 'w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary'
   const labelClass = 'mb-1 block text-xs font-semibold text-muted-foreground tracking-wide'
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-3xl px-4 sm:px-0">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">ใบเสนอราคาจัดเลี้ยง</h1>
           <p className="text-xs text-muted-foreground">สร้างใบเสนอราคาสำหรับงานจัดเลี้ยง</p>
         </div>
-        <button
-          type="button"
-          onClick={resetForm}
-          className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition-all hover:brightness-110"
-        >
-          <UtensilsCrossed className="h-4 w-4" />
-          ใบเสนอราคาใหม่
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={generateExample}
+            disabled={saving}
+            className="flex items-center gap-1.5 rounded-xl border border-primary bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition-all hover:bg-primary/20 disabled:opacity-50 sm:px-4 sm:py-2.5"
+          >
+            ดูตัวอย่าง PDF
+          </button>
+          <button
+            type="button"
+            onClick={resetForm}
+            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition-all hover:brightness-110 sm:px-4 sm:py-2.5"
+          >
+            <UtensilsCrossed className="h-4 w-4" />
+            <span className="hidden sm:inline">ใบเสนอราคาใหม่</span>
+            <span className="sm:hidden">ใหม่</span>
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
