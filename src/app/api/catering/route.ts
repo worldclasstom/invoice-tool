@@ -1,71 +1,23 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { PDFDocument, rgb } from 'pdf-lib'
-import fs from 'fs'
+import { renderToBuffer, Document, Page, View, Text, Image, Font, StyleSheet } from '@react-pdf/renderer'
 import path from 'path'
-import fontkit from '@pdf-lib/fontkit'
+import React from 'react'
+
+// Register Thai font
+Font.register({
+  family: 'Kanit',
+  fonts: [
+    { src: path.join(process.cwd(), 'public/fonts/Kanit-Regular.ttf'), fontWeight: 'normal' },
+    { src: path.join(process.cwd(), 'public/fonts/Kanit-Medium.ttf'), fontWeight: 'bold' },
+  ],
+})
+
+// Disable hyphenation to prevent word breaking
+Font.registerHyphenationCallback(word => [word])
 
 function fmtBaht(v: number): string {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)
-}
-
-/* Normalize Thai text to NFC and clean up any stray combining marks */
-function normalizeThai(text: string): string {
-  return text.normalize('NFC')
-}
-
-/* helper: truncate text to fit width - only cut at space boundaries */
-function fit(text: string, font: { widthOfTextAtSize: (t: string, s: number) => number }, size: number, maxW: number): string {
-  const t = normalizeThai(text)
-  if (font.widthOfTextAtSize(t, size) <= maxW) return t
-  
-  // Find the last space that fits
-  const words = t.split(' ')
-  let result = ''
-  for (const word of words) {
-    const test = result ? result + ' ' + word : word
-    if (font.widthOfTextAtSize(test + '...', size) > maxW) break
-    result = test
-  }
-  return result ? result + '...' : t.substring(0, 10) + '...'
-}
-
-/* helper: wrap text into multiple lines - ONLY break at spaces, never mid-word */
-function wrapLines(text: string, font: { widthOfTextAtSize: (t: string, s: number) => number }, size: number, maxW: number, maxLines: number = 3): string[] {
-  const lines: string[] = []
-  
-  // Normalize Thai text first, then split by spaces
-  const normalizedText = normalizeThai(text.trim())
-  const words = normalizedText.split(/\s+/)
-  let currentLine = ''
-
-  for (const word of words) {
-    const testLine = currentLine ? currentLine + ' ' + word : word
-    
-    if (font.widthOfTextAtSize(testLine, size) <= maxW) {
-      currentLine = testLine
-    } else {
-      // Current line is full, push it and start new line
-      if (currentLine) {
-        lines.push(currentLine)
-        if (lines.length >= maxLines) {
-          // Truncate remaining content
-          const remaining = [word, ...words.slice(words.indexOf(word) + 1)].join(' ')
-          lines[lines.length - 1] = fit(lines[lines.length - 1] + ' ' + remaining, font, size, maxW)
-          return lines
-        }
-        currentLine = word
-      } else {
-        // Single word is too long - just use it as is (don't break mid-word)
-        lines.push(word)
-        if (lines.length >= maxLines) return lines
-        currentLine = ''
-      }
-    }
-  }
-  
-  if (currentLine) lines.push(currentLine)
-  return lines
 }
 
 /* Generate quotation number: QT-YYYY-MM-NNN */
@@ -74,7 +26,6 @@ async function generateQuotationNumber(supabase: Awaited<ReturnType<typeof creat
   const year = now.getFullYear()
   const month = now.getMonth() + 1
 
-  // Get the highest sequence for this year/month
   const { data: existing } = await supabase
     .from('catering_quotation_numbers')
     .select('sequence')
@@ -87,7 +38,6 @@ async function generateQuotationNumber(supabase: Awaited<ReturnType<typeof creat
   const nextSeq = (existing && existing.length > 0) ? existing[0].sequence + 1 : 1
   const quotationNumber = `QT-${year}-${String(month).padStart(2, '0')}-${String(nextSeq).padStart(3, '0')}`
 
-  // Insert the new quotation number
   await supabase.from('catering_quotation_numbers').insert({
     user_id: userId,
     quotation_number: quotationNumber,
@@ -97,6 +47,247 @@ async function generateQuotationNumber(supabase: Awaited<ReturnType<typeof creat
   })
 
   return quotationNumber
+}
+
+// Styles
+const styles = StyleSheet.create({
+  page: { fontFamily: 'Kanit', fontSize: 9, padding: 40, color: '#1f1f1f' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  headerLeft: { flexDirection: 'row', alignItems: 'flex-start' },
+  logo: { width: 50, height: 50, marginRight: 10 },
+  headerTitle: { flexDirection: 'column' },
+  brandName: { fontSize: 13, fontWeight: 'bold', color: '#2e7a4d' },
+  brandNameThai: { fontSize: 9, color: '#595959', marginTop: 2 },
+  headerRight: { alignItems: 'flex-end' },
+  title: { fontSize: 16, fontWeight: 'bold', color: '#2e7a4d' },
+  subtitle: { fontSize: 8, color: '#8c8c8c', marginTop: 2 },
+  qnumber: { fontSize: 8, color: '#595959', marginTop: 3 },
+  date: { fontSize: 8, color: '#8c8c8c', marginTop: 2 },
+  divider: { height: 2, backgroundColor: '#2e7a4d', marginVertical: 10 },
+  thinDivider: { height: 0.5, backgroundColor: '#d1d1d1', marginVertical: 1 },
+  infoRow: { flexDirection: 'row', marginBottom: 12 },
+  infoCol: { flex: 1 },
+  infoLabel: { fontSize: 10, fontWeight: 'bold', color: '#2e7a4d', marginBottom: 4 },
+  infoName: { fontSize: 9, color: '#1f1f1f', marginBottom: 2 },
+  infoText: { fontSize: 8, color: '#595959', marginBottom: 2 },
+  table: { marginVertical: 10 },
+  tableHeader: { flexDirection: 'row', backgroundColor: '#2e7a4d', padding: 5 },
+  tableHeaderText: { color: '#ffffff', fontSize: 8, fontWeight: 'bold' },
+  tableRow: { flexDirection: 'row', padding: 5, borderBottomWidth: 0.3, borderBottomColor: '#d1d1d1' },
+  tableRowAlt: { flexDirection: 'row', padding: 5, borderBottomWidth: 0.3, borderBottomColor: '#d1d1d1', backgroundColor: '#f7faf7' },
+  tableCell: { fontSize: 8, color: '#1f1f1f' },
+  tableCellMuted: { fontSize: 8, color: '#595959' },
+  colNo: { width: 25 },
+  colName: { width: 130 },
+  colDetail: { width: 110, paddingRight: 5 },
+  colQty: { width: 60 },
+  colPrice: { width: 70 },
+  colTotal: { width: 80, textAlign: 'right' },
+  menuSection: { marginVertical: 10 },
+  menuHeader: { flexDirection: 'row', backgroundColor: '#f0f5f0', padding: 5 },
+  menuRow: { flexDirection: 'row', padding: 5, borderBottomWidth: 0.3, borderBottomColor: '#d1d1d1' },
+  menuCategory: { width: 120 },
+  menuItems: { flex: 1 },
+  summaryBox: { alignSelf: 'flex-end', width: 210, backgroundColor: '#f0f5f0', padding: 10, marginVertical: 10, borderWidth: 0.5, borderColor: '#d1d1d1' },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  summaryLabel: { fontSize: 9, color: '#595959' },
+  summaryValue: { fontSize: 9, color: '#1f1f1f' },
+  summaryTotalRow: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#2e7a4d', paddingTop: 6, marginTop: 4 },
+  summaryTotalLabel: { fontSize: 11, fontWeight: 'bold', color: '#2e7a4d' },
+  summaryTotalValue: { fontSize: 11, fontWeight: 'bold', color: '#2e7a4d' },
+  paymentSection: { marginVertical: 10 },
+  paymentTitle: { fontSize: 10, fontWeight: 'bold', color: '#2e7a4d', marginBottom: 6 },
+  paymentText: { fontSize: 8, color: '#595959', marginBottom: 3 },
+  signatureSection: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 30, marginBottom: 20 },
+  signatureBox: { alignItems: 'center' },
+  signatureLine: { width: 150, borderBottomWidth: 0.8, borderBottomColor: '#d1d1d1', marginBottom: 8 },
+  signatureLabel: { fontSize: 8, color: '#8c8c8c' },
+  footer: { position: 'absolute', bottom: 25, left: 40, right: 40, borderTopWidth: 0.5, borderTopColor: '#d1d1d1', paddingTop: 8 },
+  footerText: { fontSize: 7, color: '#8c8c8c', textAlign: 'center' },
+})
+
+interface Item {
+  name: string
+  detail: string
+  quantity: number
+  quantityLabel: string
+  unitPrice: number
+}
+
+interface MenuCategory {
+  category: string
+  items: string
+}
+
+interface QuotationData {
+  shopName: string
+  quoterName: string
+  shopAddress: string
+  shopPhone: string
+  shopEmail: string
+  customerName: string
+  customerAddress: string
+  customerPhone: string
+  customerEmail: string
+  eventLocation: string
+  eventDate: string
+  guestCount: number
+  items: Item[]
+  menuCategories: MenuCategory[]
+  vatPercent: number
+  depositPercent: number
+  minGuests: number
+  paymentNotes: string
+  quotationNumber: string
+  subtotal: number
+  vat: number
+  grandTotal: number
+}
+
+function QuotationDocument({ data }: { data: QuotationData }) {
+  const today = new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
+  const eventDateStr = data.eventDate 
+    ? new Date(data.eventDate + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
+    : ''
+
+  const depRate = Number(data.depositPercent) || 0
+  const depAmount = depRate > 0 ? Math.round(data.grandTotal * (depRate / 100) * 100) / 100 : 0
+  const remaining = data.grandTotal - depAmount
+
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Image style={styles.logo} src={path.join(process.cwd(), 'public/images/madre-logo.png')} />
+            <View style={styles.headerTitle}>
+              <Text style={styles.brandName}>Madre Cafe & Restaurant</Text>
+              <Text style={styles.brandNameThai}>ร้านอาหาร ตำราแม่</Text>
+            </View>
+          </View>
+          <View style={styles.headerRight}>
+            <Text style={styles.title}>ใบเสนอราคา</Text>
+            <Text style={styles.subtitle}>Catering Quotation</Text>
+            <Text style={styles.qnumber}>เลขที่ : {data.quotationNumber}</Text>
+            <Text style={styles.date}>วันที่ : {today}</Text>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        {/* Shop & Customer Info */}
+        <View style={styles.infoRow}>
+          <View style={styles.infoCol}>
+            <Text style={styles.infoLabel}>ข้อมูลร้านค้า</Text>
+            {data.shopName && <Text style={styles.infoName}>{data.shopName}</Text>}
+            {data.quoterName && <Text style={styles.infoText}>ผู้เสนอราคา: {data.quoterName}</Text>}
+            {data.shopAddress && <Text style={styles.infoText}>{data.shopAddress}</Text>}
+            {data.shopPhone && <Text style={styles.infoText}>โทร: {data.shopPhone}</Text>}
+            {data.shopEmail && <Text style={styles.infoText}>อีเมล: {data.shopEmail}</Text>}
+          </View>
+          <View style={styles.infoCol}>
+            <Text style={styles.infoLabel}>ข้อมูลลูกค้า / งาน</Text>
+            {data.customerName && <Text style={styles.infoName}>{data.customerName}</Text>}
+            {data.customerAddress && <Text style={styles.infoText}>{data.customerAddress}</Text>}
+            {data.customerPhone && <Text style={styles.infoText}>โทร: {data.customerPhone}</Text>}
+            {data.customerEmail && <Text style={styles.infoText}>อีเมล: {data.customerEmail}</Text>}
+            {data.eventLocation && <Text style={styles.infoText}>สถานที่จัดงาน: {data.eventLocation}</Text>}
+            {eventDateStr && <Text style={styles.infoText}>วันที่จัดงาน: {eventDateStr}</Text>}
+            {data.guestCount && <Text style={styles.infoText}>จำนวนคน: {data.guestCount} คน</Text>}
+          </View>
+        </View>
+
+        {/* Items Table */}
+        <View style={styles.table}>
+          <View style={styles.tableHeader}>
+            <Text style={[styles.tableHeaderText, styles.colNo]}>#</Text>
+            <Text style={[styles.tableHeaderText, styles.colName]}>รายการ</Text>
+            <Text style={[styles.tableHeaderText, styles.colDetail]}>รายละเอียด</Text>
+            <Text style={[styles.tableHeaderText, styles.colQty]}>จำนวน</Text>
+            <Text style={[styles.tableHeaderText, styles.colPrice]}>ราคา/หน่วย</Text>
+            <Text style={[styles.tableHeaderText, styles.colTotal]}>รวม (บาท)</Text>
+          </View>
+          {(data.items || []).map((item, i) => (
+            <View key={i} style={i % 2 === 0 ? styles.tableRowAlt : styles.tableRow}>
+              <Text style={[styles.tableCell, styles.colNo]}>{i + 1}</Text>
+              <Text style={[styles.tableCell, styles.colName]}>{item.name}</Text>
+              <Text style={[styles.tableCellMuted, styles.colDetail]}>{item.detail}</Text>
+              <Text style={[styles.tableCell, styles.colQty]}>{item.quantityLabel || item.quantity}</Text>
+              <Text style={[styles.tableCell, styles.colPrice]}>{fmtBaht(item.unitPrice)}</Text>
+              <Text style={[styles.tableCell, styles.colTotal]}>{fmtBaht(item.quantity * item.unitPrice)}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Menu Categories */}
+        {data.menuCategories?.length > 0 && data.menuCategories.some(c => c.category || c.items) && (
+          <View style={styles.menuSection}>
+            <Text style={styles.paymentTitle}>รายการเมนูอาหาร</Text>
+            <View style={styles.menuHeader}>
+              <Text style={[styles.tableHeaderText, styles.menuCategory, { color: '#2e7a4d' }]}>หมวด</Text>
+              <Text style={[styles.tableHeaderText, styles.menuItems, { color: '#2e7a4d' }]}>รายการเมนู</Text>
+            </View>
+            {data.menuCategories.filter(c => c.category || c.items).map((cat, i) => (
+              <View key={i} style={styles.menuRow}>
+                <Text style={[styles.tableCell, styles.menuCategory]}>{cat.category}</Text>
+                <Text style={[styles.tableCellMuted, styles.menuItems]}>{cat.items}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Summary Box */}
+        <View style={styles.summaryBox}>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>ราคารวม</Text>
+            <Text style={styles.summaryValue}>{fmtBaht(data.subtotal)} บาท</Text>
+          </View>
+          {data.vat > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>VAT {data.vatPercent}%</Text>
+              <Text style={styles.summaryValue}>{fmtBaht(data.vat)} บาท</Text>
+            </View>
+          )}
+          <View style={styles.summaryTotalRow}>
+            <Text style={styles.summaryTotalLabel}>ยอดรวมสุทธิ</Text>
+            <Text style={styles.summaryTotalValue}>{fmtBaht(data.grandTotal)} บาท</Text>
+          </View>
+        </View>
+
+        {/* Payment Terms */}
+        <View style={styles.paymentSection}>
+          <Text style={styles.paymentTitle}>เงื่อนไขการชำระเงิน</Text>
+          {depRate > 0 && (
+            <>
+              <Text style={styles.paymentText}>- มัดจำ {data.depositPercent}% : {fmtBaht(depAmount)} บาท ก่อนวันงาน</Text>
+              <Text style={styles.paymentText}>- ชำระเงินส่วนที่เหลือ {fmtBaht(remaining)} บาท ในวันจัดงาน</Text>
+            </>
+          )}
+          {!depRate && <Text style={styles.paymentText}>- ชำระเงินในวันจัดงาน</Text>}
+          {data.minGuests && <Text style={styles.paymentText}>- ราคานี้สำหรับขั้นต่ำ {data.minGuests} คน</Text>}
+          {data.paymentNotes && <Text style={styles.paymentText}>- {data.paymentNotes}</Text>}
+        </View>
+
+        {/* Signatures */}
+        <View style={styles.signatureSection}>
+          <View style={styles.signatureBox}>
+            <View style={styles.signatureLine} />
+            <Text style={styles.signatureLabel}>ผู้เสนอราคา (ร้านอาหาร)</Text>
+          </View>
+          <View style={styles.signatureBox}>
+            <View style={styles.signatureLine} />
+            <Text style={styles.signatureLabel}>ผู้อนุมัติ (ลูกค้า)</Text>
+          </View>
+        </View>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Madre Cafe & Restaurant | ร้านอาหาร ตำราแม่</Text>
+        </View>
+      </Page>
+    </Document>
+  )
 }
 
 export async function POST(request: Request) {
@@ -115,275 +306,43 @@ export async function POST(request: Request) {
       isExample = false,
     } = body
 
-    // Generate quotation number (skip saving for example PDFs)
+    // Generate quotation number
     let quotationNumber: string
     if (isExample) {
-      // For examples, generate a sample number without saving
       quotationNumber = 'QT-ตัวอย่าง'
     } else {
       quotationNumber = await generateQuotationNumber(supabase, user.id)
     }
 
     const subtotal = (items ?? []).reduce(
-      (s: number, i: { quantity: number; unitPrice: number }) => s + i.quantity * i.unitPrice, 0,
+      (s: number, i: Item) => s + i.quantity * i.unitPrice, 0,
     )
     const vatRate = Number(vatPercent) || 0
     const vat = vatRate > 0 ? Math.round(subtotal * (vatRate / 100) * 100) / 100 : 0
     const grandTotal = subtotal + vat
 
-    // ─── Fonts (Kanit for clean Thai rendering) ───
-    const fontDir = path.join(process.cwd(), 'public/fonts')
-    const regBytes = fs.readFileSync(path.join(fontDir, 'Kanit-Regular.ttf'))
-    const boldBytes = fs.readFileSync(path.join(fontDir, 'Kanit-Medium.ttf'))
-
-    const pdfDoc = await PDFDocument.create()
-    pdfDoc.registerFontkit(fontkit)
-    const font = await pdfDoc.embedFont(regBytes)
-    const bold = await pdfDoc.embedFont(boldBytes)
-
-    // ─── Logo ───
-    const logoPath = path.join(process.cwd(), 'public/images/madre-logo.png')
-    const logoBytes = fs.readFileSync(logoPath)
-    const logoImage = await pdfDoc.embedPng(logoBytes)
-    const logoDims = logoImage.scale(0.5)
-    const logoW = Math.min(logoDims.width, 55)
-    const logoH = (logoW / logoDims.width) * logoDims.height
-
-    const page = pdfDoc.addPage([595, 842]) // A4
-    const W = page.getSize().width
-    const M = 45 // margin
-    const RightEdge = W - M
-    const contentW = W - M * 2
-
-    // ─── Colors ───
-    const green  = rgb(0.18, 0.48, 0.30)
-    const dark   = rgb(0.12, 0.12, 0.12)
-    const mid    = rgb(0.35, 0.35, 0.35)
-    const light  = rgb(0.55, 0.55, 0.55)
-    const lineCl = rgb(0.82, 0.82, 0.82)
-    const white  = rgb(1, 1, 1)
-    const stripeBg = rgb(0.965, 0.975, 0.965)
-    const boxBg  = rgb(0.94, 0.96, 0.94)
-
-    let y = 842 - 45
-
-    // ════════════════════ HEADER ════════════════════
-    page.drawImage(logoImage, { x: M, y: y - logoH + 10, width: logoW, height: logoH })
-
-    const nameX = M + logoW + 10
-    page.drawText('Madre Cafe & Restaurant', { x: nameX, y: y, size: 12, font: bold, color: green })
-    page.drawText(normalizeThai('ร้านอาหาร ตำราแม่'), { x: nameX, y: y - 15, size: 9, font, color: mid })
-
-    // Title section - right-aligned
-    const title = normalizeThai('ใบเสนอราคา')
-    const tw = bold.widthOfTextAtSize(title, 15)
-    page.drawText(title, { x: RightEdge - tw, y: y, size: 15, font: bold, color: green })
-
-    const sub1 = 'Catering Quotation'
-    const sw1 = font.widthOfTextAtSize(sub1, 8)
-    page.drawText(sub1, { x: RightEdge - sw1, y: y - 14, size: 8, font, color: light })
-
-    // Quotation number - right aligned
-    const qnStr = normalizeThai(`เลขที่ : ${quotationNumber}`)
-    const qnw = font.widthOfTextAtSize(qnStr, 8)
-    page.drawText(qnStr, { x: RightEdge - qnw, y: y - 26, size: 8, font, color: mid })
-
-    // Date - right aligned
-    const today = new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
-    const dateStr = normalizeThai(`วันที่ : ${today}`)
-    const dw = font.widthOfTextAtSize(dateStr, 8)
-    page.drawText(dateStr, { x: RightEdge - dw, y: y - 38, size: 8, font, color: light })
-
-    y -= Math.max(logoH, 50) + 12
-
-    // Green divider
-    page.drawRectangle({ x: M, y, width: contentW, height: 1.5, color: green })
-    y -= 20
-
-    // ════════════════════ TWO-COLUMN INFO ���═══════════════════
-    const halfW = (contentW - 20) / 2
-    const LX = M
-    const RX = M + halfW + 20
-    const maxLeftW = halfW - 5
-    const maxRightW = halfW - 5
-    const infoY = y
-    const lh = 13
-
-    // -- LEFT: Shop info --
-    let ly = infoY
-    page.drawText(normalizeThai('ข้อมูลร้านค้า'), { x: LX, y: ly, size: 9, font: bold, color: green })
-    ly -= lh + 3
-    if (shopName) { page.drawText(fit(shopName, font, 8.5, maxLeftW), { x: LX, y: ly, size: 8.5, font, color: dark }); ly -= lh }
-    if (quoterName) { page.drawText(fit(`ผู้เสนอราคา: ${quoterName}`, font, 8, maxLeftW), { x: LX, y: ly, size: 8, font, color: mid }); ly -= lh }
-    if (shopAddress) {
-      const addrLines = wrapLines(shopAddress, font, 8, maxLeftW, 3)
-      for (const line of addrLines) {
-        page.drawText(line, { x: LX, y: ly, size: 8, font, color: mid }); ly -= lh
-      }
-    }
-    if (shopPhone) { page.drawText(fit(`โทร: ${shopPhone}`, font, 8, maxLeftW), { x: LX, y: ly, size: 8, font, color: mid }); ly -= lh }
-    if (shopEmail) { page.drawText(fit(`อีเมล: ${shopEmail}`, font, 8, maxLeftW), { x: LX, y: ly, size: 8, font, color: mid }); ly -= lh }
-
-    // -- RIGHT: Customer info --
-    let ry = infoY
-    page.drawText(normalizeThai('ข้อมูลลูกค้า / งาน'), { x: RX, y: ry, size: 9, font: bold, color: green })
-    ry -= lh + 3
-    if (customerName) { page.drawText(fit(customerName, font, 8.5, maxRightW), { x: RX, y: ry, size: 8.5, font, color: dark }); ry -= lh }
-    if (customerAddress) {
-      const custAddrLines = wrapLines(customerAddress, font, 8, maxRightW, 3)
-      for (const line of custAddrLines) {
-        page.drawText(line, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lh
-      }
-    }
-    if (customerPhone) { page.drawText(fit(`โทร: ${customerPhone}`, font, 8, maxRightW), { x: RX, y: ry, size: 8, font, color: mid }); ry -= lh }
-    if (customerEmail) { page.drawText(fit(`อีเมล: ${customerEmail}`, font, 8, maxRightW), { x: RX, y: ry, size: 8, font, color: mid }); ry -= lh }
-    if (eventLocation) {
-      const locLines = wrapLines(`สถานที่จัดงาน: ${eventLocation}`, font, 8, maxRightW, 2)
-      for (const line of locLines) {
-        page.drawText(line, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lh
-      }
-    }
-    if (eventDate) {
-      const d = new Date(eventDate + 'T12:00:00Z').toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'long' })
-      page.drawText(fit(`วันที่จัดงาน: ${d}`, font, 8, maxRightW), { x: RX, y: ry, size: 8, font, color: mid }); ry -= lh
-    }
-    if (guestCount) { page.drawText(`จำนวนคน: ${guestCount} คน`, { x: RX, y: ry, size: 8, font, color: mid }); ry -= lh }
-
-    y = Math.min(ly, ry) - 16
-
-    // ════════════════════ ITEMS TABLE ════════════════════
-    const rowH = 18
-    const colNo  = M
-    const colName = M + 25
-    const colDetail = M + 175
-    const colQty = M + 300
-    const colPrice = M + 370
-    // const colTotal = M + 440
-
-    // Header
-    page.drawRectangle({ x: M, y: y - 3, width: contentW, height: rowH + 2, color: green })
-    const hy = y + 1
-    page.drawText('#',         { x: colNo + 6,  y: hy, size: 8, font: bold, color: white })
-    page.drawText(normalizeThai('รายการ'),    { x: colName + 3, y: hy, size: 8, font: bold, color: white })
-    page.drawText(normalizeThai('รายละเอียด'), { x: colDetail + 3, y: hy, size: 8, font: bold, color: white })
-    page.drawText(normalizeThai('จำนวน'),     { x: colQty + 3,  y: hy, size: 8, font: bold, color: white })
-    page.drawText(normalizeThai('ราคา/หน่วย'), { x: colPrice + 3, y: hy, size: 8, font: bold, color: white })
-    const totalHdr = normalizeThai('รวม (บาท)')
-    page.drawText(totalHdr, { x: RightEdge - bold.widthOfTextAtSize(totalHdr, 8) - 4, y: hy, size: 8, font: bold, color: white })
-    y -= rowH + 3
-
-    for (let i = 0; i < (items ?? []).length; i++) {
-      const item = items[i]
-      const lineTotal = (item.quantity ?? 0) * (item.unitPrice ?? 0)
-
-      if (i % 2 === 0) page.drawRectangle({ x: M, y: y - 3, width: contentW, height: rowH, color: stripeBg })
-
-      const rY = y + 2
-      page.drawText(String(i + 1), { x: colNo + 8, y: rY, size: 8, font, color: dark })
-      page.drawText(fit(String(item.name ?? ''), font, 8, 145), { x: colName + 3, y: rY, size: 8, font, color: dark })
-      page.drawText(fit(String(item.detail ?? ''), font, 7.5, 120), { x: colDetail + 3, y: rY, size: 7.5, font, color: mid })
-      page.drawText(String(item.quantityLabel || item.quantity || ''), { x: colQty + 3, y: rY, size: 8, font, color: dark })
-      page.drawText(fmtBaht(item.unitPrice ?? 0), { x: colPrice + 3, y: rY, size: 8, font, color: dark })
-
-      const tStr = fmtBaht(lineTotal)
-      page.drawText(tStr, { x: RightEdge - font.widthOfTextAtSize(tStr, 8) - 4, y: rY, size: 8, font, color: dark })
-
-      y -= rowH
-      page.drawLine({ start: { x: M, y: y + 15 }, end: { x: RightEdge, y: y + 15 }, thickness: 0.3, color: lineCl })
-    }
-    y -= 10
-
-    // ════════════════════ MENU CATEGORIES ════════════════════
-    const hasMenu = menuCategories?.length > 0 && menuCategories.some((c: { category: string; items: string }) => c.category || c.items)
-    if (hasMenu) {
-      page.drawText(normalizeThai('รายการเมนูอาหาร'), { x: M, y, size: 10, font: bold, color: green })
-      y -= 16
-
-      page.drawRectangle({ x: M, y: y - 3, width: contentW, height: rowH, color: boxBg })
-      page.drawText(normalizeThai('หมวด'), { x: M + 6, y: y + 2, size: 8, font: bold, color: green })
-      page.drawText(normalizeThai('รายการเมนู'), { x: M + 130, y: y + 2, size: 8, font: bold, color: green })
-      y -= rowH
-
-      for (const cat of menuCategories) {
-        if (!cat.category && !cat.items) continue
-        page.drawText(fit(String(cat.category ?? ''), font, 8, 118), { x: M + 6, y: y + 2, size: 8, font, color: dark })
-        const menuLines = wrapLines(String(cat.items ?? ''), font, 8, contentW - 136, 2)
-        for (let mi = 0; mi < menuLines.length; mi++) {
-          page.drawText(menuLines[mi], { x: M + 130, y: y + 2 - (mi * 13), size: 8, font, color: mid })
-        }
-        y -= 15 + ((menuLines.length - 1) * 13)
-        page.drawLine({ start: { x: M, y: y + 11 }, end: { x: RightEdge, y: y + 11 }, thickness: 0.3, color: lineCl })
-      }
-      y -= 10
+    const quotationData: QuotationData = {
+      shopName, quoterName, shopAddress, shopPhone, shopEmail,
+      customerName, customerAddress, customerPhone, customerEmail,
+      eventLocation, eventDate, guestCount,
+      items: items || [],
+      menuCategories: menuCategories || [],
+      vatPercent: vatRate,
+      depositPercent,
+      minGuests,
+      paymentNotes,
+      quotationNumber,
+      subtotal,
+      vat,
+      grandTotal,
     }
 
-    // ════════════════════ SUMMARY BOX ════════════════════
-    const boxW = 210
-    const boxX = RightEdge - boxW
-    const numRows = 2 + (vatRate > 0 ? 1 : 0)
-    const boxH = numRows * 20 + 14
-    page.drawRectangle({ x: boxX - 8, y: y - boxH + 12, width: boxW + 10, height: boxH, color: boxBg, borderColor: lineCl, borderWidth: 0.5 })
+    const pdfBuffer = await renderToBuffer(
+      React.createElement(QuotationDocument, { data: quotationData })
+    )
 
-    page.drawText(normalizeThai('ราคารวม'), { x: boxX, y, size: 9, font, color: mid })
-    const stStr = normalizeThai(`${fmtBaht(subtotal)} บาท`)
-    page.drawText(stStr, { x: boxX + boxW - font.widthOfTextAtSize(stStr, 9) - 6, y, size: 9, font, color: dark })
-    y -= 20
-
-    if (vatRate > 0) {
-      page.drawText(`VAT ${vatRate}%`, { x: boxX, y, size: 9, font, color: mid })
-      const vs = normalizeThai(`${fmtBaht(vat)} บาท`)
-      page.drawText(vs, { x: boxX + boxW - font.widthOfTextAtSize(vs, 9) - 6, y, size: 9, font, color: dark })
-      y -= 20
-    }
-
-    page.drawLine({ start: { x: boxX, y: y + 16 }, end: { x: boxX + boxW - 6, y: y + 16 }, thickness: 1.2, color: green })
-    page.drawText(normalizeThai('ยอดรวมสุทธิ'), { x: boxX, y, size: 11, font: bold, color: green })
-    const gs = normalizeThai(`${fmtBaht(grandTotal)} บาท`)
-    page.drawText(gs, { x: boxX + boxW - bold.widthOfTextAtSize(gs, 11) - 6, y, size: 11, font: bold, color: green })
-    y -= 30
-
-    // ════════════════════ PAYMENT TERMS ════════════════════
-    page.drawText(normalizeThai('เงื่อนไขการชำระเงิน'), { x: M, y, size: 10, font: bold, color: green })
-    y -= 15
-    const bullets: string[] = []
-    if (depositPercent) {
-      const depRate = Number(depositPercent) || 0
-      const depAmount = Math.round(grandTotal * (depRate / 100) * 100) / 100
-      const remaining = Math.round((grandTotal - depAmount) * 100) / 100
-      bullets.push(normalizeThai(`มัดจำ ${depositPercent}% : ${fmtBaht(depAmount)} บาท ก่อนวันงาน`))
-      bullets.push(normalizeThai(`ชำระเงินส่วนที่เหลือ ${fmtBaht(remaining)} บาท ในวันจัดงาน`))
-    } else {
-      bullets.push(normalizeThai('ชำระเงินในวันจัดงาน'))
-    }
-    if (minGuests) bullets.push(normalizeThai(`ราคานี้สำหรับขั้นต่ำ ${minGuests} คน`))
-    if (paymentNotes) bullets.push(normalizeThai(paymentNotes))
-
-    for (const b of bullets) {
-      page.drawText(`- ${b}`, { x: M + 4, y, size: 8, font, color: mid })
-      y -= 14
-    }
-    y -= 22
-
-    // ════════════════════ SIGNATURES ════════════════════
-    const sigW = 160
-    const sLX = M + 35
-    const sRX = W - M - sigW - 35
-    page.drawLine({ start: { x: sLX, y }, end: { x: sLX + sigW, y }, thickness: 0.8, color: lineCl })
-    page.drawLine({ start: { x: sRX, y }, end: { x: sRX + sigW, y }, thickness: 0.8, color: lineCl })
-    y -= 13
-    const l1 = normalizeThai('ผู้เสนอราคา (ร้านอาหาร)')
-    const l2 = normalizeThai('ผู้อนุมัติ (ลูกค้า)')
-    page.drawText(l1, { x: sLX + (sigW - font.widthOfTextAtSize(l1, 8)) / 2, y, size: 8, font, color: light })
-    page.drawText(l2, { x: sRX + (sigW - font.widthOfTextAtSize(l2, 8)) / 2, y, size: 8, font, color: light })
-
-    // ─── Footer ───
-    page.drawLine({ start: { x: M, y: 40 }, end: { x: RightEdge, y: 40 }, thickness: 0.5, color: lineCl })
-    const fTxt = normalizeThai('Madre Cafe & Restaurant  |  ร้านอาหาร ตำราแม่')
-    page.drawText(fTxt, { x: (W - font.widthOfTextAtSize(fTxt, 7)) / 2, y: 28, size: 7, font, color: light })
-
-    const pdfBytes = await pdfDoc.save()
     return NextResponse.json({
-      pdf: Buffer.from(pdfBytes).toString('base64'),
+      pdf: pdfBuffer.toString('base64'),
       quotationNumber,
       quotation: { subtotal, vat, grandTotal },
     })
