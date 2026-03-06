@@ -272,7 +272,7 @@ function generateHTML(data: {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 80px;
-      margin-top: 25px;
+      margin-top: 40px;
       padding: 0 30px;
     }
     .sig-box {
