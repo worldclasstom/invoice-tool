@@ -143,7 +143,7 @@ export function AnalyticsClient() {
         ) : (
           <>
             {/* KPI Cards */}
-            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
               <KPICard
                 icon={<DollarSign className="h-4 w-4" />}
                 iconBg="bg-emerald-50 text-emerald-700"
@@ -151,6 +151,13 @@ export function AnalyticsClient() {
                 value={formatBaht(summary?.totalRevenue ?? 0)}
                 trend={(summary?.totalRevenue ?? 0) > (summary?.totalExpenses ?? 0) ? 'up' : 'down'}
                 subtitle={`${summary?.daysReported ?? 0} day${(summary?.daysReported ?? 0) === 1 ? '' : 's'} reported`}
+              />
+              <KPICard
+                icon={<TrendingUp className="h-4 w-4" />}
+                iconBg="bg-blue-50 text-blue-600"
+                label="Avg Daily Sales"
+                value={formatBaht(summary?.avgDailySales ?? 0)}
+                subtitle="per day"
               />
               <KPICard
                 icon={<Wallet className="h-4 w-4" />}
