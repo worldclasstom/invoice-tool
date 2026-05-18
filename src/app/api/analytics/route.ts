@@ -263,7 +263,7 @@ export async function GET(request: NextRequest) {
   // ──────────── Top Vendors ────────────
   const vendorInfo: Record<string, { total: number; category: string }> = {}
   for (const r of receipts ?? []) {
-    const v = r.vendor || 'Unknown'
+    const v = (r.vendor || 'Unknown').trim()
     if (!vendorInfo[v]) vendorInfo[v] = { total: 0, category: r.category || 'other' }
     vendorInfo[v].total += Number(r.total) || 0
   }
