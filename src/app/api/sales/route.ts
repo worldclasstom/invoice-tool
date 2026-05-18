@@ -30,6 +30,61 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const date = request.nextUrl.searchParams.get('date')
+    if (!date) return NextResponse.json({ error: 'date parameter required' }, { status: 400 })
+
+    // First get the sale to find its ID for ledger cleanup
+    const { data: sale } = await supabase
+      .from('daily_sales')
+      .select('id')
+      .eq('report_date', date)
+      .maybeSingle()
+
+    if (!sale) {
+      return NextResponse.json({ error: 'No sales record found for this date' }, { status: 404 })
+    }
+
+    // Delete associated ledger entries
+    await supabase
+      .from('ledger_entries')
+      .delete()
+      .eq('reference_type', 'daily_sales')
+      .eq('reference_id', sale.id)
+
+    // Delete the sales record
+    const { error } = await supabase
+      .from('daily_sales')
+      .delete()
+      .eq('report_date', date)
+
+    if (error) throw error
+
+    await logActivity({
+      supabase,
+      userId: user.id,
+      userEmail: user.email || '',
+      action: 'deleted',
+      entityType: 'sales_report',
+      entityId: sale.id,
+      details: { date },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error: unknown) {
+    console.error('Error deleting sales report:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to delete sales report' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
