@@ -216,9 +216,11 @@ export async function GET(request: NextRequest) {
   // Monthly sales aggregation for quarterly overview
   const monthlySales = months.map((m) => {
     let total = 0
+    let daysInPeriod = 0
     for (const s of sales ?? []) {
       if (s.report_date.startsWith(m)) {
         total += Number(s.total_amount) || 0
+        daysInPeriod += 1
       }
     }
     let totalExpenses = 0
@@ -239,6 +241,9 @@ export async function GET(request: NextRequest) {
       expenses: totalExpenses,
       fixedCosts: fixedCostByMonth[m] || 0,
       profit: total - totalExpenses - (fixedCostByMonth[m] || 0),
+      avgDailySales: daysInPeriod > 0 ? Math.round(total / daysInPeriod) : 0,
+      daysReported: daysInPeriod,
+      totalExpensesWithFixed: totalExpenses + (fixedCostByMonth[m] || 0),
     }
   })
 
@@ -258,7 +263,7 @@ export async function GET(request: NextRequest) {
   // ──────────── Top Vendors ────────────
   const vendorInfo: Record<string, { total: number; category: string }> = {}
   for (const r of receipts ?? []) {
-    const v = r.vendor || 'Unknown'
+    const v = (r.vendor || 'Unknown').trim()
     if (!vendorInfo[v]) vendorInfo[v] = { total: 0, category: r.category || 'other' }
     vendorInfo[v].total += Number(r.total) || 0
   }

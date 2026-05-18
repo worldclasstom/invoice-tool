@@ -300,9 +300,9 @@ export function DashboardClient() {
   const hasExpenses = expenseData.length > 0
 
   const VIEW_MODES: { value: ViewMode; label: string }[] = [
-    { value: 'daily', label: 'Daily' },
-    { value: 'weekly', label: 'Weekly' },
     { value: 'monthly', label: 'Monthly' },
+    { value: 'weekly', label: 'Weekly' },
+    { value: 'daily', label: 'Daily' },
     { value: 'custom', label: 'Custom' },
   ]
 
