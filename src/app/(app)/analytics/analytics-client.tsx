@@ -977,6 +977,88 @@ export function AnalyticsClient() {
                   <div className="h-px flex-1 bg-border" />
                 </div>
 
+                {/* Yearly: Average Daily Sales by Month */}
+                <ChartCard title="Average Daily Sales by Month" subtitle="Average daily income for each month across the year">
+                  {monthlySales.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={monthlySales}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis dataKey="monthLabel" tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
+                        <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={55} />
+                        <Tooltip content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null
+                          const d = payload[0]?.payload
+                          return (
+                            <div className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-xl shadow-black/5">
+                              <p className="mb-2 text-xs font-bold text-foreground">{label}</p>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.sales }} />
+                                  <span className="text-muted-foreground">Avg Daily Sales:</span>
+                                  <span className="font-bold text-foreground">{formatBaht(d?.avgDailySales ?? 0)}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-muted-foreground">Days Reported:</span>
+                                  <span className="font-bold text-foreground">{d?.daysReported ?? 0} days</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-muted-foreground">Total Sales:</span>
+                                  <span className="font-bold text-foreground">{formatBaht(d?.sales ?? 0)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        }} />
+                        <Bar dataKey="avgDailySales" name="Avg Daily Sales" fill={COLORS.sales} radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : <EmptyChart />}
+                </ChartCard>
+
+                {/* Yearly: Total Income vs Total Expenses by Month */}
+                <ChartCard title="Monthly Income vs Expenses" subtitle="Total income and expenses comparison for each month">
+                  {monthlySales.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={360}>
+                      <BarChart data={monthlySales}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis dataKey="monthLabel" tick={{ fontSize: 11 }} stroke={AXIS_STROKE} />
+                        <YAxis tickFormatter={formatShortBaht} tick={{ fontSize: 11 }} stroke={AXIS_STROKE} width={55} />
+                        <Tooltip content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null
+                          const d = payload[0]?.payload
+                          const totalExp = (d?.expenses ?? 0) + (d?.fixedCosts ?? 0)
+                          return (
+                            <div className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-xl shadow-black/5">
+                              <p className="mb-2 text-xs font-bold text-foreground">{label}</p>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.sales }} />
+                                  <span className="text-muted-foreground">Income:</span>
+                                  <span className="font-bold text-foreground">{formatBaht(d?.sales ?? 0)}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS.expenses }} />
+                                  <span className="text-muted-foreground">Total Expenses:</span>
+                                  <span className="font-bold text-foreground">{formatBaht(totalExp)}</span>
+                                </div>
+                                <div className="mt-1 border-t border-border/40 pt-1 flex items-center gap-2 text-xs">
+                                  <span className="text-muted-foreground">Net Profit:</span>
+                                  <span className={`font-bold ${(d?.profit ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                    {formatBaht(d?.profit ?? 0)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        }} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                        <Bar dataKey="sales" name="Income" fill={COLORS.sales} radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="totalExpensesWithFixed" name="Total Expenses" fill={COLORS.expenses} radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : <EmptyChart />}
+                </ChartCard>
+
                 {/* Yearly: Payment Methods by Month - Stacked Bar */}
                 <ChartCard title="Payment Methods by Month" subtitle="Monthly revenue split by payment type across the year">
                   {monthlySales.length > 0 ? (
